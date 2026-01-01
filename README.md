@@ -2,7 +2,7 @@
 
 ![koi-orig-flat](https://github.com/johnnovak/koi/assets/698770/76e55eb0-c01c-4f9d-9ed0-a325058a21b0)
 
-**koi** is a small (~5 KLOC) immediate mode UI library that uses OpenGL for rendering via NanoVG. It was mainly invented for the dungeon mapping tool [Gridmonger](https://gridmonger.johnnovak.net/) (see screenshot below), and then it evolved into a minimalist but feature-rich general-purpose UI library.
+**koi** is a small (~8 KLOC, with comments) immediate mode UI library that uses OpenGL for rendering via NanoVG. It was mainly invented for the dungeon mapping tool [Gridmonger](https://gridmonger.johnnovak.net/) (see screenshot below), and then it evolved into a minimalist but feature-rich general-purpose UI library.
 
 GLFW is currently a hard requirement, but it should be easy to adapt it to other frameworks or backends.
 
@@ -50,4 +50,5 @@ Copyright © 2019-2025 John Novak <<john@johnnovak.net>>
 This work is free. You can redistribute it and/or modify it under the terms of
 the [Do What The Fuck You Want To Public License, Version 2](http://www.wtfpl.net/), as published
 by Sam Hocevar. See the [COPYING](./COPYING) file for more details.
+
 
