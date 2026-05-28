@@ -127,6 +127,7 @@ type
     u, v: float32
     r, g, b, a: float32
     mode: float32
+    aaMult: float32
 
   DrawCall = object
     first: uint32
@@ -225,7 +226,11 @@ proc textureId(paint: ptr nvg.Paint): int =
     int(paint.image)
 
 proc appendVertex(
-    b: var KoiWgpuBackend, v: NvgVertex, color: array[4, float32], mode: float32
+    b: var KoiWgpuBackend,
+    v: NvgVertex,
+    color: array[4, float32],
+    mode: float32,
+    aaMult: float32,
 ) =
   if b.width <= 0'f32 or b.height <= 0'f32:
     return
@@ -240,6 +245,7 @@ proc appendVertex(
     b: color[2],
     a: color[3],
     mode: mode,
+    aaMult: aaMult,
   )
 
 proc appendTriangleList(
@@ -255,14 +261,18 @@ proc appendTriangleList(
     src = cast[ptr UncheckedArray[NvgVertex]](verts)
 
   for i in 0 ..< count:
-    b.appendVertex(src[i], color, mode)
+    b.appendVertex(src[i], color, mode, 0'f32)
 
   b.drawCalls.add DrawCall(
     first: first, count: count.uint32, textureId: textureId(paint)
   )
 
 proc appendFan(
-    b: var KoiWgpuBackend, verts: ptr NvgVertex, count: int, paint: ptr nvg.Paint
+    b: var KoiWgpuBackend,
+    verts: ptr NvgVertex,
+    count: int,
+    paint: ptr nvg.Paint,
+    aaMult: float32,
 ) =
   if verts.isNil or count < 3:
     return
@@ -274,16 +284,20 @@ proc appendFan(
     src = cast[ptr UncheckedArray[NvgVertex]](verts)
 
   for i in 1 ..< count - 1:
-    b.appendVertex(src[0], color, mode)
-    b.appendVertex(src[i], color, mode)
-    b.appendVertex(src[i + 1], color, mode)
+    b.appendVertex(src[0], color, mode, aaMult)
+    b.appendVertex(src[i], color, mode, aaMult)
+    b.appendVertex(src[i + 1], color, mode, aaMult)
 
   let added = b.vertices.len.uint32 - first
   if added > 0:
     b.drawCalls.add DrawCall(first: first, count: added, textureId: textureId(paint))
 
 proc appendStrip(
-    b: var KoiWgpuBackend, verts: ptr NvgVertex, count: int, paint: ptr nvg.Paint
+    b: var KoiWgpuBackend,
+    verts: ptr NvgVertex,
+    count: int,
+    paint: ptr nvg.Paint,
+    aaMult: float32,
 ) =
   if verts.isNil or count < 3:
     return
@@ -296,13 +310,13 @@ proc appendStrip(
 
   for i in 0 ..< count - 2:
     if (i and 1) == 0:
-      b.appendVertex(src[i], color, mode)
-      b.appendVertex(src[i + 1], color, mode)
-      b.appendVertex(src[i + 2], color, mode)
+      b.appendVertex(src[i], color, mode, aaMult)
+      b.appendVertex(src[i + 1], color, mode, aaMult)
+      b.appendVertex(src[i + 2], color, mode, aaMult)
     else:
-      b.appendVertex(src[i + 1], color, mode)
-      b.appendVertex(src[i], color, mode)
-      b.appendVertex(src[i + 2], color, mode)
+      b.appendVertex(src[i + 1], color, mode, aaMult)
+      b.appendVertex(src[i], color, mode, aaMult)
+      b.appendVertex(src[i + 2], color, mode, aaMult)
 
   let added = b.vertices.len.uint32 - first
   if added > 0:
@@ -496,8 +510,10 @@ proc renderFill(
 ) {.cdecl.} =
   let b = backend(userPtr)
   let pathArray = cast[ptr UncheckedArray[NvgPath]](paths)
+  let aaMult = if fringe > 0: 1'f32 else: 0'f32
   for i in 0 ..< npaths.int:
-    b[].appendFan(pathArray[i].fill, pathArray[i].nfill.int, paint)
+    b[].appendFan(pathArray[i].fill, pathArray[i].nfill.int, paint, aaMult)
+    b[].appendStrip(pathArray[i].stroke, pathArray[i].nstroke.int, paint, aaMult)
 
 proc renderStroke(
     userPtr: pointer,
@@ -510,8 +526,13 @@ proc renderStroke(
 ) {.cdecl.} =
   let b = backend(userPtr)
   let pathArray = cast[ptr UncheckedArray[NvgPath]](paths)
+  let aaMult =
+    if fringe > 0:
+      ((strokeWidth * 0.5 + fringe * 0.5) / fringe).float32
+    else:
+      0'f32
   for i in 0 ..< npaths.int:
-    b[].appendStrip(pathArray[i].stroke, pathArray[i].nstroke.int, paint)
+    b[].appendStrip(pathArray[i].stroke, pathArray[i].nstroke.int, paint, aaMult)
 
 proc renderTriangles(
     userPtr: pointer,
@@ -627,6 +648,7 @@ struct VertexIn {
   @location(1) uv: vec2<f32>,
   @location(2) color: vec4<f32>,
   @location(3) mode: f32,
+  @location(4) aaMult: f32,
 };
 
 struct VertexOut {
@@ -634,6 +656,7 @@ struct VertexOut {
   @location(0) uv: vec2<f32>,
   @location(1) color: vec4<f32>,
   @location(2) mode: f32,
+  @location(3) aaMult: f32,
 };
 
 @group(0) @binding(0) var image: texture_2d<f32>;
@@ -646,22 +669,35 @@ fn vs_main(input: VertexIn) -> VertexOut {
   out.uv = input.uv;
   out.color = input.color;
   out.mode = input.mode;
+  out.aaMult = input.aaMult;
   return out;
+}
+
+fn edge_alpha(uv: vec2<f32>, aaMult: f32) -> f32 {
+  if aaMult <= 0.0 {
+    return 1.0;
+  }
+
+  let x = min(1.0, (1.0 - abs(uv.x * 2.0 - 1.0)) * aaMult);
+  let y = min(1.0, uv.y);
+  return x * y;
 }
 
 @fragment
 fn fs_main(input: VertexOut) -> @location(0) vec4<f32> {
+  let edgeAlpha = edge_alpha(input.uv, input.aaMult);
   if input.mode < 0.5 {
-    return vec4<f32>(input.color.rgb * input.color.a, input.color.a);
+    let alpha = input.color.a * edgeAlpha;
+    return vec4<f32>(input.color.rgb * alpha, alpha);
   }
 
   let sample = textureSample(image, imageSampler, input.uv);
   if input.mode < 1.5 {
-    let alpha = input.color.a * sample.a;
+    let alpha = input.color.a * sample.a * edgeAlpha;
     return vec4<f32>(input.color.rgb * sample.rgb * alpha, alpha);
   }
 
-  let alpha = input.color.a * sample.r;
+  let alpha = input.color.a * sample.r * edgeAlpha;
   return vec4<f32>(input.color.rgb * alpha, alpha);
 }
 """
@@ -819,6 +855,7 @@ proc createPipeline(b: var KoiWgpuBackend) =
     VertexAttribute(format: VertexFormat.Float32x2, offset: 8, shaderLocation: 1),
     VertexAttribute(format: VertexFormat.Float32x4, offset: 16, shaderLocation: 2),
     VertexAttribute(format: VertexFormat.Float32, offset: 32, shaderLocation: 3),
+    VertexAttribute(format: VertexFormat.Float32, offset: 36, shaderLocation: 4),
   ]
   var vertexLayout = VertexBufferLayout(
     arrayStride: sizeof(GpuVertex).uint64,
