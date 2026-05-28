@@ -11,14 +11,15 @@ import koi/defaults
 import koi/widgets/common
 import koi/utils
 
-proc sectionHeader(id:           ItemId,
-                   x, y, w:      float,
-                   label:        string,
-                   expanded_out: var bool,
-                   subHeader:    bool,
-                   tooltip:      string,
-                   style:        SectionHeaderStyle): bool =
-
+proc sectionHeader(
+    id: ItemId,
+    x, y, w: float,
+    label: string,
+    expanded_out: var bool,
+    subHeader: bool,
+    tooltip: string,
+    style: SectionHeaderStyle,
+): bool =
   alias(ui, g_uiState)
   alias(ss, ui.sectionHeaderState)
   alias(s, style)
@@ -75,8 +76,9 @@ proc sectionHeader(id:           ItemId,
     vg.fill()
     vg.restore()
 
-    vg.drawLabel(rx + s.labelLeftPad, ry, rw - s.labelLeftPad, rh, label,
-                 style=s.label)
+    vg.drawLabel(
+      rx + s.labelLeftPad, ry, rw - s.labelLeftPad, rh, label, style = s.label
+    )
 
   if isHot(id):
     handleTooltip(id, tooltip)
@@ -84,43 +86,51 @@ proc sectionHeader(id:           ItemId,
   result = expanded_out
 
 template sectionHeader*(
-  label:    string,
-  expanded: var bool,
-  tooltip:  string = "",
-  style:    SectionHeaderStyle = getDefaultSectionHeaderStyle()
+    label: string,
+    expanded: var bool,
+    tooltip: string = "",
+    style: SectionHeaderStyle = getDefaultSectionHeaderStyle(),
 ): bool =
-  let i = instantiationInfo(fullPaths=true)
+  let i = instantiationInfo(fullPaths = true)
   let id = getNextId(i.filename, i.line, label)
 
   nextRowHeight(style.height)
-  autoLayoutPre(section=true)
+  autoLayoutPre(section = true)
   let result = sectionHeader(
-    id, 0,
+    id,
+    0,
     g_uiState.autoLayoutState.y,
     g_uiState.autoLayoutState.rowWidth,
-    label, expanded, subHeader=false,
-    tooltip, style
+    label,
+    expanded,
+    subHeader = false,
+    tooltip,
+    style,
   )
-  autoLayoutPost(section=true)
+  autoLayoutPost(section = true)
   result
 
 template subSectionHeader*(
-  label:    string,
-  expanded: var bool,
-  tooltip:  string = "",
-  style:    SectionHeaderStyle = getDefaultSubSectionHeaderStyle()
+    label: string,
+    expanded: var bool,
+    tooltip: string = "",
+    style: SectionHeaderStyle = getDefaultSubSectionHeaderStyle(),
 ): bool =
-  let i = instantiationInfo(fullPaths=true)
+  let i = instantiationInfo(fullPaths = true)
   let id = getNextId(i.filename, i.line, label)
 
   nextRowHeight(style.height)
-  autoLayoutPre(section=true)
+  autoLayoutPre(section = true)
   let result = sectionHeader(
-    id, 0,
+    id,
+    0,
     g_uiState.autoLayoutState.y,
     g_uiState.autoLayoutState.rowWidth,
-    label, expanded, subHeader=true,
-    tooltip, style
+    label,
+    expanded,
+    subHeader = true,
+    tooltip,
+    style,
   )
-  autoLayoutPost(section=true)
+  autoLayoutPost(section = true)
   result

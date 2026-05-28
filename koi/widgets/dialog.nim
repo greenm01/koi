@@ -12,9 +12,13 @@ import koi/defaults
 import koi/widgets/common
 import koi/utils
 
-# {{{ dialog()
-proc beginDialog*(id: ItemId, x, y, w, h: float, title: string,
-                 style: DialogStyle = getDefaultDialogStyle()): bool =
+# dialog()
+proc beginDialog*(
+    id: ItemId,
+    x, y, w, h: float,
+    title: string,
+    style: DialogStyle = getDefaultDialogStyle(),
+): bool =
   alias(ui, g_uiState)
   alias(s, style)
 
@@ -24,10 +28,13 @@ proc beginDialog*(id: ItemId, x, y, w, h: float, title: string,
   pushDrawOffset(DrawOffset(ox: x, oy: y))
   result = true
 
-proc beginDialog*(w, h: float, title: string,
-                  x: Option[float] = float.none,
-                  y: Option[float] = float.none,
-                  style: DialogStyle = getDefaultDialogStyle()) =
+proc beginDialog*(
+    w, h: float,
+    title: string,
+    x: Option[float] = float.none,
+    y: Option[float] = float.none,
+    style: DialogStyle = getDefaultDialogStyle(),
+) =
   alias(ui, g_uiState)
   alias(ds, ui.dialogState)
 
@@ -35,8 +42,16 @@ proc beginDialog*(w, h: float, title: string,
   ui.focusCaptured = ds.widgetInsidePopupCapturedFocus
 
   let
-    x = if x.isSome: x.get else: floor((ui.winWidth - w) * 0.5)
-    y = if y.isSome: y.get else: floor((ui.winHeight - h) * 0.5)
+    x =
+      if x.isSome:
+        x.get
+      else:
+        floor((ui.winWidth - w) * 0.5)
+    y =
+      if y.isSome:
+        y.get
+      else:
+        floor((ui.winHeight - h) * 0.5)
 
   ui.currentLayer = layerDialog
 
@@ -65,11 +80,10 @@ proc closeDialog*() =
   ui.dialogOpen = false
 
 template dialog*(x, y, w, h: float, title: string, body: untyped) =
-  let i = instantiationInfo(fullPaths=true)
+  let i = instantiationInfo(fullPaths = true)
   let id = getNextId(i.filename, i.line)
   if beginDialog(id, x, y, w, h, title):
     try:
       body
     finally:
       endDialog()
-# }}}

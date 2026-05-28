@@ -46,31 +46,39 @@ proc colorPicker*(id: ItemId, x, y, w, h: float, color: var Color) =
   color(id, x, y, w, h, color)
 
 template color*(x, y, w, h: float, color: var Color) =
-  let i = instantiationInfo(fullPaths=true)
+  let i = instantiationInfo(fullPaths = true)
   let id = getNextId(i.filename, i.line)
   color(id, x, y, w, h, color)
 
 template color*(col: var Color) =
-  let i = instantiationInfo(fullPaths=true)
+  let i = instantiationInfo(fullPaths = true)
   let id = getNextId(i.filename, i.line)
   autoLayoutPre()
-  color(id,
-        g_uiState.autoLayoutState.x, autoLayoutNextY(),
-        autoLayoutNextItemWidth(), autoLayoutNextItemHeight(),
-        col)
+  color(
+    id,
+    g_uiState.autoLayoutState.x,
+    autoLayoutNextY(),
+    autoLayoutNextItemWidth(),
+    autoLayoutNextItemHeight(),
+    col,
+  )
   autoLayoutPost()
 
 template colorPicker*(x, y, w, h: float, color: var Color) =
-  let i = instantiationInfo(fullPaths=true)
+  let i = instantiationInfo(fullPaths = true)
   let id = getNextId(i.filename, i.line)
   colorPicker(id, x, y, w, h, color)
 
 template colorPicker*(color: var Color) =
-  let i = instantiationInfo(fullPaths=true)
+  let i = instantiationInfo(fullPaths = true)
   let id = getNextId(i.filename, i.line)
   autoLayoutPre()
-  colorPicker(id,
-              g_uiState.autoLayoutState.x, autoLayoutNextY(),
-              autoLayoutNextItemWidth(), autoLayoutNextItemHeight(),
-              color)
+  colorPicker(
+    id,
+    g_uiState.autoLayoutState.x,
+    autoLayoutNextY(),
+    autoLayoutNextItemWidth(),
+    autoLayoutNextItemHeight(),
+    color,
+  )
   autoLayoutPost()

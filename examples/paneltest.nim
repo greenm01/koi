@@ -9,166 +9,164 @@ import koi
 
 type
   LineWidth = enum
-    lwThin   = (0, "Thin"),
+    lwThin = (0, "Thin")
     lwNormal = (1, "Normal")
 
   GridStyle = enum
-    gsNone   = (0, "None"),
-    gsSolid  = (1, "Solid"),
-    gsLoose  = (2, "Loose"),
-    gsCross  = (3, "Cross")
+    gsNone = (0, "None")
+    gsSolid = (1, "Solid")
+    gsLoose = (2, "Loose")
+    gsCross = (3, "Cross")
 
   OutlineStyle = enum
-    osNone                = (0, "None"),
-    osCell                = (1, "Cell"),
-    osSquareEdges         = (2, "Square Edges"),
-    osRoundedEdges        = (3, "Rounded Edges"),
-    osRoundedEdgesFilled  = (4, "Filled Rounded Edges")
+    osNone = (0, "None")
+    osCell = (1, "Cell")
+    osSquareEdges = (2, "Square Edges")
+    osRoundedEdges = (3, "Rounded Edges")
+    osRoundedEdgesFilled = (4, "Filled Rounded Edges")
 
   OutlineFillStyle = enum
-    ofsSolid    = (0, "Solid")
-    ofsHatched  = (1, "Hatched")
+    ofsSolid = (0, "Solid")
+    ofsHatched = (1, "Hatched")
 
   Theme = object
-    general:                GeneralStyle
-    widget:                 WidgetStyle
-    textField:              TextFieldStyle
-    dialog:                 DialogStyle
-    window:                 WindowStyle
-    statusBar:              StatusBarStyle
-    levelDropDown:          LevelDropDownStyle
-    aboutButton:            AboutButtonStyle
-    level:                  LevelStyle
-    notesPane:              NotesPaneStyle
-    toolbarPane:            ToolbarPaneStyle
+    general: GeneralStyle
+    widget: WidgetStyle
+    textField: TextFieldStyle
+    dialog: DialogStyle
+    window: WindowStyle
+    statusBar: StatusBarStyle
+    levelDropDown: LevelDropDownStyle
+    aboutButton: AboutButtonStyle
+    level: LevelStyle
+    notesPane: NotesPaneStyle
+    toolbarPane: ToolbarPaneStyle
 
   GeneralStyle = object
-    backgroundColor:        Color
-    highlightColor:         Color
+    backgroundColor: Color
+    highlightColor: Color
 
   WidgetStyle = object
-    bgColor:                Color
-    bgColorHover:           Color
-    bgColorDisabled:        Color
-    textColor:              Color
-    textColorDisabled:      Color
+    bgColor: Color
+    bgColorHover: Color
+    bgColorDisabled: Color
+    textColor: Color
+    textColorDisabled: Color
 
   TextFieldStyle = object
-    bgColorActive:          Color
-    textColorActive:        Color
-    cursorColor:            Color
-    selectionColor:         Color
+    bgColorActive: Color
+    textColorActive: Color
+    cursorColor: Color
+    selectionColor: Color
 
   DialogStyle = object
-    titleBarBgColor:        Color
-    titleBarTextColor:      Color
-    backgroundColor:        Color
-    textColor:              Color
-    warningTextColor:       Color
+    titleBarBgColor: Color
+    titleBarTextColor: Color
+    backgroundColor: Color
+    textColor: Color
+    warningTextColor: Color
 
   WindowStyle = object
-    backgroundColor:        Color
-    bgColorUnfocused:       Color
-    textColor:              Color
-    textColorUnfocused:     Color
-    modifiedFlagColor:      Color
-    buttonColor:            Color
-    buttonColorHover:       Color
-    buttonColorDown:        Color
+    backgroundColor: Color
+    bgColorUnfocused: Color
+    textColor: Color
+    textColorUnfocused: Color
+    modifiedFlagColor: Color
+    buttonColor: Color
+    buttonColorHover: Color
+    buttonColorDown: Color
 
   StatusBarStyle = object
-    backgroundColor:        Color
-    textColor:              Color
-    commandBgColor:         Color
-    commandColor:           Color
-    coordsColor:            Color
+    backgroundColor: Color
+    textColor: Color
+    commandBgColor: Color
+    commandColor: Color
+    coordsColor: Color
 
   LevelDropDownStyle = object
-    buttonColor:            Color
-    buttonColorHover:       Color
-    textColor:              Color
-    itemListColor:          Color
-    itemColor:              Color
-    itemColorHover:         Color
+    buttonColor: Color
+    buttonColorHover: Color
+    textColor: Color
+    itemListColor: Color
+    itemColor: Color
+    itemColorHover: Color
 
   AboutButtonStyle = object
-    color:                  Color
-    colorHover:             Color
-    colorActive:            Color
+    color: Color
+    colorHover: Color
+    colorActive: Color
 
   LevelStyle = object
-    backgroundColor:        Color
-    drawColor:              Color
-    lightDrawColor:         Color
-    lineWidth:              LineWidth
-    coordsColor:            Color
-    coordsHighlightColor:   Color
-    cursorColor:            Color
-    cursorGuideColor:       Color
-    gridStyleBackground:    GridStyle
-    gridColorBackground:    Color
-    gridStyleFloor:         GridStyle
-    gridColorFloor:         Color
-    selectionColor:         Color
-    pastePreviewColor:      Color
-    linkMarkerColor:        Color
-    bgHatch:                bool
-    bgHatchColor:           Color
-    bgHatchStrokeWidth:     float
-    bgHatchSpacingFactor:   float
-    outlineStyle:           OutlineStyle
-    outlineFillStyle:       OutlineFillStyle
-    outlineOverscan:        bool
-    outlineColor:           Color
-    outlineWidthFactor:     float
-    innerShadowColor:       Color
+    backgroundColor: Color
+    drawColor: Color
+    lightDrawColor: Color
+    lineWidth: LineWidth
+    coordsColor: Color
+    coordsHighlightColor: Color
+    cursorColor: Color
+    cursorGuideColor: Color
+    gridStyleBackground: GridStyle
+    gridColorBackground: Color
+    gridStyleFloor: GridStyle
+    gridColorFloor: Color
+    selectionColor: Color
+    pastePreviewColor: Color
+    linkMarkerColor: Color
+    bgHatch: bool
+    bgHatchColor: Color
+    bgHatchStrokeWidth: float
+    bgHatchSpacingFactor: float
+    outlineStyle: OutlineStyle
+    outlineFillStyle: OutlineFillStyle
+    outlineOverscan: bool
+    outlineColor: Color
+    outlineWidthFactor: float
+    innerShadowColor: Color
     innerShadowWidthFactor: float
-    outerShadowColor:       Color
+    outerShadowColor: Color
     outerShadowWidthFactor: float
-    floorColor:             array[9, Color]
-    noteMarkerColor:        Color
-    noteCommentColor:       Color
-    noteIndexColor:         Color
-    noteIndexBgColor:       array[4, Color]
-    noteTooltipBgColor:     Color
-    noteTooltipTextColor:   Color
+    floorColor: array[9, Color]
+    noteMarkerColor: Color
+    noteCommentColor: Color
+    noteIndexColor: Color
+    noteIndexBgColor: array[4, Color]
+    noteTooltipBgColor: Color
+    noteTooltipTextColor: Color
 
   NotesPaneStyle = object
-    textColor:              Color
-    indexColor:             Color
-    indexBgColor:           array[4, Color]
+    textColor: Color
+    indexColor: Color
+    indexBgColor: array[4, Color]
 
   ToolbarPaneStyle = object
-    buttonBgColor:          Color
-    buttonBgColorHover:     Color
-
+    buttonBgColor: Color
+    buttonBgColorHover: Color
 
 # Global NanoVG context
 var vg: NVGContext
 
-
 ### UI DATA ##################################################################
 var
-  sectionUserInterface        = true
+  sectionUserInterface = true
   sectionUserInterfaceGeneral = false
-  sectionWidget               = false
-  sectionTextField            = false
-  sectionDialog               = false
-  sectionTitleBar             = false
-  sectionStatusBar            = false
-  sectionLeveldropDown        = true
-  sectionAboutButton          = false
+  sectionWidget = false
+  sectionTextField = false
+  sectionDialog = false
+  sectionTitleBar = false
+  sectionStatusBar = false
+  sectionLeveldropDown = true
+  sectionAboutButton = false
 
-  sectionLevel           = true
-  sectionLevelGeneral    = true
-  sectionOutline         = true
-  sectionShadow          = true
+  sectionLevel = true
+  sectionLevelGeneral = true
+  sectionOutline = true
+  sectionShadow = true
   sectionBackgroundHatch = true
-  sectionFloorColors     = true
-  sectionNotes           = true
+  sectionFloorColors = true
+  sectionNotes = true
 
-  sectionPanes       = true
-  sectionNotesPane   = true
+  sectionPanes = true
+  sectionNotesPane = true
   sectionToolbarPane = true
 
 var currTheme: Theme
@@ -195,21 +193,27 @@ var
 
 proc createWindow(): Window =
   var cfg = DefaultOpenglWindowConfig
-  cfg.size          = (w: 1000, h: 800)
-  cfg.title         = "Koi Test"
-  cfg.resizable     = true
-  cfg.visible       = false
-  cfg.bits          = (r: 8'i32.some, g: 8'i32.some, b: 8'i32.some, a: 8'i32.some, stencil: 8'i32.some, depth: 16'i32.some)
-  cfg.debugContext  = true
+  cfg.size = (w: 1000, h: 800)
+  cfg.title = "Koi Test"
+  cfg.resizable = true
+  cfg.visible = false
+  cfg.bits = (
+    r: 8'i32.some,
+    g: 8'i32.some,
+    b: 8'i32.some,
+    a: 8'i32.some,
+    stencil: 8'i32.some,
+    depth: 16'i32.some,
+  )
+  cfg.debugContext = true
   cfg.nMultiSamples = 4
 
   when defined(macosx):
-    cfg.version       = glv32
+    cfg.version = glv32
     cfg.forwardCompat = true
-    cfg.profile       = opCoreProfile
+    cfg.profile = opCoreProfile
 
   newWindow(cfg)
-
 
 proc loadData(vg: NVGContext) =
   let regularFont = vg.createFont("sans", "data/Roboto-Regular.ttf")
@@ -219,7 +223,6 @@ proc loadData(vg: NVGContext) =
   let boldFont = vg.createFont("sans-bold", "data/Roboto-Bold.ttf")
   if boldFont == NoFont:
     quit "Could not add font italic.\n"
-
 
 var propsSliderStyle = getDefaultSliderStyle()
 propsSliderStyle.trackCornerRadius = 8.0
@@ -236,7 +239,7 @@ proc renderUI() =
   ############################################################################
 
   var w = 314.0
-  koi.beginScrollView(x=100, y=100, w=w, h=600)
+  koi.beginScrollView(x = 100, y = 100, w = w, h = 600)
 
   var ap = DefaultAutoLayoutParams
   ap.rowWidth = w
@@ -245,7 +248,6 @@ proc renderUI() =
   initAutoLayout(ap)
 
   if koi.sectionHeader("User Interface", sectionUserInterface):
-
     if koi.subSectionHeader("General", sectionUserInterfaceGeneral):
       koi.label("Background")
       koi.color(currTheme.general.backgroundColor)
@@ -373,7 +375,6 @@ proc renderUI() =
       koi.label("Active")
       koi.color(currTheme.aboutButton.colorActive)
 
-
   if koi.sectionHeader("Level", sectionLevel):
     if koi.subSectionHeader("General", sectionLevelGeneral):
       group:
@@ -434,12 +435,20 @@ proc renderUI() =
       koi.color(currTheme.level.bgHatchColor)
 
       koi.label("Hatch Stroke Width")
-      koi.horizSlider(startVal=0, endVal=10, currTheme.level.bgHatchStrokeWidth,
-                      style=propsSliderStyle)
+      koi.horizSlider(
+        startVal = 0,
+        endVal = 10,
+        currTheme.level.bgHatchStrokeWidth,
+        style = propsSliderStyle,
+      )
 
       koi.label("Hatch Spacing")
-      koi.horizSlider(startVal=0, endVal=10, currTheme.level.bgHatchSpacingFactor,
-                      style=propsSliderStyle)
+      koi.horizSlider(
+        startVal = 0,
+        endVal = 10,
+        currTheme.level.bgHatchSpacingFactor,
+        style = propsSliderStyle,
+      )
 
     if koi.subSectionHeader("Outline", sectionOutline):
       koi.label("Outline Style")
@@ -455,8 +464,12 @@ proc renderUI() =
       koi.color(currTheme.level.outlineColor)
 
       koi.label("Outline Width")
-      koi.horizSlider(startVal=0, endVal=10, currTheme.level.outlineWidthFactor,
-                      style=propsSliderStyle)
+      koi.horizSlider(
+        startVal = 0,
+        endVal = 10,
+        currTheme.level.outlineWidthFactor,
+        style = propsSliderStyle,
+      )
 
     if koi.subSectionHeader("Shadow", sectionShadow):
       group:
@@ -464,16 +477,24 @@ proc renderUI() =
         koi.color(currTheme.level.innerShadowColor)
 
         koi.label("Inner Shadow Width")
-        koi.horizSlider(startVal=0, endVal=10, currTheme.level.innerShadowWidthFactor,
-                        style=propsSliderStyle)
+        koi.horizSlider(
+          startVal = 0,
+          endVal = 10,
+          currTheme.level.innerShadowWidthFactor,
+          style = propsSliderStyle,
+        )
 
       group:
         koi.label("Outer Shadow")
         koi.color(currTheme.level.outerShadowColor)
 
         koi.label("Outer Shadow Width")
-        koi.horizSlider(startVal=0, endVal=10, currTheme.level.outerShadowWidthFactor,
-                        style=propsSliderStyle)
+        koi.horizSlider(
+          startVal = 0,
+          endVal = 10,
+          currTheme.level.outerShadowWidthFactor,
+          style = propsSliderStyle,
+        )
 
     if koi.subSectionHeader("Floor Colors", sectionFloorColors):
       koi.label("Floor 1")
@@ -563,18 +584,15 @@ proc renderUI() =
 
   koi.endScrollView()
 
-
-#[
+  #[
 
 
 #-----------------------------------------------------------------------------
 
 [toolbarPane]
 ]#
-
-
   w = 300.0
-  koi.beginScrollView(x=600, y=150, w=w, h=300)
+  koi.beginScrollView(x = 600, y = 150, w = w, h = 300)
 
   ap = DefaultAutoLayoutParams
   ap.rowWidth = w
@@ -599,21 +617,25 @@ proc renderUI() =
 
     koi.beginGroup()
     koi.label("dropDown 1")
-    koi.dropDown(items = @["Orange", "Banana", "Blueberry", "Apricot", "Apple"],
-                 dropDownVal1,
-                 tooltip = "Select a fruit")
+    koi.dropDown(
+      items = @["Orange", "Banana", "Blueberry", "Apricot", "Apple"],
+      dropDownVal1,
+      tooltip = "Select a fruit",
+    )
 
     koi.label("dropDown 2")
-    koi.dropDown(items = @["One", "Two", "Three"],
-                 dropDownVal2,
-                 tooltip = "Select a number")
+    koi.dropDown(
+      items = @["One", "Two", "Three"], dropDownVal2, tooltip = "Select a number"
+    )
     koi.endGroup()
 
   if koi.sectionHeader("Second section", section2):
     koi.label("dropDown 1")
-    koi.dropDown(items = @["Orange", "Banana", "Blueberry", "Apricot", "Apple"],
-                 dropDownVal3,
-                 tooltip = "Select a fruit")
+    koi.dropDown(
+      items = @["Orange", "Banana", "Blueberry", "Apricot", "Apple"],
+      dropDownVal3,
+      tooltip = "Select a fruit",
+    )
 
     koi.beginGroup()
     koi.label("CheckBox 1")
@@ -629,9 +651,9 @@ proc renderUI() =
 
   koi.endFrame()
 
-
-proc renderFrame(win: Window, res: tuple[w, h: int32] = (0,0)) =
-  if win.iconified: return
+proc renderFrame(win: Window, res: tuple[w, h: int32] = (0, 0)) =
+  if win.iconified:
+    return
   renderUI()
   glfw.swapBuffers(win)
 
@@ -655,8 +677,8 @@ proc init(): Window =
   loadData(vg)
 
   koi.init(vg, getProcAddress)
-#  koi.setScale(1.5)
 
+  #  koi.setScale(1.5)
   win.windowPositionCb = windowPosCb
   win.framebufferSizeCb = framebufSizeCb
 
@@ -665,12 +687,10 @@ proc init(): Window =
 
   result = win
 
-
 proc cleanup() =
   koi.deinit()
   nvgDeleteContext(vg)
   glfw.terminate()
-
 
 proc main() =
   let win = init()
@@ -685,7 +705,6 @@ proc main() =
     renderFrame(win)
 
   cleanup()
-
 
 main()
 

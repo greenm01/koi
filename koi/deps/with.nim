@@ -19,14 +19,22 @@ proc createInner(x: NimNode): NimNode =
   var t = getTypeImpl(x)
   if t.kind == nnkRefTy:
     t = getTypeImpl(t[0])
-  assert(t.kind in {nnkObjectTy, nnkTupleTy}, "`with` must be called with " &
-    "either objects or tuples.")
-  for field in getAllIdentDefs(if t.kind == nnkObjectTy: t[2] else: t):
+  assert(
+    t.kind in {nnkObjectTy, nnkTupleTy},
+    "`with` must be called with " & "either objects or tuples.",
+  )
+  for field in getAllIdentDefs(
+    if t.kind == nnkObjectTy:
+      t[2]
+    else:
+      t
+  ):
     let name = newIdentNode($field[0])
     if field[1].kind == nnkProcTy:
       result.add quote do:
         template `name`(args: varargs[untyped]): untyped {.used.} =
-            `x`.`name`(args)
+          `x`.`name`(args)
+
     else:
       result.add quote do:
         template `name`(): untyped {.used.} =

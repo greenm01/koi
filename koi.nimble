@@ -1,9 +1,9 @@
 # Package
 
-version       = "0.4.2"
-author        = "John Novak <john@johnnovak.net>"
-description   = "imgui for Nim"
-license       = "WTFPL"
+version = "0.4.2"
+author = "John Novak <john@johnnovak.net>"
+description = "imgui for Nim"
+license = "WTFPL"
 
 # Dependencies
 

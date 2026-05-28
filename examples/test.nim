@@ -9,23 +9,21 @@ import nanovg
 
 import koi
 
-
 # Global NanoVG context
 var vg: NVGContext
-
 
 ### UI DATA ################################################
 
 type Fruits = enum
-  fOrange    = "Orange"
-  fBanana    = "Banana"
+  fOrange = "Orange"
+  fBanana = "Banana"
   fBlueberry = "Blueberry"
-  fApricot   = "Apricot"
-  fApple     = "Apple"
+  fApricot = "Apricot"
+  fApple = "Apple"
 
 type ImageType = enum
-  itPng     = "PNG"
-  itJpg     = "JPG"
+  itPng = "PNG"
+  itJpg = "JPG"
   itOpenExr = "OpenEXR"
 
 var
@@ -61,37 +59,43 @@ var
   dropDownBottomLeft = 0
   dropDownBottomRight = 0
 
-#  textFieldVal1 = ""
-#  textFieldVal2 = "Nobody expects the Spanish Inquisition!"
-#  textFieldVal3 = "Raw text field"
-#
+  #  textFieldVal1 = ""
+  #  textFieldVal2 = "Nobody expects the Spanish Inquisition!"
+  #  textFieldVal3 = "Raw text field"
+  #
   textFieldVal1 = "Some text"
   textFieldVal2 = "Look behind—you! A three-headed monkey!"
   textFieldVal3 = "42"
 
-  textAreaVal1 = "A merry little surge of electricity piped by automatic alarm from the mood organ beside his bed awakened Rick Deckard. Surprised—it always surprised him to find himself awake without prior notice—he rose from the bed, stood up in his multicolored pajamas, and stretched.\n\nNow, in her bed, his wife Iran opened her gray, unmerry eyes, blinked, then groaned and shut her eyes again.     A merry little surge of electricity piped by automatic alarm from the mood organ beside his bed awakened Rick Deckard. Surprised—it always surprised him to find himself awake without prior notice—he rose from the bed, stood up in his multicolored pajamas, and stretched.\n\nNow, in her bed, his wife Iran opened her gray, unmerry eyes, blinked, then groaned and shut her eyes again."
+  textAreaVal1 =
+    "A merry little surge of electricity piped by automatic alarm from the mood organ beside his bed awakened Rick Deckard. Surprised—it always surprised him to find himself awake without prior notice—he rose from the bed, stood up in his multicolored pajamas, and stretched.\n\nNow, in her bed, his wife Iran opened her gray, unmerry eyes, blinked, then groaned and shut her eyes again.     A merry little surge of electricity piped by automatic alarm from the mood organ beside his bed awakened Rick Deckard. Surprised—it always surprised him to find himself awake without prior notice—he rose from the bed, stood up in his multicolored pajamas, and stretched.\n\nNow, in her bed, his wife Iran opened her gray, unmerry eyes, blinked, then groaned and shut her eyes again."
 
 ############################################################
 
 proc createWindow(): Window =
-  var cfg           = DefaultOpenglWindowConfig
-  cfg.size          = (w: 1000, h: 800)
-  cfg.title         = "Koi Test"
-  cfg.resizable     = true
-  cfg.visible       = true
-  cfg.bits          = (r: 8'i32.some, g: 8'i32.some, b: 8'i32.some, a: 8'i32.some, stencil: 8'i32.some, depth: 16'i32.some)
+  var cfg = DefaultOpenglWindowConfig
+  cfg.size = (w: 1000, h: 800)
+  cfg.title = "Koi Test"
+  cfg.resizable = true
+  cfg.visible = true
+  cfg.bits = (
+    r: 8'i32.some,
+    g: 8'i32.some,
+    b: 8'i32.some,
+    a: 8'i32.some,
+    stencil: 8'i32.some,
+    depth: 16'i32.some,
+  )
   cfg.nMultiSamples = 4
-#  cfg.decorated     = false
-#  cfg.focusOnShow   = true
-#  cfg.transparentFramebuffer = true
-
+  #  cfg.decorated     = false
+  #  cfg.focusOnShow   = true
+  #  cfg.transparentFramebuffer = true
   when defined(macosx):
     cfg.version = glv32
     cfg.forwardCompat = true
     cfg.profile = opCoreProfile
 
   newWindow(cfg)
-
 
 proc loadData(vg: NVGContext) =
   let regularFont = vg.createFont("sans", "data/Roboto-Regular.ttf")
@@ -101,7 +105,6 @@ proc loadData(vg: NVGContext) =
   let boldFont = vg.createFont("sans-bold", "data/Roboto-Bold.ttf")
   if boldFont == NoFont:
     quit "Could not load bold font.\n"
-
 
 proc renderUI() =
   koi.beginFrame()
@@ -123,8 +126,7 @@ proc renderUI() =
   labelStyle.fontSize = 15.0
   labelStyle.color = gray(0.8)
 
-#  vg.scissor(0, 0, 630, 100)
-
+  #  vg.scissor(0, 0, 630, 100)
   koi.label(x, y, 200, h, "Koi widget tests", style = labelStyle)
 
   # Buttons
@@ -137,252 +139,343 @@ proc renderUI() =
     echo "button 2 pressed"
 
   y += pad
-  if koi.button(x, y, w, h, "Disabled", tooltip = "This is a disabled button",
-                disabled = true):
+  if koi.button(
+    x, y, w, h, "Disabled", tooltip = "This is a disabled button", disabled = true
+  ):
     echo "button 3 pressed"
 
   # ScrollBars
 
   y += pad * 2
   koi.horizScrollBar(
-    x, y, w * 1.5, h,
-    startVal = 0, endVal = 100,
+    x,
+    y,
+    w * 1.5,
+    h,
+    startVal = 0,
+    endVal = 100,
     scrollBarVal1,
     tooltip = "Horizontal ScrollBar 1",
-    thumbSize = 20, clickStep = 10.0)
+    thumbSize = 20,
+    clickStep = 10.0,
+  )
 
   y += pad
   koi.horizScrollBar(
-    x, y, w * 1.5, h ,
-    startVal = 0, endVal = 1,
+    x,
+    y,
+    w * 1.5,
+    h,
+    startVal = 0,
+    endVal = 1,
     scrollBarVal2,
     tooltip = "Horizontal ScrollBar 2",
-    thumbSize = -1, clickStep = -1)
+    thumbSize = -1,
+    clickStep = -1,
+  )
 
   koi.vertScrollBar(
-    320, 60, h, 140,
-    startVal = 0.0, endVal = 100,
+    320,
+    60,
+    h,
+    140,
+    startVal = 0.0,
+    endVal = 100,
     scrollBarVal3,
     tooltip = "Vertical ScrollBar 1",
-    thumbSize = 20, clickStep = 10)
+    thumbSize = 20,
+    clickStep = 10,
+  )
 
   koi.vertScrollBar(
-    350, 60, h, 140,
-    startVal = 1, endVal = 0,
+    350,
+    60,
+    h,
+    140,
+    startVal = 1,
+    endVal = 0,
     scrollBarVal4,
     tooltip = "Vertical ScrollBar 2",
-    thumbSize = -1, clickStep = -1)
+    thumbSize = -1,
+    clickStep = -1,
+  )
 
   y += pad
   koi.horizScrollBar(
-    x, y, w * 1.5, h,
-    startVal = 100, endVal = 0,
+    x,
+    y,
+    w * 1.5,
+    h,
+    startVal = 100,
+    endVal = 0,
     scrollBarVal5,
     tooltip = "Horizontal ScrollBar 3",
-    thumbSize = 20, clickStep = 10.0)
+    thumbSize = 20,
+    clickStep = 10.0,
+  )
 
   # Sliders
 
   y += pad * 2
   koi.horizSlider(
-    x, y, w * 1.5, h,
-    startVal = 0, endVal = 100,
+    x,
+    y,
+    w * 1.5,
+    h,
+    startVal = 0,
+    endVal = 100,
     sliderVal1,
-    tooltip = "Horizontal Slider 1")
+    tooltip = "Horizontal Slider 1",
+  )
 
   y += pad
   koi.horizSlider(
-    x, y, w * 1.5, h,
-    startVal = 50, endVal = -30,
+    x,
+    y,
+    w * 1.5,
+    h,
+    startVal = 50,
+    endVal = -30,
     sliderVal2,
-    tooltip = "Horizontal Slider 2")
+    tooltip = "Horizontal Slider 2",
+  )
 
   koi.vertSlider(
-    320, 460, h, 120,
-    startVal = 0, endVal = 100,
+    320,
+    460,
+    h,
+    120,
+    startVal = 0,
+    endVal = 100,
     sliderVal3,
-    tooltip = "Vertical Slider 1")
+    tooltip = "Vertical Slider 1",
+  )
 
   koi.label(300, 590, w, h, fmt"{sliderVal3:.3f}", style = labelStyle)
 
   koi.vertSlider(
-    400, 460, h, 120,
-    startVal = 50, endVal = -30,
+    400,
+    460,
+    h,
+    120,
+    startVal = 50,
+    endVal = -30,
     sliderVal4,
-    tooltip = "Vertical Slider 2")
+    tooltip = "Vertical Slider 2",
+  )
 
   koi.label(380, 590, w, h, fmt"{sliderVal4:.3f}", style = labelStyle)
 
   # dropDowns
 
   y += pad * 2
-  koi.dropDown(
-    x, y, w, h,
-    dropDownVal1,
-    tooltip = "Select a fruit")
+  koi.dropDown(x, y, w, h, dropDownVal1, tooltip = "Select a fruit")
 
   koi.dropDown(
-    280, y, w, h,
+    280,
+    y,
+    w,
+    h,
     items = @["Red", "Green", "Blue", "Yellow", "Purple (with little yellow dots)"],
     dropDownVal2,
-    tooltip = "Select a colour")
+    tooltip = "Select a colour",
+  )
 
   koi.dropDown(
-    430, y, w, h,
+    430,
+    y,
+    w,
+    h,
     items = @["This", "dropDown", "Is", "Disabled"],
     dropDownVal3,
     tooltip = "Disabled dropDown",
-    disabled = true)
+    disabled = true,
+  )
 
   koi.dropDown(
-    koi.winWidth() - (w+10), 20, w, h,
+    koi.winWidth() - (w + 10),
+    20,
+    w,
+    h,
     items = @["Red", "Green", "Blue", "Yellow", "Purple (with little yellow dots)"],
     dropDownTopRight,
-    tooltip = textAreaVal1)
+    tooltip = textAreaVal1,
+  )
 
   koi.dropDown(
-    koi.winWidth() - (w+10), koi.winHeight() - 40, w, h,
+    koi.winWidth() - (w + 10),
+    koi.winHeight() - 40,
+    w,
+    h,
     items = @["Red", "Green", "Blue", "Yellow", "Purple (with little yellow dots)"],
     dropDownBottomRight,
-    tooltip = textAreaVal1)
+    tooltip = textAreaVal1,
+  )
 
   koi.dropDown(
-    10, koi.winHeight() - 40, w, h,
-    items = @[
-      "Red1", "Green1", "Blue1", "Yellow1", "Purple1 (with little yellow dots)",
-      "Red2", "Green2", "Blue2", "Yellow2", "Purple2 (with little yellow dots)",
-      "Red3", "Green3", "Blue3", "Yellow3", "Purple3 (with little yellow dots)",
-      "Red4", "Green4", "Blue4", "Yellow4", "Purple4 (with little yellow dots)"
-    ],
+    10,
+    koi.winHeight() - 40,
+    w,
+    h,
+    items =
+      @[
+        "Red1", "Green1", "Blue1", "Yellow1", "Purple1 (with little yellow dots)",
+        "Red2", "Green2", "Blue2", "Yellow2", "Purple2 (with little yellow dots)",
+        "Red3", "Green3", "Blue3", "Yellow3", "Purple3 (with little yellow dots)",
+        "Red4", "Green4", "Blue4", "Yellow4", "Purple4 (with little yellow dots)",
+      ],
     dropDownBottomLeft,
-    tooltip = textAreaVal1)
+    tooltip = textAreaVal1,
+  )
 
   # Text fields
   y += pad * 2
-  koi.textField(
-    x, y, w * 1.0, h, textFieldVal1, tooltip = "Text field 1")
+  koi.textField(x, y, w * 1.0, h, textFieldVal1, tooltip = "Text field 1")
 
   y += pad
-  koi.textField(
-    x, y, w * 1.5, h, textFieldVal2, tooltip = "Text field 2")
+  koi.textField(x, y, w * 1.5, h, textFieldVal2, tooltip = "Text field 2")
 
   y += pad
-  koi.rawTextField(
-    x, y, w * 1.0, h, textFieldVal3, tooltip = "Text field 3")
+  koi.rawTextField(x, y, w * 1.0, h, textFieldVal3, tooltip = "Text field 3")
 
   # Checkboxes
   y += pad * 2
-  koi.checkBox(
-    x, y, h, checkBoxVal1, tooltip = "CheckBox 1")
+  koi.checkBox(x, y, h, checkBoxVal1, tooltip = "CheckBox 1")
 
-  koi.checkBox(
-    x + 30, y, h, checkBoxVal2, tooltip = "CheckBox 2")
+  koi.checkBox(x + 30, y, h, checkBoxVal2, tooltip = "CheckBox 2")
 
   # Radio buttons (horiz)
   y += pad * 2
   koi.radioButtons(
-    x, y, 150, h+2,
+    x,
+    y,
+    150,
+    h + 2,
     radioButtonsVal1,
-    tooltips = @["Save PNG image", "Save JPG image", "Save EXR image"])
+    tooltips = @["Save PNG image", "Save JPG image", "Save EXR image"],
+  )
 
   y += pad
   koi.multiRadioButtons(
-    x, y, 220, h+2,
+    x,
+    y,
+    220,
+    h + 2,
     labels = @["One", "Two", "The Third Option"],
     multiRadioButtonsSeqVal,
-    tooltips = @["First (1)", "Second (2)", "Third (3)"])
+    tooltips = @["First (1)", "Second (2)", "Third (3)"],
+  )
 
   koi.multiRadioButtons(
-    x+300, y, 400, h+2,
+    x + 300,
+    y,
+    400,
+    h + 2,
     multiRadioButtonsEnumVal,
-    tooltips = @["First (1)", "Second (2)", "Third (3)"]
+    tooltips = @["First (1)", "Second (2)", "Third (3)"],
   )
 
   # Custom drawn radio buttons
-  var radioButtonsDrawProc: RadioButtonsDrawProc =
-    proc (vg: NVGContext,
-          id: ItemId, x, y, w, h: float,
-          buttonIdx, numButtons: Natural, label: string,
-          state: WidgetState, style: RadioButtonsStyle) =
+  var radioButtonsDrawProc: RadioButtonsDrawProc = proc(
+      vg: NVGContext,
+      id: ItemId,
+      x, y, w, h: float,
+      buttonIdx, numButtons: Natural,
+      label: string,
+      state: WidgetState,
+      style: RadioButtonsStyle,
+  ) =
+    var bgCol = hsl(0.08 * buttonIdx, 0.6, 0.5)
 
-      var bgCol = hsl(0.08 * buttonIdx, 0.6, 0.5)
+    if state in {wsHover, wsActiveHover}:
+      bgCol = bgCol.lerp(white(), 0.3)
+    if state == wsDown:
+      bgCol = bgCol.lerp(black(), 0.3)
 
-      if state in {wsHover, wsActiveHover}:
-        bgCol = bgCol.lerp(white(), 0.3)
-      if state == wsDown:
-        bgCol = bgCol.lerp(black(), 0.3)
+    const Pad = 4
 
-      const Pad = 4
+    vg.beginPath()
+    vg.fillColor(bgCol)
+    vg.rect(x, y, w - Pad, h - Pad)
+    vg.fill()
 
-      vg.beginPath()
-      vg.fillColor(bgCol)
-      vg.rect(x, y, w-Pad, h-Pad)
-      vg.fill()
+    vg.fillColor(black(0.7))
+    vg.setFont(14.0, horizAlign = haCenter)
+    discard vg.text(x + (w - Pad) * 0.5, y + h * 0.5, label)
 
-      vg.fillColor(black(0.7))
-      vg.setFont(14.0, horizAlign=haCenter)
-      discard vg.text(x + (w-Pad)*0.5, y + h*0.5, label)
-
-      if state in {wsActive, wsActiveHover, wsActiveDown}:
-        vg.strokeColor(rgb(1.0, 0.4, 0.4))
-        vg.strokeWidth(2)
-        vg.stroke()
+    if state in {wsActive, wsActiveHover, wsActiveDown}:
+      vg.strokeColor(rgb(1.0, 0.4, 0.4))
+      vg.strokeWidth(2)
+      vg.stroke()
 
   koi.radioButtons(
-    500, 100, 150, 30,
+    500,
+    100,
+    150,
+    30,
     labels = @["1", "2", "3", "4"],
     customRadioButtonsVal1,
     tooltips = @["First (1)", "Second (2)", "Third (3)", "Fourth (4)"],
-    drawProc=radioButtonsDrawProc.some
+    drawProc = radioButtonsDrawProc.some,
   )
 
   koi.radioButtons(
-    500, 160, 30, 30,
+    500,
+    160,
+    30,
+    30,
     labels = @["1", "2", "3", "4"],
     customRadioButtonsVal2,
     tooltips = @["First (1)", "Second (2)", "Third (3)", "Fourth (4)"],
-    layout=RadioButtonsLayout(kind: rblGridHoriz, itemsPerRow: 4),
-    drawProc=radioButtonsDrawProc.some
+    layout = RadioButtonsLayout(kind: rblGridHoriz, itemsPerRow: 4),
+    drawProc = radioButtonsDrawProc.some,
   )
 
   koi.radioButtons(
-    500, 220, 30, 30,
+    500,
+    220,
+    30,
+    30,
     labels = @["1", "2", "3", "4", "5", "6", "7", "8", "9", "A", "B"],
     customGridRadioButtonsVal,
     tooltips = @[],
-    layout=RadioButtonsLayout(kind: rblGridHoriz, itemsPerRow: 4),
-    drawProc=radioButtonsDrawProc.some
+    layout = RadioButtonsLayout(kind: rblGridHoriz, itemsPerRow: 4),
+    drawProc = radioButtonsDrawProc.some,
   )
 
   # Radio buttons (vert)
   koi.radioButtons(
-    700, 100, 30, 30,
+    700,
+    100,
+    30,
+    30,
     labels = @["1", "2", "3", "4"],
     customVertRadioButtonsVal,
     tooltips = @["First (1)", "Second (2)", "Third (3)", "Fourth (4)"],
-    layout=RadioButtonsLayout(kind: rblGridVert, itemsPerColumn: 4),
-    drawProc=radioButtonsDrawProc.some
+    layout = RadioButtonsLayout(kind: rblGridVert, itemsPerColumn: 4),
+    drawProc = radioButtonsDrawProc.some,
   )
 
   koi.radioButtons(
-    770, 100, 30, 30,
-    labels = @["1", "2", "3", "4", "5", "6", "7", "8", "9", "A", "B",],
+    770,
+    100,
+    30,
+    30,
+    labels = @["1", "2", "3", "4", "5", "6", "7", "8", "9", "A", "B"],
     customVertGridRadioButtonsVal,
     tooltips = @[],
-    layout=RadioButtonsLayout(kind: rblGridVert, itemsPerColumn: 4),
-    drawProc=radioButtonsDrawProc.some
+    layout = RadioButtonsLayout(kind: rblGridVert, itemsPerColumn: 4),
+    drawProc = radioButtonsDrawProc.some,
   )
 
-
-  koi.textArea(
-    650, 300, 300, 225, textAreaVal1, tooltip = "Text area 1")
+  koi.textArea(650, 300, 300, 225, textAreaVal1, tooltip = "Text area 1")
 
   # Menu
 
   x = 70.0
   y = 20.0
 
-#[
+  #[
   case menuBar(x, y, 500, h, names = @["File", "Edit", "Help"]):
   of "File":
     if menuParentItem("&New", some(mkKeyEvent(keyN, {mkSuper}))):
@@ -455,12 +548,11 @@ proc renderUI() =
 ]#
 
   ############################################################
-
   koi.endFrame()
 
-
-proc renderFrame(win: Window, res: tuple[w, h: int32] = (0,0)) =
-  if win.iconified: return
+proc renderFrame(win: Window, res: tuple[w, h: int32] = (0, 0)) =
+  if win.iconified:
+    return
   renderUI()
   glfw.swapBuffers(win)
 
@@ -484,8 +576,8 @@ proc init(): Window =
   loadData(vg)
 
   koi.init(vg, getProcAddress)
-#  koi.setScale(1.2)
 
+  #  koi.setScale(1.2)
   win.windowPositionCb = windowPosCb
   win.framebufferSizeCb = framebufSizeCb
 
@@ -494,12 +586,10 @@ proc init(): Window =
 
   result = win
 
-
 proc cleanup() =
   koi.deinit()
   nvgDeleteContext(vg)
   glfw.terminate()
-
 
 proc main() =
   let win = init()
@@ -512,7 +602,6 @@ proc main() =
     renderFrame(win)
 
   cleanup()
-
 
 main()
 

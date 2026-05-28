@@ -10,8 +10,8 @@ import koi/defaults
 import koi/utils
 
 const
-  TooltipShowDelay       = 0.4
-  TooltipFadeOutDelay    = 0.1
+  TooltipShowDelay = 0.4
+  TooltipFadeOutDelay = 0.1
   TooltipFadeOutDuration = 0.4
 
 # Common widget utilities
@@ -30,15 +30,12 @@ proc handleTooltip*(id: ItemId, tooltip: string) =
       setFramesLeft()
 
     if (isActive(id) and ui.mbLeftDown) or
-       (isHot(id) and ui.eventHandled and ui.currEvent.kind == ekScroll):
+        (isHot(id) and ui.eventHandled and ui.currEvent.kind == ekScroll):
       tt.state = tsOff
-
-    elif tt.state == tsOff and not ui.mbLeftDown and
-         tt.lastHotItem != id:
+    elif tt.state == tsOff and not ui.mbLeftDown and tt.lastHotItem != id:
       tt.state = tsShowDelay
       tt.t0 = getTime()
       setFramesLeft()
-
     elif tt.state >= tsShow:
       tt.state = tsShow
       tt.t0 = getTime()
@@ -55,15 +52,16 @@ proc drawTooltip*(x, y: float, text: string, alpha: float = 1.0) =
 
     vg.setFont(fontSize, "sans-bold")
 
-    var rows = textBreakLines(text, w-padX*2)
-    var h = fontSize * lineHeight * rows.len.float + padY*2
+    var rows = textBreakLines(text, w - padX * 2)
+    var h = fontSize * lineHeight * rows.len.float + padY * 2
 
     if rows.len == 1:
-      w = vg.textWidth(text) + padX*2
+      w = vg.textWidth(text) + padX * 2
 
-    var (tx, ty) = fitRectWithinWindow(w, h, x-8, y-8, 30, 30, haLeft)
+    var (tx, ty) = fitRectWithinWindow(w, h, x - 8, y - 8, 30, 30, haLeft)
     let (_, _, rw, rh) = snapToGrid(tx, ty, w, h)
-    tx = round(tx); ty = round(ty)
+    tx = round(tx)
+    ty = round(ty)
 
     vg.globalAlpha(alpha)
     drawShadow(vg, tx, ty, rw, rh, getDefaultShadowStyle())
@@ -88,8 +86,9 @@ proc tooltipPost*() =
   let ttx = ui.mx
   let tty = ui.my
 
-  case tt.state:
-  of tsOff: discard
+  case tt.state
+  of tsOff:
+    discard
   of tsShowDelay:
     if getTime() - tt.t0 > TooltipShowDelay:
       tt.state = tsShow

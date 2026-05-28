@@ -13,10 +13,10 @@ import koi/widgets/scrollbar
 import koi/utils
 
 type ScrollViewState = ref object of RootObj
-  x, y, w, h:    float
-  viewStartY:    float
+  x, y, w, h: float
+  viewStartY: float
   contentHeight: float
-  style:         ScrollViewStyle
+  style: ScrollViewStyle
 
 proc getClampedStartY(ss: ScrollViewState): float =
   ss.viewStartY.clamp(0, max(ss.contentHeight - ss.h, 0))
@@ -44,7 +44,7 @@ proc beginView*(id: ItemId, x, y, w, h: float) =
   pushDrawOffset(DrawOffset(ox: x, oy: y))
 
 template beginView*(x, y, w, h: float) =
-  let i = instantiationInfo(fullPaths=true)
+  let i = instantiationInfo(fullPaths = true)
   let id = getNextId(i.filename, i.line)
   beginView(id, x, y, w, h)
 
@@ -56,8 +56,9 @@ proc endView*() =
   autoLayoutFinal()
   resetHitClip()
 
-proc beginScrollView*(id: ItemId, x, y, w, h: float,
-                      style: ScrollViewStyle = getDefaultScrollViewStyle()) =
+proc beginScrollView*(
+    id: ItemId, x, y, w, h: float, style: ScrollViewStyle = getDefaultScrollViewStyle()
+) =
   alias(ui, g_uiState)
   let (x, y) = addDrawOffset(x, y)
 
@@ -68,15 +69,8 @@ proc beginScrollView*(id: ItemId, x, y, w, h: float,
   ui.scrollViewState.activeItem = id
   setHitClip(x, y, w, h)
 
-  discard ui.itemState.hasKeyOrPut(id,
-    ScrollViewState(
-      x: x,
-      y: y,
-      w: w,
-      h: h,
-      style: style
-    )
-  )
+  discard
+    ui.itemState.hasKeyOrPut(id, ScrollViewState(x: x, y: y, w: w, h: h, style: style))
 
   var ss = cast[ScrollViewState](ui.itemState[id])
   pushDrawOffset(DrawOffset(ox: x, oy: y - ss.getClampedStartY()))
@@ -88,9 +82,10 @@ proc beginScrollView*(id: ItemId, x, y, w, h: float,
   ss.style = style
   ui.itemState[id] = ss
 
-template beginScrollView*(x, y, w, h: float,
-                          style: ScrollViewStyle = getDefaultScrollViewStyle()) =
-  let i = instantiationInfo(fullPaths=true)
+template beginScrollView*(
+    x, y, w, h: float, style: ScrollViewStyle = getDefaultScrollViewStyle()
+) =
+  let i = instantiationInfo(fullPaths = true)
   let id = getNextId(i.filename, i.line, "")
   beginScrollView(id, x, y, w, h, style)
 
@@ -130,12 +125,16 @@ proc endScrollView*(height: float = -1.0) =
     let sbId = hashId(lastIdString() & ":scrollBar")
     vertScrollBar(
       sbId,
-      x = ss.x + ss.w - ss.style.vertScrollBarWidth, y = ss.y,
-      w = ss.style.vertScrollBarWidth, h = visibleHeight,
-      startVal = 0, endVal = endVal,
+      x = ss.x + ss.w - ss.style.vertScrollBarWidth,
+      y = ss.y,
+      w = ss.style.vertScrollBarWidth,
+      h = visibleHeight,
+      startVal = 0,
+      endVal = endVal,
       value_out = viewStartY,
-      thumbSize = thumbSize, clickStep = 20,
-      style = ss.style.scrollBarStyle
+      thumbSize = thumbSize,
+      clickStep = 20,
+      style = ss.style.scrollBarStyle,
     )
   else:
     viewStartY = 0
@@ -149,7 +148,7 @@ proc endScrollView*(height: float = -1.0) =
   resetHitClip()
 
 template scrollView*(x, y, w, h: float, contentH: float, body: untyped) =
-  let i = instantiationInfo(fullPaths=true)
+  let i = instantiationInfo(fullPaths = true)
   let id = getNextId(i.filename, i.line)
   beginScrollView(id, x, y, w, h)
   try:

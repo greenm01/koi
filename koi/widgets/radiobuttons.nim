@@ -13,108 +13,114 @@ import koi/defaults
 import koi/widgets/common
 import koi/utils
 
-# {{{ RadioButtonsDrawProc*
-type
-  RadioButtonsDrawProc* = proc (
+# RadioButtonsDrawProc*
+type RadioButtonsDrawProc* = proc(
+  vg: NVGContext,
+  id: ItemId,
+  x, y, w, h: float,
+  buttonIdx, numButtons: Natural,
+  label: string,
+  state: WidgetState,
+  style: RadioButtonsStyle,
+)
+
+# DefaultRadioButtonDrawProc
+let DefaultRadioButtonDrawProc*: RadioButtonsDrawProc = proc(
     vg: NVGContext,
-    id: ItemId, x, y, w, h: float,
-    buttonIdx, numButtons: Natural, label: string,
-    state: WidgetState, style: RadioButtonsStyle
-  )
-
-# {{{ DefaultRadioButtonDrawProc
-let DefaultRadioButtonDrawProc*: RadioButtonsDrawProc =
-  proc (vg: NVGContext,
-        id: ItemId, x, y, w, h: float,
-        buttonIdx, numButtons: Natural, label: string,
-        state: WidgetState, style: RadioButtonsStyle) =
-
-    alias(s, style)
-
-    let (fillColor, strokeColor) =
-      case state
-      of wsNormal, wsDisabled:
-        (s.buttonFillColor, s.buttonStrokeColor)
-      of wsHover:
-        (s.buttonFillColorHover, s.buttonStrokeColorHover)
-      of wsDown, wsActiveDown:
-        (s.buttonFillColorDown, s.buttonStrokeColorDown)
-      of wsActive:
-        (s.buttonFillColorActive, s.buttonStrokeColorActive)
-      of wsActiveHover:
-        (s.buttonFillColorActiveHover, s.buttonStrokeColorActiveHover)
-
-    vg.fillColor(fillColor)
-    vg.strokeColor(strokeColor)
-    vg.strokeWidth(s.buttonStrokeWidth)
-
-    vg.beginPath()
-
-    let
-      first = (buttonIdx == 0)
-      last  = (buttonIdx == numButtons-1)
-
-    let cr = s.buttonCornerRadius
-    if   first: vg.roundedRect(x, y, w, h, cr, 0, 0, cr)
-    elif last:  vg.roundedRect(x, y, w, h, 0, cr, cr, 0)
-    else:       vg.rect(x, y, w, h)
-
-    vg.fill()
-    vg.stroke()
-
-    vg.drawLabel(x, y, w, h, label, state, s.label)
-# }}}
-# {{{ DefaultRadioButtonGridDrawProc
-let DefaultRadioButtonGridDrawProc*: RadioButtonsDrawProc =
-  proc (vg: NVGContext,
-        id: ItemId, x, y, w, h: float,
-        buttonIdx, numButtons: Natural, label: string,
-        state: WidgetState, style: RadioButtonsStyle) =
-
-    alias(s, style)
-
-    let (x, y, w, h) = snapToGrid(x, y, w, h, s.buttonStrokeWidth)
-
-    let (fillColor, strokeColor) =
-      case state
-      of wsNormal, wsDisabled:
-        (s.buttonFillColor, s.buttonStrokeColor)
-      of wsHover:
-        (s.buttonFillColorHover, s.buttonStrokeColorHover)
-      of wsDown, wsActiveDown:
-        (s.buttonFillColorDown, s.buttonStrokeColorDown)
-      of wsActive:
-        (s.buttonFillColorActive, s.buttonStrokeColorActive)
-      of wsActiveHover:
-        (s.buttonFillColorActiveHover, s.buttonStrokeColorActiveHover)
-
-    vg.fillColor(fillColor)
-    vg.strokeColor(strokeColor)
-    vg.strokeWidth(s.buttonStrokeWidth)
-
-    vg.beginPath()
-    vg.roundedRect(x, y, w, h, s.buttonCornerRadius)
-    vg.fill()
-    vg.stroke()
-
-    vg.drawLabel(x, y, w, h, label, state, s.label)
-# }}}
-
-# }}}
-# {{{ radioButtons()
-proc radioButtons*[T](
-  id:                ItemId,
-  x, y, w, h:        float,
-  labels:            seq[string],
-  activeButtons_out: var seq[T],
-  tooltips:          seq[string] = @[],
-  multiselect:       bool = false,
-  allowNoSelection:  bool = false,
-  layout:            RadioButtonsLayout = RadioButtonsLayout(kind: rblHoriz),
-  drawProc:          Option[RadioButtonsDrawProc] = RadioButtonsDrawProc.none,
-  style:             RadioButtonsStyle = getDefaultRadioButtonsStyle()
+    id: ItemId,
+    x, y, w, h: float,
+    buttonIdx, numButtons: Natural,
+    label: string,
+    state: WidgetState,
+    style: RadioButtonsStyle,
 ) =
+  alias(s, style)
 
+  let (fillColor, strokeColor) =
+    case state
+    of wsNormal, wsDisabled:
+      (s.buttonFillColor, s.buttonStrokeColor)
+    of wsHover:
+      (s.buttonFillColorHover, s.buttonStrokeColorHover)
+    of wsDown, wsActiveDown:
+      (s.buttonFillColorDown, s.buttonStrokeColorDown)
+    of wsActive:
+      (s.buttonFillColorActive, s.buttonStrokeColorActive)
+    of wsActiveHover:
+      (s.buttonFillColorActiveHover, s.buttonStrokeColorActiveHover)
+
+  vg.fillColor(fillColor)
+  vg.strokeColor(strokeColor)
+  vg.strokeWidth(s.buttonStrokeWidth)
+
+  vg.beginPath()
+
+  let
+    first = (buttonIdx == 0)
+    last = (buttonIdx == numButtons - 1)
+
+  let cr = s.buttonCornerRadius
+  if first:
+    vg.roundedRect(x, y, w, h, cr, 0, 0, cr)
+  elif last:
+    vg.roundedRect(x, y, w, h, 0, cr, cr, 0)
+  else:
+    vg.rect(x, y, w, h)
+
+  vg.fill()
+  vg.stroke()
+
+  vg.drawLabel(x, y, w, h, label, state, s.label)
+# DefaultRadioButtonGridDrawProc
+let DefaultRadioButtonGridDrawProc*: RadioButtonsDrawProc = proc(
+    vg: NVGContext,
+    id: ItemId,
+    x, y, w, h: float,
+    buttonIdx, numButtons: Natural,
+    label: string,
+    state: WidgetState,
+    style: RadioButtonsStyle,
+) =
+  alias(s, style)
+
+  let (x, y, w, h) = snapToGrid(x, y, w, h, s.buttonStrokeWidth)
+
+  let (fillColor, strokeColor) =
+    case state
+    of wsNormal, wsDisabled:
+      (s.buttonFillColor, s.buttonStrokeColor)
+    of wsHover:
+      (s.buttonFillColorHover, s.buttonStrokeColorHover)
+    of wsDown, wsActiveDown:
+      (s.buttonFillColorDown, s.buttonStrokeColorDown)
+    of wsActive:
+      (s.buttonFillColorActive, s.buttonStrokeColorActive)
+    of wsActiveHover:
+      (s.buttonFillColorActiveHover, s.buttonStrokeColorActiveHover)
+
+  vg.fillColor(fillColor)
+  vg.strokeColor(strokeColor)
+  vg.strokeWidth(s.buttonStrokeWidth)
+
+  vg.beginPath()
+  vg.roundedRect(x, y, w, h, s.buttonCornerRadius)
+  vg.fill()
+  vg.stroke()
+
+  vg.drawLabel(x, y, w, h, label, state, s.label)
+# radioButtons()
+proc radioButtons*[T](
+    id: ItemId,
+    x, y, w, h: float,
+    labels: seq[string],
+    activeButtons_out: var seq[T],
+    tooltips: seq[string] = @[],
+    multiselect: bool = false,
+    allowNoSelection: bool = false,
+    layout: RadioButtonsLayout = RadioButtonsLayout(kind: rblHoriz),
+    drawProc: Option[RadioButtonsDrawProc] = RadioButtonsDrawProc.none,
+    style: RadioButtonsStyle = getDefaultRadioButtonsStyle(),
+) =
   if multiselect:
     assert activeButtons_out.len <= labels.len
     if not allowNoSelection:
@@ -122,9 +128,8 @@ proc radioButtons*[T](
   else:
     assert activeButtons_out.len == 1
 
-  for i in 0..activeButtons_out.high:
-    assert activeButtons_out[i].ord >= 0 and
-           activeButtons_out[i].ord <= labels.high
+  for i in 0 .. activeButtons_out.high:
+    assert activeButtons_out[i].ord >= 0 and activeButtons_out[i].ord <= labels.high
 
     activeButtons_out[i] = activeButtons_out[i].clamp(T.low, T.high)
 
@@ -151,19 +156,19 @@ proc radioButtons*[T](
       hotButton = button
 
   func calcHorizButtonIdx(x, w: float, numButtons: Natural): int =
-    if x < 0 or x > w: -1
+    if x < 0 or x > w:
+      -1
     else:
       let bw = w / numButtons
-      min(floor(x / bw).int, numButtons-1)
+      min(floor(x / bw).int, numButtons - 1)
 
   case layout.kind
   of rblHoriz:
-    let button = calcHorizButtonIdx(x = ui.mx-x, w, numButtons)
+    let button = calcHorizButtonIdx(x = ui.mx - x, w, numButtons)
     setHotButton(button)
 
     if isHit(x, y, w, h) and hotButton > -1:
       setHotAndActive()
-
   of rblGridHoriz:
     let
       bbWidth = layout.itemsPerRow.float * w
@@ -178,7 +183,6 @@ proc radioButtons*[T](
 
     if isHit(x, y, bbWidth, bbHeight) and hotButton > -1:
       setHotAndActive()
-
   of rblGridVert:
     let
       bbHeight = layout.itemsPerColumn.float * h
@@ -195,8 +199,7 @@ proc radioButtons*[T](
       setHotAndActive()
 
   # LMB released over active widget means it was clicked
-  if not ui.mbLeftDown and isHot(id) and isActive(id) and
-     rs.activeItem == hotButton:
+  if not ui.mbLeftDown and isHot(id) and isActive(id) and rs.activeItem == hotButton:
     let activeButton = T(hotButton)
 
     if multiselect and not ctrlDown():
@@ -209,65 +212,95 @@ proc radioButtons*[T](
     else:
       activeButtons_out = @[activeButton]
 
-
   let activeButtons = activeButtons_out
 
   # Draw radio buttons
   proc buttonDrawState(i: Natural): WidgetState =
-    let state = if   isHot(id) and hasNoActiveItem(): wsHover
-                elif isHot(id) and isActive(id): wsDown
-                else: wsNormal
+    let state =
+      if isHot(id) and hasNoActiveItem():
+        wsHover
+      elif isHot(id) and isActive(id):
+        wsDown
+      else:
+        wsNormal
 
     if T(i) in activeButtons:
       if hotButton == i:
-        if   state == wsHover: wsActiveHover
-        elif state == wsDown:  wsActiveDown
-        else:                  wsActive
-      else: wsActive
-
+        if state == wsHover:
+          wsActiveHover
+        elif state == wsDown:
+          wsActiveDown
+        else:
+          wsActive
+      else:
+        wsActive
     else:
       if hotButton == i:
-        if   state == wsHover: wsHover
-        elif state == wsDown:  wsDown
-        else:                  wsNormal
-      else: wsNormal
-
+        if state == wsHover:
+          wsHover
+        elif state == wsDown:
+          wsDown
+        else:
+          wsNormal
+      else:
+        wsNormal
 
   addDrawLayer(ui.currentLayer, vg):
     var x = x
     var y = y
 
-    let drawProc = if
-      drawProc.isSome: drawProc.get
-    else:
-      case layout.kind
-      of rblHoriz: DefaultRadioButtonDrawProc
-      else:        DefaultRadioButtonGridDrawProc
+    let drawProc =
+      if drawProc.isSome:
+        drawProc.get
+      else:
+        case layout.kind
+        of rblHoriz: DefaultRadioButtonDrawProc
+        else: DefaultRadioButtonGridDrawProc
 
     case layout.kind
     of rblHoriz:
-      let bw = (w - (s.buttonPadHoriz * (numButtons-1).float)) / numButtons.float
+      let bw = (w - (s.buttonPadHoriz * (numButtons - 1).float)) / numButtons.float
       for i, label in labels:
         let
           state = buttonDrawState(i)
-          last = (i == labels.len-1)
+          last = (i == labels.len - 1)
           w = round(x + bw) - round(x)
 
-        drawProc(vg, id, round(x), y, w, h,
-                 buttonIdx=i, numButtons=labels.len, label,
-                 state, style)
+        drawProc(
+          vg,
+          id,
+          round(x),
+          y,
+          w,
+          h,
+          buttonIdx = i,
+          numButtons = labels.len,
+          label,
+          state,
+          style,
+        )
 
         x += bw
-        if not last: x += s.buttonPadHoriz
-
+        if not last:
+          x += s.buttonPadHoriz
     of rblGridHoriz:
       let startX = x
       var itemsInRow = 0
       for i, label in labels:
         let state = buttonDrawState(i)
-        drawProc(vg, id, x, y, w, h,
-                 buttonIdx=i, numButtons=labels.len, label,
-                 state, style)
+        drawProc(
+          vg,
+          id,
+          x,
+          y,
+          w,
+          h,
+          buttonIdx = i,
+          numButtons = labels.len,
+          label,
+          state,
+          style,
+        )
 
         inc(itemsInRow)
         if itemsInRow == layout.itemsPerRow:
@@ -276,15 +309,24 @@ proc radioButtons*[T](
           itemsInRow = 0
         else:
           x += w
-
     of rblGridVert:
       let startY = y
       var itemsInColumn = 0
       for i, label in labels:
         let state = buttonDrawState(i)
-        drawProc(vg, id, x, y, w, h,
-                 buttonIdx=i, numButtons=labels.len, label,
-                 state, style)
+        drawProc(
+          vg,
+          id,
+          x,
+          y,
+          w,
+          h,
+          buttonIdx = i,
+          numButtons = labels.len,
+          label,
+          state,
+          style,
+        )
 
         inc(itemsInColumn)
         if itemsInColumn == layout.itemsPerColumn:
@@ -295,191 +337,266 @@ proc radioButtons*[T](
           y += h
 
   if isHot(id):
-    let tt = if hotButton >= 0 and hotButton <= tooltips.high:
-      tooltips[hotButton]
-    else: ""
+    let tt =
+      if hotButton >= 0 and hotButton <= tooltips.high:
+        tooltips[hotButton]
+      else:
+        ""
 
     handleTooltip(id, tt)
 
-# }}}
-# {{{ radioButtons templates - seq[string]
+# radioButtons templates - seq[string]
 
 template radioButtons*[T](
-  x, y, w, h:   float,
-  labels:       seq[string],
-  activeButton: var T,
-  tooltips:     seq[string] = @[],
-  layout:       RadioButtonsLayout = RadioButtonsLayout(kind: rblHoriz),
-  drawProc:     Option[RadioButtonsDrawProc] = RadioButtonsDrawProc.none,
-  style:        RadioButtonsStyle = getDefaultRadioButtonsStyle()
+    x, y, w, h: float,
+    labels: seq[string],
+    activeButton: var T,
+    tooltips: seq[string] = @[],
+    layout: RadioButtonsLayout = RadioButtonsLayout(kind: rblHoriz),
+    drawProc: Option[RadioButtonsDrawProc] = RadioButtonsDrawProc.none,
+    style: RadioButtonsStyle = getDefaultRadioButtonsStyle(),
 ) =
-  let i = instantiationInfo(fullPaths=true)
+  let i = instantiationInfo(fullPaths = true)
   let id = getNextId(i.filename, i.line)
 
   var activeButtons = @[activeButton]
 
-  radioButtons(id, x, y, w, h, labels, activeButtons, tooltips,
-               multiselect=false, allowNoSelection=false, layout,
-               drawProc, style)
+  radioButtons(
+    id,
+    x,
+    y,
+    w,
+    h,
+    labels,
+    activeButtons,
+    tooltips,
+    multiselect = false,
+    allowNoSelection = false,
+    layout,
+    drawProc,
+    style,
+  )
 
   activeButton = activeButtons[0]
 
-
 template radioButtons*[T](
-  labels:       seq[string],
-  activeButton: var T,
-  tooltips:     seq[string] = @[],
-  layout:       RadioButtonsLayout = RadioButtonsLayout(kind: rblHoriz),
-  drawProc:     Option[RadioButtonsDrawProc] = RadioButtonsDrawProc.none,
-  style:        RadioButtonsStyle = getDefaultRadioButtonsStyle()
+    labels: seq[string],
+    activeButton: var T,
+    tooltips: seq[string] = @[],
+    layout: RadioButtonsLayout = RadioButtonsLayout(kind: rblHoriz),
+    drawProc: Option[RadioButtonsDrawProc] = RadioButtonsDrawProc.none,
+    style: RadioButtonsStyle = getDefaultRadioButtonsStyle(),
 ) =
-  let i = instantiationInfo(fullPaths=true)
+  let i = instantiationInfo(fullPaths = true)
   let id = getNextId(i.filename, i.line)
 
   autoLayoutPre()
 
   var activeButtons = @[activeButton]
 
-  radioButtons(id,
-               g_uiState.autoLayoutState.x, autoLayoutNextY(),
-               autoLayoutNextItemWidth(), autoLayoutNextItemHeight(),
-               labels, activeButtons, tooltips,
-               multiselect=false, allowNoSelection=false, layout,
-               drawProc, style)
+  radioButtons(
+    id,
+    g_uiState.autoLayoutState.x,
+    autoLayoutNextY(),
+    autoLayoutNextItemWidth(),
+    autoLayoutNextItemHeight(),
+    labels,
+    activeButtons,
+    tooltips,
+    multiselect = false,
+    allowNoSelection = false,
+    layout,
+    drawProc,
+    style,
+  )
 
   autoLayoutPost()
   activeButton = activeButtons[0]
 
-
 template radioButtons*[T](
-  x, y, w, h:   float,
-  labels:       seq[string],
-  activeButtons: var seq[T],
-  tooltips:     seq[string] = @[],
-  multiselect:  bool = true,
-  allowNoSelection: bool = false,
-  layout:       RadioButtonsLayout = RadioButtonsLayout(kind: rblHoriz),
-  drawProc:     Option[RadioButtonsDrawProc] = RadioButtonsDrawProc.none,
-  style:        RadioButtonsStyle = getDefaultRadioButtonsStyle()
+    x, y, w, h: float,
+    labels: seq[string],
+    activeButtons: var seq[T],
+    tooltips: seq[string] = @[],
+    multiselect: bool = true,
+    allowNoSelection: bool = false,
+    layout: RadioButtonsLayout = RadioButtonsLayout(kind: rblHoriz),
+    drawProc: Option[RadioButtonsDrawProc] = RadioButtonsDrawProc.none,
+    style: RadioButtonsStyle = getDefaultRadioButtonsStyle(),
 ) =
-  let i = instantiationInfo(fullPaths=true)
+  let i = instantiationInfo(fullPaths = true)
   let id = getNextId(i.filename, i.line)
 
-  radioButtons(id, x, y, w, h, labels, activeButtons, tooltips,
-               multiselect, allowNoSelection, layout, drawProc, style)
-
+  radioButtons(
+    id, x, y, w, h, labels, activeButtons, tooltips, multiselect, allowNoSelection,
+    layout, drawProc, style,
+  )
 
 template radioButtons*[T](
-  labels:       seq[string],
-  activeButtons: var seq[T],
-  tooltips:     seq[string] = @[],
-  multiselect:  bool = true,
-  allowNoSelection: bool = false,
-  layout:       RadioButtonsLayout = RadioButtonsLayout(kind: rblHoriz),
-  drawProc:     Option[RadioButtonsDrawProc] = RadioButtonsDrawProc.none,
-  style:        RadioButtonsStyle = getDefaultRadioButtonsStyle()
+    labels: seq[string],
+    activeButtons: var seq[T],
+    tooltips: seq[string] = @[],
+    multiselect: bool = true,
+    allowNoSelection: bool = false,
+    layout: RadioButtonsLayout = RadioButtonsLayout(kind: rblHoriz),
+    drawProc: Option[RadioButtonsDrawProc] = RadioButtonsDrawProc.none,
+    style: RadioButtonsStyle = getDefaultRadioButtonsStyle(),
 ) =
-  let i = instantiationInfo(fullPaths=true)
+  let i = instantiationInfo(fullPaths = true)
   let id = getNextId(i.filename, i.line)
 
   autoLayoutPre()
 
-  radioButtons(id,
-               g_uiState.autoLayoutState.x, autoLayoutNextY(),
-               autoLayoutNextItemWidth(), autoLayoutNextItemHeight(),
-               labels, activeButtons, tooltips,
-               multiselect, allowNoSelection, layout, drawProc, style)
+  radioButtons(
+    id,
+    g_uiState.autoLayoutState.x,
+    autoLayoutNextY(),
+    autoLayoutNextItemWidth(),
+    autoLayoutNextItemHeight(),
+    labels,
+    activeButtons,
+    tooltips,
+    multiselect,
+    allowNoSelection,
+    layout,
+    drawProc,
+    style,
+  )
 
   autoLayoutPost()
 
 template radioButtons*[E: enum](
-  x, y, w, h:   float,
-  activeButton: var E,
-  tooltips:     seq[string] = @[],
-  layout:       RadioButtonsLayout = RadioButtonsLayout(kind: rblHoriz),
-  drawProc:     Option[RadioButtonsDrawProc] = RadioButtonsDrawProc.none,
-  style:        RadioButtonsStyle = getDefaultRadioButtonsStyle()
+    x, y, w, h: float,
+    activeButton: var E,
+    tooltips: seq[string] = @[],
+    layout: RadioButtonsLayout = RadioButtonsLayout(kind: rblHoriz),
+    drawProc: Option[RadioButtonsDrawProc] = RadioButtonsDrawProc.none,
+    style: RadioButtonsStyle = getDefaultRadioButtonsStyle(),
 ) =
   let
-    i = instantiationInfo(fullPaths=true)
+    i = instantiationInfo(fullPaths = true)
     id = getNextId(i.filename, i.line)
     labels = enumToSeq[E]()
 
   var activeButtons = @[activeButton]
-  radioButtons(id, x, y, w, h, labels, activeButtons, tooltips,
-               multiselect=false, allowNoSelection=false, layout,
-               drawProc, style)
+  radioButtons(
+    id,
+    x,
+    y,
+    w,
+    h,
+    labels,
+    activeButtons,
+    tooltips,
+    multiselect = false,
+    allowNoSelection = false,
+    layout,
+    drawProc,
+    style,
+  )
   activeButton = activeButtons[0]
 
 template radioButtons*[E: enum](
-  activeButton: var E,
-  tooltips:     seq[string] = @[],
-  layout:       RadioButtonsLayout = RadioButtonsLayout(kind: rblHoriz),
-  drawProc:     Option[RadioButtonsDrawProc] = RadioButtonsDrawProc.none,
-  style:        RadioButtonsStyle = getDefaultRadioButtonsStyle()
+    activeButton: var E,
+    tooltips: seq[string] = @[],
+    layout: RadioButtonsLayout = RadioButtonsLayout(kind: rblHoriz),
+    drawProc: Option[RadioButtonsDrawProc] = RadioButtonsDrawProc.none,
+    style: RadioButtonsStyle = getDefaultRadioButtonsStyle(),
 ) =
   let
-    i = instantiationInfo(fullPaths=true)
+    i = instantiationInfo(fullPaths = true)
     id = getNextId(i.filename, i.line)
     labels = enumToSeq[E]()
 
   autoLayoutPre()
   var activeButtons = @[activeButton]
-  radioButtons(id,
-               g_uiState.autoLayoutState.x, autoLayoutNextY(),
-               autoLayoutNextItemWidth(), autoLayoutNextItemHeight(),
-               labels, activeButtons, tooltips,
-               multiselect=false, allowNoSelection=false, layout,
-               drawProc, style)
+  radioButtons(
+    id,
+    g_uiState.autoLayoutState.x,
+    autoLayoutNextY(),
+    autoLayoutNextItemWidth(),
+    autoLayoutNextItemHeight(),
+    labels,
+    activeButtons,
+    tooltips,
+    multiselect = false,
+    allowNoSelection = false,
+    layout,
+    drawProc,
+    style,
+  )
   activeButton = activeButtons[0]
   autoLayoutPost()
 
 template multiRadioButtons*[T](
-  x, y, w, h:       float,
-  labels:           seq[string],
-  activeButtons:    var seq[T],
-  allowNoSelection: bool = false,
-  tooltips:         seq[string] = @[],
-  layout:           RadioButtonsLayout = RadioButtonsLayout(kind: rblHoriz),
-  drawProc:         Option[RadioButtonsDrawProc] = RadioButtonsDrawProc.none,
-  style:            RadioButtonsStyle = getDefaultRadioButtonsStyle()
+    x, y, w, h: float,
+    labels: seq[string],
+    activeButtons: var seq[T],
+    allowNoSelection: bool = false,
+    tooltips: seq[string] = @[],
+    layout: RadioButtonsLayout = RadioButtonsLayout(kind: rblHoriz),
+    drawProc: Option[RadioButtonsDrawProc] = RadioButtonsDrawProc.none,
+    style: RadioButtonsStyle = getDefaultRadioButtonsStyle(),
 ) =
-  let i = instantiationInfo(fullPaths=true)
+  let i = instantiationInfo(fullPaths = true)
   let id = getNextId(i.filename, i.line)
-  radioButtons(id, x, y, w, h, labels, activeButtons, tooltips,
-               multiselect=true, allowNoSelection, layout, drawProc, style)
+  radioButtons(
+    id,
+    x,
+    y,
+    w,
+    h,
+    labels,
+    activeButtons,
+    tooltips,
+    multiselect = true,
+    allowNoSelection,
+    layout,
+    drawProc,
+    style,
+  )
 
 template multiRadioButtons*[T](
-  labels:           seq[string],
-  activeButtons:    var seq[T],
-  allowNoSelection: bool = false,
-  tooltips:         seq[string] = @[],
-  layout:           RadioButtonsLayout = RadioButtonsLayout(kind: rblHoriz),
-  drawProc:         Option[RadioButtonsDrawProc] = RadioButtonsDrawProc.none,
-  style:            RadioButtonsStyle = getDefaultRadioButtonsStyle()
+    labels: seq[string],
+    activeButtons: var seq[T],
+    allowNoSelection: bool = false,
+    tooltips: seq[string] = @[],
+    layout: RadioButtonsLayout = RadioButtonsLayout(kind: rblHoriz),
+    drawProc: Option[RadioButtonsDrawProc] = RadioButtonsDrawProc.none,
+    style: RadioButtonsStyle = getDefaultRadioButtonsStyle(),
 ) =
-  let i = instantiationInfo(fullPaths=true)
+  let i = instantiationInfo(fullPaths = true)
   let id = getNextId(i.filename, i.line)
 
   autoLayoutPre()
-  radioButtons(id,
-               g_uiState.autoLayoutState.x, autoLayoutNextY(),
-               autoLayoutNextItemWidth(), autoLayoutNextItemHeight(),
-               labels, activeButtons, tooltips,
-               multiselect=true, allowNoSelection, layout, drawProc, style)
+  radioButtons(
+    id,
+    g_uiState.autoLayoutState.x,
+    autoLayoutNextY(),
+    autoLayoutNextItemWidth(),
+    autoLayoutNextItemHeight(),
+    labels,
+    activeButtons,
+    tooltips,
+    multiselect = true,
+    allowNoSelection,
+    layout,
+    drawProc,
+    style,
+  )
   autoLayoutPost()
 
 template multiRadioButtons*[E: enum](
-  x, y, w, h:       float,
-  activeButtons:    var set[E],
-  allowNoSelection: bool = false,
-  tooltips:         seq[string] = @[],
-  layout:           RadioButtonsLayout = RadioButtonsLayout(kind: rblHoriz),
-  drawProc:         Option[RadioButtonsDrawProc] = RadioButtonsDrawProc.none,
-  style:            RadioButtonsStyle = getDefaultRadioButtonsStyle()
+    x, y, w, h: float,
+    activeButtons: var set[E],
+    allowNoSelection: bool = false,
+    tooltips: seq[string] = @[],
+    layout: RadioButtonsLayout = RadioButtonsLayout(kind: rblHoriz),
+    drawProc: Option[RadioButtonsDrawProc] = RadioButtonsDrawProc.none,
+    style: RadioButtonsStyle = getDefaultRadioButtonsStyle(),
 ) =
   let
-    i = instantiationInfo(fullPaths=true)
+    i = instantiationInfo(fullPaths = true)
     id = getNextId(i.filename, i.line)
     labels = enumToSeq[E]()
 
@@ -487,23 +604,36 @@ template multiRadioButtons*[E: enum](
   for b in activeButtons:
     activeButtonsSeq.add(b)
 
-  radioButtons(id, x, y, w, h, labels, activeButtonsSeq, tooltips,
-               multiselect=true, allowNoSelection, layout, drawProc, style)
+  radioButtons(
+    id,
+    x,
+    y,
+    w,
+    h,
+    labels,
+    activeButtonsSeq,
+    tooltips,
+    multiselect = true,
+    allowNoSelection,
+    layout,
+    drawProc,
+    style,
+  )
 
   activeButtons = {}
   for b in activeButtonsSeq:
     activeButtons.incl(b)
 
 template multiRadioButtons*[E: enum](
-  activeButtons:    var set[E],
-  allowNoSelection: bool = false,
-  tooltips:         seq[string] = @[],
-  layout:           RadioButtonsLayout = RadioButtonsLayout(kind: rblHoriz),
-  drawProc:         Option[RadioButtonsDrawProc] = RadioButtonsDrawProc.none,
-  style:            RadioButtonsStyle = getDefaultRadioButtonsStyle()
+    activeButtons: var set[E],
+    allowNoSelection: bool = false,
+    tooltips: seq[string] = @[],
+    layout: RadioButtonsLayout = RadioButtonsLayout(kind: rblHoriz),
+    drawProc: Option[RadioButtonsDrawProc] = RadioButtonsDrawProc.none,
+    style: RadioButtonsStyle = getDefaultRadioButtonsStyle(),
 ) =
   let
-    i = instantiationInfo(fullPaths=true)
+    i = instantiationInfo(fullPaths = true)
     id = getNextId(i.filename, i.line)
     labels = enumToSeq[E]()
 
@@ -512,15 +642,23 @@ template multiRadioButtons*[E: enum](
   for b in activeButtons:
     activeButtonsSeq.add(b)
 
-  radioButtons(id,
-               g_uiState.autoLayoutState.x, autoLayoutNextY(),
-               autoLayoutNextItemWidth(), autoLayoutNextItemHeight(),
-               labels, activeButtonsSeq, tooltips,
-               multiselect=true, allowNoSelection, layout, drawProc, style)
+  radioButtons(
+    id,
+    g_uiState.autoLayoutState.x,
+    autoLayoutNextY(),
+    autoLayoutNextItemWidth(),
+    autoLayoutNextItemHeight(),
+    labels,
+    activeButtonsSeq,
+    tooltips,
+    multiselect = true,
+    allowNoSelection,
+    layout,
+    drawProc,
+    style,
+  )
 
   activeButtons = {}
   for b in activeButtonsSeq:
     activeButtons.incl(b)
   autoLayoutPost()
-
-# }}}

@@ -1,8 +1,8 @@
 import options
 
 type RingBuffer*[T] = object
-  buf:      seq[T]
-  readPos:  Natural
+  buf: seq[T]
+  readPos: Natural
   writePos: Natural
 
 proc initRingBuffer*[T](bufSize: Natural): RingBuffer[T] =
@@ -10,10 +10,16 @@ proc initRingBuffer*[T](bufSize: Natural): RingBuffer[T] =
   result.buf = newSeq[T](bufSize)
 
 proc prevPos[T](cb: RingBuffer[T], p: Natural): Natural {.inline.} =
-  if p == 0: cb.buf.high else: (p.int) - 1
+  if p == 0:
+    cb.buf.high
+  else:
+    (p.int) - 1
 
 proc nextPos[T](cb: RingBuffer[T], p: Natural): Natural {.inline.} =
-  if p < cb.buf.high: p+1 else: 0
+  if p < cb.buf.high:
+    p + 1
+  else:
+    0
 
 proc canRead*[T](cb: RingBuffer[T]): bool {.inline.} =
   cb.readPos != cb.writePos

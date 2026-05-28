@@ -9,11 +9,12 @@ import koi/layout
 import koi/defaults
 import koi/utils
 
-proc label*(x, y, w, h: float,
-           labelText:  string,
-           state:      WidgetState = wsNormal,
-           style:      LabelStyle = getDefaultLabelStyle()) =
-
+proc label*(
+    x, y, w, h: float,
+    labelText: string,
+    state: WidgetState = wsNormal,
+    style: LabelStyle = getDefaultLabelStyle(),
+) =
   alias(ui, g_uiState)
 
   let (x, y) = addDrawOffset(x, y)
@@ -21,15 +22,23 @@ proc label*(x, y, w, h: float,
   addDrawLayer(ui.currentLayer, vg):
     vg.drawLabel(x, y, w, h, labelText, state, style)
 
-proc label*(labelText: string,
-            state: WidgetState = wsNormal,
-            style: LabelStyle = getDefaultLabelStyle()) =
+proc label*(
+    labelText: string,
+    state: WidgetState = wsNormal,
+    style: LabelStyle = getDefaultLabelStyle(),
+) =
   alias(ui, g_uiState)
 
   autoLayoutPre()
 
-  label(ui.autoLayoutState.x, autoLayoutNextY(),
-        autoLayoutNextItemWidth(), autoLayoutNextItemHeight(),
-        labelText, state, style)
+  label(
+    ui.autoLayoutState.x,
+    autoLayoutNextY(),
+    autoLayoutNextItemWidth(),
+    autoLayoutNextItemHeight(),
+    labelText,
+    state,
+    style,
+  )
 
   autoLayoutPost()

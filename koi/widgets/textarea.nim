@@ -18,19 +18,18 @@ import koi/utils
 
 const TextVertAlignFactor = 0.55
 
-# {{{ textArea()
+# textArea()
 proc textArea*(
-  id:         ItemId,
-  x, y, w, h: float,
-  text_out:   var string,
-  tooltip:    string = "",
-  disabled:   bool = false,
-  activate:   bool = false,
-  drawWidget: bool = true,
-  constraint: Option[TextAreaConstraint] = TextAreaConstraint.none,
-  style:      TextAreaStyle = getDefaultTextAreaStyle()
+    id: ItemId,
+    x, y, w, h: float,
+    text_out: var string,
+    tooltip: string = "",
+    disabled: bool = false,
+    activate: bool = false,
+    drawWidget: bool = true,
+    constraint: Option[TextAreaConstraint] = TextAreaConstraint.none,
+    style: TextAreaStyle = getDefaultTextAreaStyle(),
 ) =
-
   alias(ui, g_uiState)
   alias(s, style)
   alias(tab, ui.tabActivationState)
@@ -44,8 +43,8 @@ proc textArea*(
   let (textBoxX, textBoxY, textBoxW, textBoxH) = snapToGrid(
     x = x + s.textPadHoriz,
     y = y + s.textPadVert,
-    w = w - s.textPadHoriz*2 - s.scrollBarWidth,
-    h = h - s.textPadVert*2
+    w = w - s.textPadHoriz * 2 - s.scrollBarWidth,
+    h = h - s.textPadVert * 2,
   )
 
   var tabActivate = false
@@ -56,7 +55,7 @@ proc textArea*(
     if isHit(x, y, w, h) or activate or tabActivate:
       setHot(id)
       if not disabled and
-         ((ui.mbLeftDown and hasNoActiveItem()) or activate or tabActivate):
+          ((ui.mbLeftDown and hasNoActiveItem()) or activate or tabActivate):
         setActive(id)
         clearCharBuf()
         clearEventBuf()
@@ -80,7 +79,7 @@ proc textArea*(
     setCursorShape(csArrow)
 
   proc setFont() =
-    g_nvgContext.setFont(s.textFontSize, name=s.textFontFace)
+    g_nvgContext.setFont(s.textFontSize, name = s.textFontFace)
 
   var text = text_out
   var rows = text.textBreakLines(textBoxW)
@@ -101,16 +100,14 @@ proc textArea*(
       exitEditMode()
 
     # Event handling
-    if ui.hasEvent and (not ui.eventHandled) and
-       ui.currEvent.kind == ekKey and
-       ui.currEvent.action in {kaDown, kaRepeat}:
-
+    if ui.hasEvent and (not ui.eventHandled) and ui.currEvent.kind == ekKey and
+        ui.currEvent.action in {kaDown, kaRepeat}:
       alias(shortcuts, g_textFieldEditShortcuts)
       let sc = mkKeyShortcut(ui.currEvent.key, ui.currEvent.mods)
       setEventHandled()
 
-      let res = handleCommonTextEditingShortcuts(sc, text, ta.cursorPos,
-                                                 ta.selection, maxLen)
+      let res =
+        handleCommonTextEditingShortcuts(sc, text, ta.cursorPos, ta.selection, maxLen)
       if res.isSome:
         text = res.get.text
         ta.cursorPos = res.get.cursorPos
@@ -163,40 +160,57 @@ proc textArea*(
 
     for row in rows:
       if ty + rowHeight > textBoxY and ty < textBoxY + textBoxH:
-        discard vg.text(textBoxX, ty, text, startPos = row.startBytePos, endPos = row.endBytePos)
+        discard vg.text(
+          textBoxX, ty, text, startPos = row.startBytePos, endPos = row.endBytePos
+        )
       ty += rowHeight
 
     vg.restore()
 
-  if isHot(id): handleTooltip(id, tooltip)
+  if isHot(id):
+    handleTooltip(id, tooltip)
   tab.prevItem = id
 
 template textArea*(
-  x, y, w, h: float,
-  text:       var string,
-  tooltip:    string = "",
-  disabled:   bool = false,
-  activate:   bool = false,
-  drawWidget: bool = true,
-  constraint: Option[TextAreaConstraint] = TextAreaConstraint.none,
-  style:      TextAreaStyle = getDefaultTextAreaStyle()
+    x, y, w, h: float,
+    text: var string,
+    tooltip: string = "",
+    disabled: bool = false,
+    activate: bool = false,
+    drawWidget: bool = true,
+    constraint: Option[TextAreaConstraint] = TextAreaConstraint.none,
+    style: TextAreaStyle = getDefaultTextAreaStyle(),
 ) =
-  let i = instantiationInfo(fullPaths=true)
+  let i = instantiationInfo(fullPaths = true)
   let id = getNextId(i.filename, i.line)
-  textArea(id, x, y, w, h, text, tooltip, disabled, activate, drawWidget, constraint, style)
+  textArea(
+    id, x, y, w, h, text, tooltip, disabled, activate, drawWidget, constraint, style
+  )
 
 template textArea*(
-  text:       var string,
-  tooltip:    string = "",
-  disabled:   bool = false,
-  activate:   bool = false,
-  drawWidget: bool = true,
-  constraint: Option[TextAreaConstraint] = TextAreaConstraint.none,
-  style:      TextAreaStyle = getDefaultTextAreaStyle()
+    text: var string,
+    tooltip: string = "",
+    disabled: bool = false,
+    activate: bool = false,
+    drawWidget: bool = true,
+    constraint: Option[TextAreaConstraint] = TextAreaConstraint.none,
+    style: TextAreaStyle = getDefaultTextAreaStyle(),
 ) =
-  let i = instantiationInfo(fullPaths=true)
+  let i = instantiationInfo(fullPaths = true)
   let id = getNextId(i.filename, i.line)
   autoLayoutPre()
-  textArea(id, g_uiState.autoLayoutState.x, autoLayoutNextY(), autoLayoutNextItemWidth(), autoLayoutNextItemHeight(), text, tooltip, disabled, activate, drawWidget, constraint, style)
+  textArea(
+    id,
+    g_uiState.autoLayoutState.x,
+    autoLayoutNextY(),
+    autoLayoutNextItemWidth(),
+    autoLayoutNextItemHeight(),
+    text,
+    tooltip,
+    disabled,
+    activate,
+    drawWidget,
+    constraint,
+    style,
+  )
   autoLayoutPost()
-# }}}

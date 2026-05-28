@@ -25,12 +25,10 @@ proc beginFrame*() =
   let win = activeWindow()
   let (winWidth, winHeight) = win.size
 
-  ui.winWidth  = winWidth.float  / g_uiState.scale
+  ui.winWidth = winWidth.float / g_uiState.scale
   ui.winHeight = winHeight.float / g_uiState.scale
 
-  ui.drawOffsetStack = @[
-    DrawOffset(ox: 0, oy: 0)
-  ]
+  ui.drawOffsetStack = @[DrawOffset(ox: 0, oy: 0)]
 
   ui.currentLayer = layerDefault
 
@@ -69,9 +67,12 @@ proc beginFrame*() =
         ui.mbLeftDownT = core.getTime()
         ui.mbLeftDownX = ui.mx
         ui.mbLeftDownY = ui.my
-      of mbRight:  ui.mbRightDown  = ev.pressed
-      of mbMiddle: ui.mbMiddleDown = ev.pressed
-      else: discard
+      of mbRight:
+        ui.mbRightDown = ev.pressed
+      of mbMiddle:
+        ui.mbMiddleDown = ev.pressed
+      else:
+        discard
 
   # Reset hot item
   ui.hotItem = 0
@@ -94,9 +95,7 @@ proc beginFrame*() =
     let (fbWidth, fbHeight) = win.framebufferSize
     glViewport(0, 0, fbWidth.GLsizei, fbHeight.GLsizei)
 
-    glClear(GL_COLOR_BUFFER_BIT or
-            GL_DEPTH_BUFFER_BIT or
-            GL_STENCIL_BUFFER_BIT)
+    glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT or GL_STENCIL_BUFFER_BIT)
 
   vg.beginFrame(ui.winWidth, ui.winHeight, getPxRatio())
 
@@ -124,6 +123,7 @@ proc endFrame*() =
       ui.activeItem = 0
 
   # Decrement remaining frames counter
-  if ui.framesLeft > 0: dec(ui.framesLeft)
+  if ui.framesLeft > 0:
+    dec(ui.framesLeft)
 
   vg.endFrame()

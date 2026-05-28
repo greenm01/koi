@@ -12,146 +12,145 @@ import koi/types
 import koi/utils
 import koi/ringbuffer
 
-type
-  UIState* = object
-    # General state
-    # *************
-    hasEvent*:        bool
-    currEvent*:       Event
-    eventHandled*:    bool
+type UIState* = object
+  # General state
+  # *************
+  hasEvent*: bool
+  currEvent*: Event
+  eventHandled*: bool
 
-    # Frames left to render; this is decremented in endFrame()
-    framesLeft*:      Natural
+  # Frames left to render; this is decremented in endFrame()
+  framesLeft*: Natural
 
-    # Scale factor
-    scale*:           float
+  # Scale factor
+  scale*: float
 
-    # This is the draw layer all widgets will draw on
-    # TODO bit hacky, it's needed only for drawing the CSD decoration on top
-    # of everything
-    currentLayer*:    DrawLayer
+  # This is the draw layer all widgets will draw on
+  # TODO bit hacky, it's needed only for drawing the CSD decoration on top
+  # of everything
+  currentLayer*: DrawLayer
 
-    # Window dimensions (in virtual pixels)
-    winWidth*, winHeight*: float
+  # Window dimensions (in virtual pixels)
+  winWidth*, winHeight*: float
 
-    # Set if a widget has captured the focus (e.g., a textfield in edit mode)
-    # so all other UI interactions (hovers, tooltips, etc.) should be disabled
-    focusCaptured*:   bool
+  # Set if a widget has captured the focus (e.g., a textfield in edit mode)
+  # so all other UI interactions (hovers, tooltips, etc.) should be disabled
+  focusCaptured*: bool
 
-    tooltipState*:    TooltipStateVars
+  tooltipState*: TooltipStateVars
 
-    # True if a dialog is currently open
-    dialogOpen*:      bool
+  # True if a dialog is currently open
+  dialogOpen*: bool
 
-    # Reset to empty seq at the start of the frame
-    drawOffsetStack*: seq[DrawOffset]
+  # Reset to empty seq at the start of the frame
+  drawOffsetStack*: seq[DrawOffset]
 
-    # Layout stack
-    layoutStack*:     seq[LayoutNode]
+  # Layout stack
+  layoutStack*: seq[LayoutNode]
 
-    # Hit checking clip rectangle (e.g., when inside a scrollview)
-    # TODO should dialog and popup use this as well? or instead of
-    # focuscaptured?
-    hitClipRect*:     Rect
-    oldHitClipRect*:  Rect
+  # Hit checking clip rectangle (e.g., when inside a scrollview)
+  # TODO should dialog and popup use this as well? or instead of
+  # focuscaptured?
+  hitClipRect*: Rect
+  oldHitClipRect*: Rect
 
-    # Mouse state
-    # -----------
-    mx*, my*:          float
+  # Mouse state
+  # -----------
+  mx*, my*: float
 
-    # When widgetMouseDrag is true, only dx and dy are updated instead
-    # of mx and my
-    widgetMouseDrag*: bool
-    dx*, dy*:    float
+  # When widgetMouseDrag is true, only dx and dy are updated instead
+  # of mx and my
+  widgetMouseDrag*: bool
+  dx*, dy*: float
 
-    # Mouse cursor position from the last frame
-    lastmx*, lastmy*:  float
+  # Mouse cursor position from the last frame
+  lastmx*, lastmy*: float
 
-    mbLeftDown*:      bool
-    mbRightDown*:     bool
-    mbMiddleDown*:     bool
+  mbLeftDown*: bool
+  mbRightDown*: bool
+  mbMiddleDown*: bool
 
-    # Time and position of the last left mouse button down event (for
-    # double-click detenction)
-    mbLeftDownT*:     float
-    mbLeftDownX*:     float
-    mbLeftDownY*:     float
+  # Time and position of the last left mouse button down event (for
+  # double-click detenction)
+  mbLeftDownT*: float
+  mbLeftDownX*: float
+  mbLeftDownY*: float
 
-    lastMbLeftDownT*: float
-    lastMbLeftDownX*: float
-    lastMbLeftDownY*: float
+  lastMbLeftDownT*: float
+  lastMbLeftDownX*: float
+  lastMbLeftDownY*: float
 
-    cursorShape*:     CursorShape
+  cursorShape*: CursorShape
 
-    # Keyboard state
-    # --------------
-    keyStates*:      array[ord(Key.high), bool]
+  # Keyboard state
+  # --------------
+  keyStates*: array[ord(Key.high), bool]
 
-    # Active & hot items
-    # ------------------
-    hotItem*:        ItemId    # reset at the start of the frame to 0
-    activeItem*:     ItemId
+  # Active & hot items
+  # ------------------
+  hotItem*: ItemId # reset at the start of the frame to 0
+  activeItem*: ItemId
 
-    # General purpose widget states
-    # -----------------------------
-    # For relative mouse movement calculations
-    x0*, y0*:         float
+  # General purpose widget states
+  # -----------------------------
+  # For relative mouse movement calculations
+  x0*, y0*: float
 
-    # For delays & timeouts
-    t0*:             float
+  # For delays & timeouts
+  t0*: float
 
-    # For keeping track of the cursor in hidden drag mode.
-    # Dragging can be only active along the X or Y-axis, but not both:
-    # - in horizontal drag mode: dragX >= 0, dragY  < 0
-    # - in vertical drag mode:   dragX  < 0, dragY >= 0
-    dragX*, dragY*:   float
+  # For keeping track of the cursor in hidden drag mode.
+  # Dragging can be only active along the X or Y-axis, but not both:
+  # - in horizontal drag mode: dragX >= 0, dragY  < 0
+  # - in vertical drag mode:   dragX  < 0, dragY >= 0
+  dragX*, dragY*: float
 
-    # Widget-specific states
-    # **********************
+  # Widget-specific states
+  # **********************
 
-    # Global widget states (per widget type)
-    colorPickerState*:   ColorPickerStateVars
-    dialogState*:        DialogStateVars
-    popupState*:         PopupStateVars
-    radioButtonState*:   RadioButtonStateVars
-    scrollBarState*:     ScrollBarStateVars
-    scrollViewState*:    ScrollViewStateVars
-    sectionHeaderState*: SectionHeaderStateVars
-    sliderState*:        SliderStateVars
-    textFieldState*:     TextFieldStateVars
+  # Global widget states (per widget type)
+  colorPickerState*: ColorPickerStateVars
+  dialogState*: DialogStateVars
+  popupState*: PopupStateVars
+  radioButtonState*: RadioButtonStateVars
+  scrollBarState*: ScrollBarStateVars
+  scrollViewState*: ScrollViewStateVars
+  sectionHeaderState*: SectionHeaderStateVars
+  sliderState*: SliderStateVars
+  textFieldState*: TextFieldStateVars
 
-    # Per-instance data storage for widgets that require it (e.g., ScrollView)
-    itemState*:          Table[ItemId, ref RootObj]
+  # Per-instance data storage for widgets that require it (e.g., ScrollView)
+  itemState*: Table[ItemId, ref RootObj]
 
-    # Auto-layout
-    # ***********
-    autoLayoutParams*:   AutoLayoutParams
-    autoLayoutState*:    AutoLayoutStateVars
+  # Auto-layout
+  # ***********
+  autoLayoutParams*: AutoLayoutParams
+  autoLayoutState*: AutoLayoutStateVars
 
-    # Tab-activation
-    # **************
-    tabActivationState*: TabActivationStateVars
+  # Tab-activation
+  # **************
+  tabActivationState*: TabActivationStateVars
 
 var
   g_nvgContext*: NVGContext
   g_uiState*: UIState
   g_window*: Window
 
-  g_cursorArrow*:       Cursor
-  g_cursorIBeam*:       Cursor
-  g_cursorCrosshair*:   Cursor
-  g_cursorHand*:        Cursor
-  g_cursorResizeEW*:    Cursor
-  g_cursorResizeNS*:    Cursor
-  g_cursorResizeNWSE*:  Cursor
-  g_cursorResizeNESW*:  Cursor
-  g_cursorResizeAll*:   Cursor
+  g_cursorArrow*: Cursor
+  g_cursorIBeam*: Cursor
+  g_cursorCrosshair*: Cursor
+  g_cursorHand*: Cursor
+  g_cursorResizeEW*: Cursor
+  g_cursorResizeNS*: Cursor
+  g_cursorResizeNWSE*: Cursor
+  g_cursorResizeNESW*: Cursor
+  g_cursorResizeAll*: Cursor
 
   g_eventBuf*: RingBuffer[Event]
 
 let
-  HighlightColor*     = rgb(1.0, 0.65, 0.0)
-  HighlightLowColor*  = rgb(0.9, 0.55, 0.0)
+  HighlightColor* = rgb(1.0, 0.65, 0.0)
+  HighlightLowColor* = rgb(0.9, 0.55, 0.0)
 
 proc getTime*(): float =
   times.epochTime()
@@ -190,15 +189,15 @@ proc initCore*(vg: NVGContext, glfwGetProcAddress: proc) =
 
   g_nvgContext = vg
 
-  g_cursorArrow      = createStandardCursor(csArrow)
-  g_cursorIBeam      = createStandardCursor(csIBeam)
-  g_cursorCrosshair  = createStandardCursor(csCrosshair)
-  g_cursorHand       = createStandardCursor(csHand)
-  g_cursorResizeEW   = createStandardCursor(csResizeEW)
-  g_cursorResizeNS   = createStandardCursor(csResizeNS)
+  g_cursorArrow = createStandardCursor(csArrow)
+  g_cursorIBeam = createStandardCursor(csIBeam)
+  g_cursorCrosshair = createStandardCursor(csCrosshair)
+  g_cursorHand = createStandardCursor(csHand)
+  g_cursorResizeEW = createStandardCursor(csResizeEW)
+  g_cursorResizeNS = createStandardCursor(csResizeNS)
   g_cursorResizeNWSE = createStandardCursor(csResizeNWSE)
   g_cursorResizeNESW = createStandardCursor(csResizeNESW)
-  g_cursorResizeAll  = createStandardCursor(csResizeAll)
+  g_cursorResizeAll = createStandardCursor(csResizeAll)
 
   g_eventBuf = initRingBuffer[Event](64)
   setScale(1.0)

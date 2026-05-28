@@ -26,38 +26,55 @@ proc loadData(vg: NVGContext) =
 
 proc renderUI() =
   koi.beginFrame()
-  
+
   # Standard auto-layout
   label("Standard Auto-layout:")
-  if button("Standard Button"): echo "Standard Button clicked"
-  
+  if button("Standard Button"):
+    echo "Standard Button clicked"
+
   label("Hierarchical Layout (Row 30px, Static 150 + Dynamic):")
   layoutRow(30.0):
     col(150.0):
-      if button("Static 150"): echo "Static Button clicked"
-    colDynamic():
-      if button("Dynamic"): echo "Dynamic Button clicked"
+      if button("Static 150"):
+        echo "Static Button clicked"
+    colDynamic:
+      if button("Dynamic"):
+        echo "Dynamic Button clicked"
 
   label("Hierarchical Layout (Row 30px, 3x Ratio 0.33):")
   layoutRow(30.0):
     colRatio(0.33):
-      if button("Ratio 1"): echo "Ratio 1 clicked"
+      if button("Ratio 1"):
+        echo "Ratio 1 clicked"
     colRatio(0.33):
-      if button("Ratio 2"): echo "Ratio 2 clicked"
+      if button("Ratio 2"):
+        echo "Ratio 2 clicked"
     colRatio(0.33):
-      if button("Ratio 3"): echo "Ratio 3 clicked"
+      if button("Ratio 3"):
+        echo "Ratio 3 clicked"
+
+  label("Predeclared Row (Fixed 100 + 2x Dynamic):")
+  layoutRow(30.0, [col(100.0), colDynamic(), colDynamic()]):
+    if button("Fixed"):
+      echo "Fixed clicked"
+    if button("Dynamic 1"):
+      echo "Dynamic 1 clicked"
+    if button("Dynamic 2"):
+      echo "Dynamic 2 clicked"
 
   label("Layout Space (200px height):")
   layoutSpace(200.0):
     # Absolute positioning relative to the space
     label(20, 20, 100, 20, "At 20,20")
-    if button(150, 50, 100, 30, "At 150,50"): echo "Space Button clicked"
+    if button(150, 50, 100, 30, "At 150,50"):
+      echo "Space Button clicked"
 
   koi.endFrame()
 
 proc renderFrame(win: Window) =
-  if win.iconified: return
-  
+  if win.iconified:
+    return
+
   let size = win.size
   glViewport(0, 0, size.w.int32, size.h.int32)
   glClearColor(0.2, 0.2, 0.2, 1.0)
@@ -66,7 +83,7 @@ proc renderFrame(win: Window) =
   vg.beginFrame(size.w.float, size.h.float, 1.0)
   renderUI()
   vg.endFrame()
-  
+
   win.swapBuffers()
 
 proc main() =
