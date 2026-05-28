@@ -1,3 +1,4 @@
+import std/os
 import std/options
 import std/strformat
 
@@ -57,19 +58,21 @@ proc surfaceSize(win: Window): tuple[width, height: uint32] =
   (width.uint32, height.uint32)
 
 proc loadData(vg: NVGContext) =
-  let regular = vg.createFont("sans", "data/Roboto-Regular.ttf")
+  let dataDir = currentSourcePath().parentDir().parentDir() / "data"
+
+  let regular = vg.createFont("sans", dataDir / "Roboto-Regular.ttf")
   if regular == NoFont:
     quit "Could not load regular font."
 
-  let bold = vg.createFont("sans-bold", "data/Roboto-Bold.ttf")
+  let bold = vg.createFont("sans-bold", dataDir / "Roboto-Bold.ttf")
   if bold == NoFont:
     quit "Could not load bold font."
 
 proc renderUi() =
-  koi.beginFrame()
+  beginFrame()
 
   vg.beginPath()
-  vg.rect(0, 0, koi.winWidth(), koi.winHeight())
+  vg.rect(0, 0, winWidth(), winHeight())
   vg.fillColor(rgb(0.16, 0.17, 0.18))
   vg.fill()
 
@@ -85,19 +88,19 @@ proc renderUi() =
     w = 220.0
     h = 24.0
 
-  koi.label(x, 52, 420, h, "Koi running on webgpu-nim", style = titleStyle)
-  koi.label(x, 90, 360, h, "This is the opt-in WebGPU path.", style = labelStyle)
+  label(x, 52, 420, h, "Koi running on webgpu-nim", style = titleStyle)
+  label(x, 90, 360, h, "This is the opt-in WebGPU path.", style = labelStyle)
 
-  if koi.button(x, 132, 120, h, "Button"):
+  if button(x, 132, 120, h, "Button"):
     echo "button pressed"
 
-  koi.toggleButton(x, 172, 120, h, enabled, "Off", "On")
+  toggleButton(x, 172, 120, h, enabled, "Off", "On")
 
-  koi.horizSlider(x, 220, w, h, 0, 100, sliderValue)
-  koi.label(x + w + 18, 220, 120, h, fmt"{sliderValue:.1f}", style = labelStyle)
+  horizSlider(x, 220, w, h, 0, 100, sliderValue)
+  label(x + w + 18, 220, 120, h, fmt"{sliderValue:.1f}", style = labelStyle)
 
-  koi.textField(x, 268, w, h, textValue)
-  koi.label(
+  textField(x, 268, w, h, textValue)
+  label(
     x,
     314,
     420,
@@ -106,12 +109,12 @@ proc renderUi() =
     style = labelStyle,
   )
 
-  koi.endFrame()
+  endFrame()
 
 when isMainModule:
   glfw.initialize()
   let win = createWindow()
-  koi.setWindow(win)
+  setWindow(win)
 
   let
     display = glfwGetWaylandDisplay()
@@ -120,7 +123,7 @@ when isMainModule:
 
   backend.initKoiWgpuBackend(display, surface, width.uint32, height.uint32)
   vg = backend.createNanoVgContext({nifAntialias})
-  koi.init(vg, glfw.getProcAddress)
+  init(vg, glfw.getProcAddress)
   loadData(vg)
 
   while not win.shouldClose:

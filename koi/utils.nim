@@ -1,6 +1,10 @@
 template alias*(newName: untyped, call: untyped) =
   template newName(): untyped = call
 
+proc enumToSeq*[E: enum](): seq[string] =
+  for e in E.low..E.high:
+    result.add($e)
+
 template `++`*[A](a: ptr A, offset: int): ptr A =
   cast[ptr A](cast[int](a) + offset)
 
@@ -13,4 +17,3 @@ func invLerp*(a, b, v: SomeFloat): SomeFloat =
 func remap*(inMin, inMax, outMin, outMax, v: SomeFloat): SomeFloat =
   let t = invLerp(inMin, inMax, v)
   lerp(outMin, outMax, t)
-

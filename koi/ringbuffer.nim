@@ -1,6 +1,6 @@
 import options
 
-type RingBuffer[T] = object
+type RingBuffer*[T] = object
   buf:      seq[T]
   readPos:  Natural
   writePos: Natural
