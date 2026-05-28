@@ -15,7 +15,8 @@ import glfw
 import nanovg
 
 import koi/deps/with
-import koi/glad/gl
+when not defined(koiWebGpu):
+  import koi/glad/gl
 import koi/rect
 import koi/ringbuffer
 import koi/utils
@@ -471,6 +472,7 @@ var
   g_cursorResizeNWSE:  Cursor
   g_cursorResizeNESW:  Cursor
   g_cursorResizeAll:   Cursor
+  g_window:            Window
 
 let
   HighlightColor     = rgb(1.0, 0.65, 0.0)
@@ -618,6 +620,15 @@ proc mbLeftDown*():   bool = g_uiState.mbLeftDown
 proc mbRightDown*():  bool = g_uiState.mbRightDown
 proc mbMiddleDown*(): bool = g_uiState.mbMiddleDown
 
+proc setWindow*(win: Window) =
+  g_window = win
+
+proc activeWindow(): Window =
+  if not g_window.isNil:
+    g_window
+  else:
+    glfw.currentContext()
+
 proc isKeyDown*(key: Key): bool =
   if key == keyUnknown: false
   else: g_uiState.keyStates[ord(key)]
@@ -632,11 +643,14 @@ proc superDown*(): bool = isKeyDown(keyLeftSuper)   or isKeyDown(keyRightSuper)
 
 # {{{ getPxRatio*()
 proc getPxRatio*(): float =
-  let win = glfw.currentContext()
+  let win = activeWindow()
   let (winWidth, _) = win.size
   let (fbWidth, _) = win.framebufferSize
 
   result = fbWidth / (winWidth / g_uiState.scale)
+  when defined(koiWebGpu):
+    let (xscale, _) = win.contentScale
+    result = max(result, xscale)
 
 # }}}
 # {{{ snapToGrid*()
@@ -1063,25 +1077,28 @@ template renderToImage*(vg: NVGContext,
                         width, height: int, pxRatio: float,
                         imageFlags: set[ImageFlags],
                         body: untyped): Image =
-  var fb = vg.nvgluCreateFramebuffer(width, height, imageFlags)
+  when defined(koiWebGpu):
+    NoImage
+  else:
+    var fb = vg.nvgluCreateFramebuffer(width, height, imageFlags)
 
-  let (fboWidth, fboHeight) = vg.imageSize(fb.image)
+    let (fboWidth, fboHeight) = vg.imageSize(fb.image)
 
-  nvgluBindFramebuffer(fb)
+    nvgluBindFramebuffer(fb)
 
-  glViewport(0, 0, fboWidth.GLsizei, fboHeight.GLsizei)
-  glClear(GL_COLOR_BUFFER_BIT or GL_STENCIL_BUFFER_BIT)
+    glViewport(0, 0, fboWidth.GLsizei, fboHeight.GLsizei)
+    glClear(GL_COLOR_BUFFER_BIT or GL_STENCIL_BUFFER_BIT)
 
-  vg.beginFrame(width.float, height.float, pxRatio)
-  body
-  vg.endFrame()
+    vg.beginFrame(width.float, height.float, pxRatio)
+    body
+    vg.endFrame()
 
-  nvgluBindFramebuffer(nil)
+    nvgluBindFramebuffer(nil)
 
-  let image = fb.image
-  fb.image = NoImage  # prevent deleting the image when deleting the FB
-  nvgluDeleteFramebuffer(fb)
-  image
+    let image = fb.image
+    fb.image = NoImage  # prevent deleting the image when deleting the FB
+    nvgluDeleteFramebuffer(fb)
+    image
 
 # }}}
 
@@ -1515,12 +1532,12 @@ proc keyCb(win: Window, key: Key, scanCode: int32, action: KeyAction,
 
 # {{{ toClipboard*()
 proc toClipboard*(s: string) =
-  glfw.currentContext().clipboardString = s
+  activeWindow().clipboardString = s
 
 # }}}
 # {{{ fromClipboard*()
 proc fromClipboard*(): string =
-  $glfw.currentContext().clipboardString
+  $activeWindow().clipboardString
 
 # }}}
 
@@ -1561,17 +1578,17 @@ proc scrollCb(win: Window, offset: tuple[x, y: float64]) =
 
 # {{{ showCursor*()
 proc showCursor*() =
-  glfw.currentContext().cursorMode = cmNormal
+  activeWindow().cursorMode = cmNormal
 
 # }}}
 # {{{ hideCursor*()
 proc hideCursor*() =
-  glfw.currentContext().cursorMode = cmHidden
+  activeWindow().cursorMode = cmHidden
 
 # }}}
 # {{{ disableCursor*()
 proc disableCursor*() =
-  glfw.currentContext().cursorMode = cmDisabled
+  activeWindow().cursorMode = cmDisabled
 
 # }}}
 # {{{ setCursorShape*()
@@ -1581,7 +1598,7 @@ proc setCursorShape*(cs: CursorShape) =
 # }}}
 # {{{ setCursorMode*()
 proc setCursorMode*(cs: CursorShape) =
-  let win = glfw.currentContext()
+  let win = activeWindow()
 
   var c: Cursor
   if   cs == csArrow:       c = g_cursorArrow
@@ -1599,14 +1616,14 @@ proc setCursorMode*(cs: CursorShape) =
 # }}}
 # {{{ setCursorPosX*()
 proc setCursorPosX*(x: float) =
-  let win = glfw.currentContext()
+  let win = activeWindow()
   let (_, currY) = win.cursorPos()
   win.cursorPos = (x * g_uiState.scale, currY)
 
 # }}}
 # {{{ setCursorPosY*()
 proc setCursorPosY*(y: float) =
-  let win = glfw.currentContext()
+  let win = activeWindow()
   let (currX, _) = win.cursorPos()
   win.cursorPos = (currX, y * g_uiState.scale)
 
@@ -7922,8 +7939,9 @@ proc setScale*(scale: float) =
 # {{{ init*()
 
 proc init*(nvg: NVGContext, getProcAddress: proc) =
-  if not gladLoadGL(getProcAddress):
-    quit "Error initialising OpenGL"
+  when not defined(koiWebGpu):
+    if not gladLoadGL(getProcAddress):
+      quit "Error initialising OpenGL"
 
   g_nvgContext = nvg
 
@@ -7937,7 +7955,7 @@ proc init*(nvg: NVGContext, getProcAddress: proc) =
   g_cursorResizeNESW = createStandardCursor(csResizeNESW)
   g_cursorResizeAll  = createStandardCursor(csResizeAll)
 
-  let win = currentContext()
+  let win = activeWindow()
 
   win.keyCb         = keyCb
   win.charCb        = charCb
@@ -7957,7 +7975,8 @@ proc init*(nvg: NVGContext, getProcAddress: proc) =
   setScale(1.0)
   setFramesLeft()
 
-  glfw.swapInterval(1)
+  when not defined(koiWebGpu):
+    glfw.swapInterval(1)
 
 # }}}
 # {{{ deinit*()
@@ -7980,7 +7999,7 @@ proc beginFrame*() =
   alias(ui, g_uiState)
   alias(vg, g_nvgContext)
 
-  let win = glfw.currentContext()
+  let win = activeWindow()
   let (winWidth, winHeight) = win.size
 
   ui.winWidth  = winWidth.float  / g_uiState.scale
@@ -8046,17 +8065,18 @@ proc beginFrame*() =
   # Clear all draw layers
   g_drawLayers.init()
 
-  # Render to FBO before starting the main frame
-  if g_checkeredImage == NoImage:
-    createCheckeredImage(vg)
+  when not defined(koiWebGpu):
+    # Render to FBO before starting the main frame
+    if g_checkeredImage == NoImage:
+      createCheckeredImage(vg)
 
-  # Update and render
-  let (fbWidth, fbHeight) = win.framebufferSize
-  glViewport(0, 0, fbWidth.GLsizei, fbHeight.GLsizei)
+    # Update and render
+    let (fbWidth, fbHeight) = win.framebufferSize
+    glViewport(0, 0, fbWidth.GLsizei, fbHeight.GLsizei)
 
-  glClear(GL_COLOR_BUFFER_BIT or
-          GL_DEPTH_BUFFER_BIT or
-          GL_STENCIL_BUFFER_BIT)
+    glClear(GL_COLOR_BUFFER_BIT or
+            GL_DEPTH_BUFFER_BIT or
+            GL_STENCIL_BUFFER_BIT)
 
   vg.beginFrame(ui.winWidth, ui.winHeight, getPxRatio())
 

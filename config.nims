@@ -1,3 +1,6 @@
+import std/os
+import std/strutils
+
 proc setCommonCompileParams() =
   --gc:orc
   --deepcopy:on
@@ -18,6 +21,24 @@ task paneltest, "build panel test":
   setCommand "c", "examples/paneltest"
   setCommonCompileParams()
 
+task webgpuMinimal, "build WebGPU minimal example":
+  let webgpuPath = gorge("nimble path webgpu").strip()
+
+  --gc:orc
+  --deepcopy:on
+  --d:nimPreviewFloatRoundtrip
+  --d:wgpu
+  --d:wgvkWGSL
+  --d:NoGLFW
+  --d:koiWebGpu
+  --d:wayland
+  --path:"."
+  switch("path", webgpuPath / "src")
+  switch("passC", "-Wno-incompatible-pointer-types")
+  --hint:"Name:off"
+  --d:debug
+  setCommand "c", "examples/webgpu_minimal"
+
 task testRelease, "build test":
   --d:release
   setCommand "c", "examples/test"
@@ -27,4 +48,3 @@ task paneltestRelease, "build panel test":
   --d:release
   setCommand "c", "examples/paneltest"
   setCommonCompileParams()
-
