@@ -11,6 +11,14 @@ import koi
 # Global NanoVG context
 var vg: NVGContext
 
+var
+  selectedRow = false
+  progressValue = 0.45
+  intValue = 4
+  floatValue = 0.5
+  treeOpen = true
+  treeChildOpen = true
+
 proc createWindow(): Window =
   var cfg = DefaultOpenglWindowConfig
   cfg.size = (w: 800, h: 600)
@@ -62,12 +70,37 @@ proc renderUI() =
     if button("Dynamic 2"):
       echo "Dynamic 2 clicked"
 
+  label("Variable Row (Fixed 80 + Variable min 80 + Dynamic):")
+  layoutRow(30.0, [col(80.0), colVariable(80.0), colDynamic()]):
+    discard button("Fixed")
+    discard button("Variable")
+    discard button("Dynamic")
+
+  label("Spacer in Row:")
+  layoutRow(30.0, [colDynamic(), colDynamic(), colDynamic()]):
+    discard button("Left")
+    spacer()
+    discard button("Right")
+
   label("Layout Space (200px height):")
   layoutSpace(200.0):
     # Absolute positioning relative to the space
     label(20, 20, 100, 20, "At 20,20")
     if button(150, 50, 100, 30, "At 150,50"):
       echo "Space Button clicked"
+    let b = layoutSpaceBounds()
+    label(20, b.h - 30, 180, 20, "Space bounds: " & $b.w & " x " & $b.h)
+
+  label("Selectable, Progress, Properties:")
+  discard selectable("Selectable row", selectedRow)
+  progress(progressValue, 1.0, "Progress")
+  discard intProperty("Int value", 0, 10, 1, intValue)
+  discard floatProperty("Float value", 0.0, 1.0, 0.1, floatValue)
+
+  treeNode("Tree Node", treeOpen):
+    label("Tree child")
+    treeSubNode("Tree Subnode", treeChildOpen):
+      label("Nested content")
 
   koi.endFrame()
 

@@ -65,6 +65,26 @@ suite "auto-layout":
     autoLayoutPre()
     checkRect(autoLayoutNextBounds(), rect(13, 57, 143, 21))
 
+  test "spacer consumes the next shorthand slot":
+    resetLayout()
+
+    spacer()
+    autoLayoutPre()
+    checkRect(autoLayoutNextBounds(), rect(173, 0, 143, 21))
+
+  test "height spacer consumes a whole row":
+    resetLayout()
+
+    spacer(40)
+    autoLayoutPre()
+    checkRect(autoLayoutNextBounds(), rect(13, 57, 143, 21))
+
+  test "ratio helper clamps pixel ratios":
+    checkClose(ratioFromPixels(25, 100), 0.25)
+    checkClose(ratioFromPixels(-10, 100), 0)
+    checkClose(ratioFromPixels(120, 100), 1)
+    checkClose(ratioFromPixels(10, 0), 0)
+
 suite "row layout":
   test "legacy fixed then dynamic row keeps source-compatible call shape":
     resetLayout()
@@ -110,6 +130,38 @@ suite "row layout":
 
     autoLayoutPre()
     checkRect(autoLayoutNextBounds(), rect(88.75, 5, 227.25, 21))
+    autoLayoutPost()
+    endLayout()
+
+  test "predeclared variable row preserves minimum and grows":
+    resetLayout()
+
+    beginRowLayout(30, [col(100), colVariable(50), colDynamic()])
+    autoLayoutPre()
+    checkRect(autoLayoutNextBounds(), rect(13, 5, 100, 21))
+    autoLayoutPost()
+
+    autoLayoutPre()
+    checkRect(autoLayoutNextBounds(), rect(113, 5, 126.5, 21))
+    autoLayoutPost()
+
+    autoLayoutPre()
+    checkRect(autoLayoutNextBounds(), rect(239.5, 5, 76.5, 21))
+    autoLayoutPost()
+    endLayout()
+
+  test "variable row clamps to minimum when space is tight":
+    var params = DefaultAutoLayoutParams
+    params.rowWidth = 90
+    resetLayout(params)
+
+    beginRowLayout(30, [colVariable(80), colDynamic()])
+    autoLayoutPre()
+    checkRect(autoLayoutNextBounds(), rect(13, 5, 80, 21))
+    autoLayoutPost()
+
+    autoLayoutPre()
+    checkRect(autoLayoutNextBounds(), rect(93, 5, 0, 21))
     autoLayoutPost()
     endLayout()
 

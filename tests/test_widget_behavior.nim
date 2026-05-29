@@ -1,12 +1,20 @@
 import std/unittest
 
 import koi/core
+import koi/drawing
 import koi/input
 import koi/internal/widget_behavior
+import koi/rect
 import koi/types
+import koi/widgets/selectable
 
 proc resetUi() =
   g_uiState = UIState.default
+  g_uiState.winWidth = 100
+  g_uiState.winHeight = 100
+  g_uiState.hitClipRect = rect(0, 0, 100, 100)
+  g_uiState.drawOffsetStack = @[DrawOffset(ox: 0, oy: 0)]
+  g_drawLayers.init()
 
 suite "simple widget behavior":
   test "disabled widgets do not become active":
@@ -41,6 +49,36 @@ suite "simple widget behavior":
     check simpleWidgetState(false, true, true, false) == wsDown
     check simpleWidgetState(false, true, false, false) == wsNormal
     check simpleWidgetState(true, true, false, true) == wsDisabled
+
+  test "selectable toggles on release while hot and active":
+    resetUi()
+    var selected = false
+
+    g_uiState.mx = 5
+    g_uiState.my = 5
+    g_uiState.mbLeftDown = true
+    check not selectable(10, 0, 0, 20, 20, "Item", selected)
+    check not selected
+    check isActive(10)
+
+    g_uiState.hotItem = 0
+    g_uiState.mbLeftDown = false
+    check selectable(10, 0, 0, 20, 20, "Item", selected)
+    check selected
+
+  test "disabled selectable does not toggle":
+    resetUi()
+    var selected = false
+
+    g_uiState.mx = 5
+    g_uiState.my = 5
+    g_uiState.mbLeftDown = true
+    check not selectable(10, 0, 0, 20, 20, "Item", selected, disabled = true)
+
+    g_uiState.hotItem = 0
+    g_uiState.mbLeftDown = false
+    check not selectable(10, 0, 0, 20, 20, "Item", selected, disabled = true)
+    check not selected
 
   test "selectable states preserve active and down behavior":
     check simpleWidgetState(false, false, false, true, selected = true) == wsActive

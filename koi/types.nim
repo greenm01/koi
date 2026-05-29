@@ -363,6 +363,23 @@ type ButtonStyle* = ref object
   fillColorDisabled*: Color
   label*: LabelStyle
 
+type SelectableStyle* = ref object
+  cornerRadius*: float
+  strokeWidth*: float
+  strokeColor*: Color
+  strokeColorHover*: Color
+  strokeColorDown*: Color
+  strokeColorActive*: Color
+  strokeColorActiveHover*: Color
+  strokeColorDisabled*: Color
+  fillColor*: Color
+  fillColorHover*: Color
+  fillColorDown*: Color
+  fillColorActive*: Color
+  fillColorActiveHover*: Color
+  fillColorDisabled*: Color
+  label*: LabelStyle
+
 type ToggleButtonStyle* = ref object
   cornerRadius*: float
   strokeWidth*: float
@@ -563,6 +580,23 @@ type SliderStyle* = ref object
   label*: LabelStyle
   value*: LabelStyle
   cursorFollowsValue*: bool
+
+type ProgressStyle* = ref object
+  cornerRadius*: float
+  strokeWidth*: float
+  strokeColor*: Color
+  fillColor*: Color
+  valueColor*: Color
+  label*: LabelStyle
+
+type PropertyStyle* = ref object
+  labelWidth*: float
+  buttonWidth*: float
+  gap*: float
+  valuePrecision*: Natural
+  label*: LabelStyle
+  button*: ButtonStyle
+  textField*: TextFieldStyle
 
 type SectionHeaderStyle* = ref object
   label*: LabelStyle

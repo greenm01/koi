@@ -259,6 +259,25 @@ func dropDownHoverItem*(
   let itemIndex = displayStartItem.int + visibleIndex
   if itemIndex < itemCount.int: itemIndex else: -1
 
+func progressFraction*(value, maxValue: float): float =
+  if maxValue <= 0:
+    0.0
+  else:
+    clamp(value / maxValue, 0.0, 1.0)
+
+func propertyStepValue*(value, minValue, maxValue, step: float, dir: int): float =
+  let
+    lo = min(minValue, maxValue)
+    hi = max(minValue, maxValue)
+  let delta = step * dir.float
+  clamp(value + delta, lo, hi)
+
+func propertyStepValue*(value, minValue, maxValue, step: int, dir: int): int =
+  let
+    lo = min(minValue, maxValue)
+    hi = max(minValue, maxValue)
+  clamp(value + step * dir, lo, hi)
+
 func scrollBarRange*(startVal, endVal: float): float =
   abs(startVal - endVal)
 

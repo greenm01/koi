@@ -68,6 +68,21 @@ suite "dropdown algorithms":
     check dropDownHoverItem(184, 100, 4, 20, 0, 4, 10) == -1
     check dropDownHoverItem(164, 100, 4, 20, 8, 4, 10) == -1
 
+suite "nuklear-inspired widget algorithms":
+  test "progress fraction clamps invalid and out-of-range values":
+    checkClose(progressFraction(25, 100), 0.25)
+    checkClose(progressFraction(-5, 100), 0)
+    checkClose(progressFraction(125, 100), 1)
+    checkClose(progressFraction(10, 0), 0)
+
+  test "property stepping clamps int and float values":
+    check propertyStepValue(5, 0, 10, 2, 1) == 7
+    check propertyStepValue(9, 0, 10, 2, 1) == 10
+    check propertyStepValue(1, 0, 10, 2, -1) == 0
+    checkClose(propertyStepValue(0.5, 0.0, 1.0, 0.25, 1), 0.75)
+    checkClose(propertyStepValue(0.9, 0.0, 1.0, 0.25, 1), 1.0)
+    checkClose(propertyStepValue(0.1, 0.0, 1.0, 0.25, -1), 0.0)
+
 suite "scrollbar algorithms":
   test "thumb math handles degenerate value ranges":
     checkClose(scrollBarThumbLength(100, 2, 12, -1, 5, 5), 96)

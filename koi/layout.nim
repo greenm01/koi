@@ -21,6 +21,12 @@ func colRatio*(ratio: float): LayoutColumn =
 func colVariable*(minWidth: float): LayoutColumn =
   LayoutColumn(mode: cmVariable, value: minWidth)
 
+func ratioFromPixels*(pixels, total: float): float =
+  if total <= 0:
+    0.0
+  else:
+    (pixels / total).clamp(0.0, 1.0)
+
 proc initAutoLayout*(params: AutoLayoutParams) =
   alias(ui, g_uiState)
   alias(a, ui.autoLayoutState)
@@ -85,15 +91,18 @@ func resolvedRowWidths(
   let spacingWidth = itemSpacing * max(columns.len - 1, 0).float
   let usableWidth = max(0.0, availableWidth - ap.leftPad - ap.rightPad - spacingWidth)
 
-  var fixedWidth = 0.0
+  var staticWidth = 0.0
+  var variableMinWidth = 0.0
   var ratioWidth = 0.0
   var dynamicCount = 0
   var variableCount = 0
 
   for column in columns:
     case column.mode
-    of cmStatic, cmVariable:
-      fixedWidth += max(0.0, column.value)
+    of cmStatic:
+      staticWidth += max(0.0, column.value)
+    of cmVariable:
+      variableMinWidth += max(0.0, column.value)
       if column.mode == cmVariable:
         inc(variableCount)
     of cmRatio:
@@ -101,7 +110,8 @@ func resolvedRowWidths(
     of cmDynamic:
       inc(dynamicCount)
 
-  let remainingWidth = max(0.0, usableWidth - fixedWidth - ratioWidth)
+  let remainingWidth =
+    max(0.0, usableWidth - staticWidth - variableMinWidth - ratioWidth)
   let flexibleCount = dynamicCount + variableCount
   let flexibleWidth =
     if flexibleCount > 0:
@@ -115,7 +125,7 @@ func resolvedRowWidths(
       of cmStatic:
         max(0.0, column.value)
       of cmVariable:
-        max(max(0.0, column.value), flexibleWidth)
+        max(0.0, column.value) + flexibleWidth
       of cmRatio:
         usableWidth * column.value.clamp(0.0, 1.0)
       of cmDynamic:
@@ -252,6 +262,15 @@ proc autoLayoutFinal*() =
 
   if a.prevSection:
     a.y -= ui.autoLayoutParams.sectionPad
+
+proc spacer*() =
+  autoLayoutPre()
+  autoLayoutPost()
+
+proc spacer*(height: float) =
+  nextRowHeight(height)
+  autoLayoutPre()
+  autoLayoutPost(section = true)
 
 proc beginRowLayout*(height: float, columns: openArray[LayoutColumn] = []) =
   alias(ui, g_uiState)

@@ -128,6 +128,49 @@ proc defaultButtonStyle*(style: ButtonStyle) =
 proc setDefaultButtonStyle*(style: ButtonStyle) =
   defaultButtonStyle(style)
 
+# Selectable
+var DefaultSelectableStyle = SelectableStyle(
+  cornerRadius: 4.0,
+  strokeWidth: 0.0,
+  strokeColor: black(),
+  strokeColorHover: black(),
+  strokeColorDown: black(),
+  strokeColorActive: black(),
+  strokeColorActiveHover: black(),
+  strokeColorDisabled: black(),
+  fillColor: gray(0, 0),
+  fillColorHover: gray(0.7),
+  fillColorDown: HighlightLowColor,
+  fillColorActive: HighlightColor,
+  fillColorActiveHover: HighlightColor,
+  fillColorDisabled: gray(0.23),
+  label: defaultLabelStyle(),
+)
+
+with DefaultSelectableStyle.label:
+  padHoriz = 8.0
+  color = gray(0.7)
+  colorHover = gray(0.25)
+  colorDown = gray(0.25)
+  colorActive = gray(0.25)
+  colorActiveHover = gray(0.25)
+  colorDisabled = gray(0.7, 0.5)
+
+proc defaultSelectableStyle*(): SelectableStyle =
+  DefaultSelectableStyle.deepCopy
+
+proc borrowDefaultSelectableStyle*(): SelectableStyle =
+  DefaultSelectableStyle
+
+proc getDefaultSelectableStyle*(): SelectableStyle =
+  defaultSelectableStyle()
+
+proc defaultSelectableStyle*(style: SelectableStyle) =
+  DefaultSelectableStyle = style.deepCopy
+
+proc setDefaultSelectableStyle*(style: SelectableStyle) =
+  defaultSelectableStyle(style)
+
 # ToggleButton
 var DefaultToggleButtonStyle = ToggleButtonStyle(
   cornerRadius: 5.0,
@@ -524,6 +567,66 @@ proc defaultSliderStyle*(style: SliderStyle) =
 
 proc setDefaultSliderStyle*(style: SliderStyle) =
   defaultSliderStyle(style)
+
+# Progress
+var DefaultProgressStyle = ProgressStyle(
+  cornerRadius: 5.0,
+  strokeWidth: 0.0,
+  strokeColor: black(),
+  fillColor: gray(0.6),
+  valueColor: HighlightColor,
+  label: defaultLabelStyle(),
+)
+
+with DefaultProgressStyle.label:
+  align = haCenter
+  padHoriz = 8.0
+  color = gray(0.25)
+
+proc defaultProgressStyle*(): ProgressStyle =
+  DefaultProgressStyle.deepCopy
+
+proc borrowDefaultProgressStyle*(): ProgressStyle =
+  DefaultProgressStyle
+
+proc getDefaultProgressStyle*(): ProgressStyle =
+  defaultProgressStyle()
+
+proc defaultProgressStyle*(style: ProgressStyle) =
+  DefaultProgressStyle = style.deepCopy
+
+proc setDefaultProgressStyle*(style: ProgressStyle) =
+  defaultProgressStyle(style)
+
+# Property
+var DefaultPropertyStyle = PropertyStyle(
+  labelWidth: 110.0,
+  buttonWidth: 24.0,
+  gap: 4.0,
+  valuePrecision: 3,
+  label: defaultLabelStyle(),
+  button: defaultButtonStyle(),
+  textField: defaultTextFieldStyle(),
+)
+
+with DefaultPropertyStyle.label:
+  padHoriz = 0.0
+  color = gray(0.8)
+
+proc defaultPropertyStyle*(): PropertyStyle =
+  DefaultPropertyStyle.deepCopy
+
+proc borrowDefaultPropertyStyle*(): PropertyStyle =
+  DefaultPropertyStyle
+
+proc getDefaultPropertyStyle*(): PropertyStyle =
+  defaultPropertyStyle()
+
+proc defaultPropertyStyle*(style: PropertyStyle) =
+  DefaultPropertyStyle = style.deepCopy
+
+proc setDefaultPropertyStyle*(style: PropertyStyle) =
+  defaultPropertyStyle(style)
 
 # SectionHeader
 var DefaultSectionHeaderStyle = SectionHeaderStyle(
