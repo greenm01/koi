@@ -981,6 +981,25 @@ suite "NEP1 naming aliases":
     finally:
       setDefaultFont(originalFont.fontFace, originalFont.fontSize)
 
+  test "global default corner radius applies to rounded styles":
+    let originalRadius = defaultCornerRadius()
+
+    try:
+      setDefaultCornerRadius(9.0)
+
+      checkClose(defaultCornerRadius(), 9.0)
+      checkClose(borrowDefaultButtonStyle().cornerRadius, 9.0)
+      checkClose(borrowDefaultTooltipStyle().cornerRadius, 9.0)
+      checkClose(borrowDefaultPopupStyle().backgroundCornerRadius, 9.0)
+      checkClose(borrowDefaultTextFieldStyle().bgCornerRadius, 9.0)
+      checkClose(borrowDefaultTextAreaStyle().bgCornerRadius, 9.0)
+      checkClose(borrowDefaultScrollBarStyle().thumbCornerRadius, 9.0)
+      checkClose(borrowDefaultDropDownStyle().itemListCornerRadius, 9.0)
+      checkClose(borrowDefaultDialogStyle().cornerRadius, 9.0)
+      checkClose(borrowDefaultGroupBoxStyle().cornerRadius, 9.0)
+    finally:
+      setDefaultCornerRadius(originalRadius)
+
   test "state aliases preserve old wrapper behavior":
     g_uiState = UIState.default
 

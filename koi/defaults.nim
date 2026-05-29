@@ -1013,6 +1013,32 @@ proc setTextFieldFont(style: TextFieldStyle, fontFace: string, fontSize: float) 
     style.textFontFace = fontFace
     style.textFontSize = fontSize
 
+proc setShadowCornerRadius(style: ShadowStyle, radius: float) =
+  if style != nil:
+    style.cornerRadius = radius
+
+proc setPopupCornerRadius(style: PopupStyle, radius: float) =
+  if style != nil:
+    style.backgroundCornerRadius = radius
+    setShadowCornerRadius(style.shadow, radius)
+
+proc setButtonCornerRadius(style: ButtonStyle, radius: float) =
+  if style != nil:
+    style.cornerRadius = radius
+
+proc setSelectableCornerRadius(style: SelectableStyle, radius: float) =
+  if style != nil:
+    style.cornerRadius = radius
+
+proc setTextFieldCornerRadius(style: TextFieldStyle, radius: float) =
+  if style != nil:
+    style.bgCornerRadius = radius
+
+proc setScrollBarCornerRadius(style: ScrollBarStyle, radius: float) =
+  if style != nil:
+    style.trackCornerRadius = radius
+    style.thumbCornerRadius = radius
+
 proc defaultFont*(): tuple[fontFace: string, fontSize: float] =
   (DefaultLabelStyle.fontFace, DefaultLabelStyle.fontSize)
 
@@ -1063,3 +1089,52 @@ proc setDefaultFont*(fontFace: string, fontSize: float) =
 
 proc defaultFont*(fontFace: string, fontSize: float) =
   setDefaultFont(fontFace, fontSize)
+
+proc defaultCornerRadius*(): float =
+  DefaultButtonStyle.cornerRadius
+
+proc getDefaultCornerRadius*(): float =
+  defaultCornerRadius()
+
+proc setDefaultCornerRadius*(radius: float) =
+  doAssert radius >= 0
+
+  setShadowCornerRadius(DefaultShadowStyle, radius)
+  setShadowCornerRadius(DefaultTooltipStyle.shadow, radius)
+  DefaultTooltipStyle.cornerRadius = radius
+  setPopupCornerRadius(DefaultPopupStyle, radius)
+
+  setButtonCornerRadius(DefaultButtonStyle, radius)
+  setSelectableCornerRadius(DefaultSelectableStyle, radius)
+  DefaultToggleButtonStyle.cornerRadius = radius
+  DefaultCheckBoxStyle.cornerRadius = radius
+  DefaultRadioButtonsStyle.buttonCornerRadius = radius
+  setScrollBarCornerRadius(DefaultScrollBarStyle, radius)
+
+  DefaultDropDownStyle.buttonCornerRadius = radius
+  DefaultDropDownStyle.itemListCornerRadius = radius
+  setShadowCornerRadius(DefaultDropDownStyle.shadow, radius)
+  setScrollBarCornerRadius(DefaultDropDownStyle.scrollBarStyle, radius)
+
+  setTextFieldCornerRadius(DefaultTextFieldStyle, radius)
+  DefaultTextAreaStyle.bgCornerRadius = radius
+  setScrollBarCornerRadius(DefaultTextAreaStyle.scrollBarStyleNormal, radius)
+  setScrollBarCornerRadius(DefaultTextAreaStyle.scrollBarStyleEdit, radius)
+
+  DefaultSliderStyle.trackCornerRadius = radius
+  DefaultSliderStyle.valueCornerRadius = radius
+  DefaultProgressStyle.cornerRadius = radius
+  setButtonCornerRadius(DefaultPropertyStyle.button, radius)
+  setTextFieldCornerRadius(DefaultPropertyStyle.textField, radius)
+
+  setButtonCornerRadius(DefaultMenuStyle.button, radius)
+  setSelectableCornerRadius(DefaultMenuStyle.item, radius)
+  setPopupCornerRadius(DefaultMenuStyle.popup, radius)
+
+  DefaultGroupBoxStyle.cornerRadius = radius
+  setScrollBarCornerRadius(DefaultScrollViewStyle.scrollBarStyle, radius)
+  DefaultDialogStyle.cornerRadius = radius
+  setShadowCornerRadius(DefaultDialogStyle.shadow, radius)
+
+proc defaultCornerRadius*(radius: float) =
+  setDefaultCornerRadius(radius)
