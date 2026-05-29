@@ -1,9 +1,7 @@
-import std/options
 import std/math
 import std/strutils
 
 import nanovg
-import glfw
 
 import koi/types
 import koi/core
@@ -57,7 +55,6 @@ proc horizSlider*(
 
   var
     newValue = value
-    isEditing = (sl.editModeItem == id)
 
   if isActive(id):
     case sl.state
@@ -311,7 +308,6 @@ proc vertSlider*(
 
 proc sliderPost*() =
   alias(ui, g_uiState)
-  alias(sl, ui.sliderState)
 
   if not ui.mbLeftDown:
     ui.widgetMouseDrag = false

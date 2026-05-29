@@ -1,4 +1,3 @@
-import std/options
 import std/tables
 import std/times
 
@@ -9,7 +8,6 @@ when not defined(koiWebGpu):
 
 import koi/rect
 import koi/types
-import koi/utils
 import koi/ringbuffer
 
 type UIState* = object

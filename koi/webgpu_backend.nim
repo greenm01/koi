@@ -12,7 +12,6 @@ import koi/internal/webgpu_draw_state
 
 const
   NvgTextureAlpha = 0x01
-  NvgTextureRgba = 0x02
 
 {.
   emit:
@@ -70,7 +69,7 @@ type
   NvgPath {.bycopy, importc: "NVGpath".} = object
     first: cint
     count: cint
-    closed: cuchar
+    closed: uint8
     nbevel: cint
     fill: ptr NvgVertex
     nfill: cint
@@ -84,11 +83,11 @@ type
     edgeAntiAlias: cint
     renderCreate: proc(userPtr: pointer): cint {.cdecl.}
     renderCreateTexture: proc(
-      userPtr: pointer, typ, w, h, imageFlags: cint, data: ptr cuchar
+      userPtr: pointer, typ, w, h, imageFlags: cint, data: ptr uint8
     ): cint {.cdecl.}
     renderDeleteTexture: proc(userPtr: pointer, image: cint): cint {.cdecl.}
     renderUpdateTexture:
-      proc(userPtr: pointer, image, x, y, w, h: cint, data: ptr cuchar): cint {.cdecl.}
+      proc(userPtr: pointer, image, x, y, w, h: cint, data: ptr uint8): cint {.cdecl.}
     renderGetTextureSize:
       proc(userPtr: pointer, image: cint, w, h: ptr cint): cint {.cdecl.}
     renderViewport:
@@ -186,22 +185,6 @@ proc deviceRequestCb(
     userdata1, userdata2: pointer,
 ) {.cdecl.} =
   cast[ptr Device](userdata1)[] = device
-
-proc deviceLostCb(
-    device: ptr Device,
-    reason: DeviceLostReason,
-    message: StringView,
-    userdata1, userdata2: pointer,
-) {.cdecl.} =
-  discard
-
-proc errorCb(
-    device: ptr Device,
-    typ: ErrorType,
-    message: StringView,
-    userdata1, userdata2: pointer,
-) {.cdecl.} =
-  discard
 
 proc rgba(c: nvg.Color): array[4, float32] =
   [c.r.float32, c.g.float32, c.b.float32, c.a.float32]
@@ -372,7 +355,7 @@ proc appendStrip(
     )
 
 proc createTexture(
-    b: var KoiWgpuBackend, width, height: int, alphaOnly: bool, data: ptr cuchar
+    b: var KoiWgpuBackend, width, height: int, alphaOnly: bool, data: ptr uint8
 ): GpuTexture =
   let
     format = if alphaOnly: TextureFormat.R8Unorm else: TextureFormat.RGBA8Unorm
@@ -470,7 +453,7 @@ proc renderCreate(userPtr: pointer): cint {.cdecl.} =
   1
 
 proc renderCreateTexture(
-    userPtr: pointer, typ, w, h, imageFlags: cint, data: ptr cuchar
+    userPtr: pointer, typ, w, h, imageFlags: cint, data: ptr uint8
 ): cint {.cdecl.} =
   let b = backend(userPtr)
   let id = b.nextTextureId
@@ -489,7 +472,7 @@ proc renderDeleteTexture(userPtr: pointer, image: cint): cint {.cdecl.} =
     0
 
 proc renderUpdateTexture(
-    userPtr: pointer, image, x, y, w, h: cint, data: ptr cuchar
+    userPtr: pointer, image, x, y, w, h: cint, data: ptr uint8
 ): cint {.cdecl.} =
   let b = backend(userPtr)
   let id = image.int
@@ -1031,7 +1014,7 @@ proc createPipeline(b: var KoiWgpuBackend) =
   )
 
   var whitePixel = [255'u8, 255'u8, 255'u8, 255'u8]
-  b.white = b.createTexture(1, 1, false, cast[ptr cuchar](whitePixel[0].addr))
+  b.white = b.createTexture(1, 1, false, whitePixel[0].addr)
 
 proc initKoiWgpuBackendWithSurface*(
     b: var KoiWgpuBackend, handle: KoiWgpuSurfaceHandle, width, height: uint32

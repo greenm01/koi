@@ -1,5 +1,4 @@
 import std/math
-import std/options
 import std/sequtils
 import std/strutils
 import std/unicode

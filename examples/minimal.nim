@@ -3,26 +3,11 @@ import std/options
 import std/strformat
 
 import glfw
-from glfw/wrapper import nil
 import nanovg
 
 import koi
-import koi/backends/surface
+import koi/backends/glfw_wgpu
 import koi/backends/wgpu_renderer
-
-{.
-  emit:
-    """
-#define GLFW_EXPOSE_NATIVE_WAYLAND
-#include <GLFW/glfw3.h>
-#include <GLFW/glfw3native.h>
-"""
-.}
-
-proc glfwGetWaylandDisplay(): pointer {.cdecl, importc, dynlib: "libglfw.so.3".}
-proc glfwGetWaylandWindow(
-  win: wrapper.Window
-): pointer {.cdecl, importc, dynlib: "libglfw.so.3".}
 
 var
   vg: NVGContext
@@ -32,7 +17,7 @@ var
   textValue = "wgpu scissor clips this deliberately long text field value"
 
 proc createWindow(): Window =
-  var cfg = DefaultOpenglWindowConfig
+  var cfg = defaultWgpuWindowConfig("Koi wgpu", 900, 560)
   cfg.size = (w: 900, h: 560)
   cfg.title = "Koi wgpu"
   cfg.resizable = true
@@ -45,18 +30,7 @@ proc createWindow(): Window =
     stencil: 8'i32.some,
     depth: 16'i32.some,
   )
-  cfg.makeContextCurrent = false
-  newWindow(cfg)
-
-proc surfaceSize(win: Window): tuple[width, height: uint32] =
-  let
-    (winWidth, winHeight) = win.size
-    (fbWidth, fbHeight) = win.framebufferSize
-    (xscale, yscale) = win.contentScale
-    width = max(fbWidth, (winWidth.float * xscale + 0.5).int)
-    height = max(fbHeight, (winHeight.float * yscale + 0.5).int)
-
-  (width.uint32, height.uint32)
+  newWgpuWindow(cfg)
 
 proc loadData(vg: NVGContext) =
   let dataDir = currentSourcePath().parentDir().parentDir() / "data"
@@ -163,13 +137,10 @@ when isMainModule:
   let win = createWindow()
   useWindow(win)
 
-  let
-    display = glfwGetWaylandDisplay()
-    wlSurface = glfwGetWaylandWindow(win.getHandle())
-    (width, height) = win.surfaceSize()
+  let (width, height) = win.surfaceSize()
 
   backend.initKoiWgpuBackendWithSurface(
-    waylandSurfaceHandle(display, wlSurface),
+    win.wgpuSurfaceHandle(),
     width.uint32,
     height.uint32,
   )

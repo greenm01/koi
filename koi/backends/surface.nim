@@ -49,12 +49,34 @@ proc createSurface*(instance: Instance, handle: KoiWgpuSurfaceHandle): Surface =
       )
     )
   of kwskX11:
-    raise newException(CatchableError, "Koi WebGPU X11 surfaces are not implemented yet")
+    result = instance.create(
+      vaddr SurfaceDescriptor(
+        label: "Koi WebGPU X11 surface".toStringView(),
+        nextInChain: cast[ptr ChainedStruct](vaddr SurfaceSourceXlibWindow(
+          chain: ChainedStruct(next: nil, sType: SType.SurfaceSourceXlibWindow),
+          display: handle.x11Display,
+          window: handle.x11Window,
+        )),
+      )
+    )
   of kwskMetalLayer:
-    raise newException(
-      CatchableError, "Koi WebGPU Metal layer surfaces are not implemented yet"
+    result = instance.create(
+      vaddr SurfaceDescriptor(
+        label: "Koi WebGPU Metal layer surface".toStringView(),
+        nextInChain: cast[ptr ChainedStruct](vaddr SurfaceSourceMetalLayer(
+          chain: ChainedStruct(next: nil, sType: SType.SurfaceSourceMetalLayer),
+          layer: handle.metalLayer,
+        )),
+      )
     )
   of kwskWindowsHwnd:
-    raise newException(
-      CatchableError, "Koi WebGPU Win32 HWND surfaces are not implemented yet"
+    result = instance.create(
+      vaddr SurfaceDescriptor(
+        label: "Koi WebGPU Win32 HWND surface".toStringView(),
+        nextInChain: cast[ptr ChainedStruct](vaddr SurfaceSourceWindowsHWND(
+          chain: ChainedStruct(next: nil, sType: SType.SurfaceSourceWindowsHWND),
+          hwnd: handle.hwnd,
+          hinstance: handle.hinstance,
+        )),
+      )
     )
