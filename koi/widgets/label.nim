@@ -1,15 +1,15 @@
-import std/options
-
 import nanovg
 
 import koi/types
 import koi/core
 import koi/drawing
 import koi/layout
+import koi/rect
 import koi/defaults
 import koi/utils
 
 proc label*(
+    id: ItemId,
     x, y, w, h: float,
     labelText: string,
     state: WidgetState = wsNormal,
@@ -18,9 +18,18 @@ proc label*(
   alias(ui, g_uiState)
 
   let (x, y) = addDrawOffset(x, y)
+  let slot = layoutSlot(id, rect(x, y, w, h))
 
-  addDrawLayer(ui.currentLayer, vg):
-    vg.drawLabel(x, y, w, h, labelText, state, style)
+  addLayoutDrawLayer(ui.currentLayer, slot.nodeId, vg, bounds):
+    vg.drawLabel(bounds.x, bounds.y, bounds.w, bounds.h, labelText, state, style)
+
+proc label*(
+    x, y, w, h: float,
+    labelText: string,
+    state: WidgetState = wsNormal,
+    style: LabelStyle = borrowDefaultLabelStyle(),
+) =
+  label(0, x, y, w, h, labelText, state, style)
 
 proc label*(
     labelText: string,
@@ -32,6 +41,7 @@ proc label*(
   autoLayoutPre()
 
   label(
+    0,
     ui.autoLayoutState.x,
     autoLayoutNextY(),
     autoLayoutNextItemWidth(),

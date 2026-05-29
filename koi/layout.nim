@@ -1,5 +1,6 @@
 import std/math
 import std/options
+import std/tables
 
 import koi/core
 import koi/drawing
@@ -11,6 +12,77 @@ import koi/utils
 export layout_solver
 
 # Layout engine: standard auto-layout and hierarchical blocks
+
+proc beginFrameLayout*() =
+  alias(ui, g_uiState)
+
+  ui.layoutArena.clearLayoutArena()
+  ui.layoutRoot = ui.layoutArena.beginLayoutNode(
+    layoutNode(
+      width = fixed(ui.winWidth),
+      height = fixed(ui.winHeight),
+      direction = ldTopToBottom,
+    )
+  )
+
+proc previousLayoutRect*(id: ItemId, fallback: Rect): Rect =
+  alias(ui, g_uiState)
+  if ui.layoutRects.hasKey(id):
+    ui.layoutRects[id]
+  else:
+    fallback
+
+proc layoutSlot*(id: ItemId, fallback: Rect): LayoutSlot =
+  alias(ui, g_uiState)
+
+  var placement = manual(fallback.x, fallback.y)
+  if ui.layoutStack.len > 0:
+    let frame = ui.layoutStack[^1]
+    case frame.mode
+    of lpmRow:
+      placement = flow()
+    of lpmSpace:
+      placement = manual(fallback.x - frame.x, fallback.y - frame.y)
+
+  var node = layoutNode(
+    kind = lnkWidget,
+    itemId = id,
+    width = fixed(fallback.w),
+    height = fixed(fallback.h),
+    placement = placement,
+  )
+  node.intrinsicMin = size(fallback.w, fallback.h)
+  node.intrinsicPref = size(fallback.w, fallback.h)
+  node.rect = fallback
+
+  result = LayoutSlot(
+    itemId: id,
+    nodeId: ui.layoutArena.addLayoutNode(node),
+    bounds: fallback,
+    previousBounds: previousLayoutRect(id, fallback),
+  )
+
+template addLayoutDrawLayer*(
+    layer: DrawLayer, nodeId: LayoutNodeId, vg, bounds, body: untyped
+) =
+  let capturedNodeId = nodeId
+  addDrawLayer(layer, vg):
+    let bounds {.inject.} = g_uiState.layoutArena.layoutRect(capturedNodeId)
+    body
+
+proc finishFrameLayout*() =
+  alias(ui, g_uiState)
+
+  while ui.layoutArena.nodeStack.len > 0:
+    discard ui.layoutArena.endLayoutNode()
+
+  ui.layoutArena.solveLayout(rect(0, 0, ui.winWidth, ui.winHeight), ui.layoutRoot)
+
+  var solvedRects: Table[ItemId, Rect]
+  for node in ui.layoutArena.nodes:
+    if node.itemId != 0:
+      solvedRects[node.itemId] = node.rect
+  ui.layoutRects = solvedRects
 
 func col*(width: float): LayoutColumn =
   LayoutColumn(mode: cmStatic, value: width)
@@ -302,7 +374,11 @@ proc beginRowLayout*(height: float, columns: openArray[LayoutColumn] = []) =
       resolvedWidths: rowColumns.resolvedRowWidths(availableW, itemSpacing, ap),
       nodeId: ui.layoutArena.beginLayoutNode(
         layoutNode(
-          width = fixed(availableW), height = fixed(height), direction = ldLeftToRight
+          width = fixed(availableW),
+          height = fixed(height),
+          direction = ldLeftToRight,
+          alignCross = lcaCenter,
+          placement = manual(startX, a.y),
         )
       ),
     )

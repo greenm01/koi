@@ -1,3 +1,4 @@
+import std/tables
 import std/unittest
 
 import glfw
@@ -14,6 +15,7 @@ import koi/widgets/colorpicker
 import koi/widgets/groupbox
 import koi/widgets/menu
 import koi/widgets/popup
+import koi/widgets/progress
 import koi/widgets/selectable
 import koi/widgets/scrollview
 import koi/widgets/table
@@ -185,6 +187,42 @@ suite "image widget behavior":
     g_uiState.hotItem = 0
     g_uiState.mbLeftDown = false
     check buttonImageLabel(50, 0, 0, 30, 20, paint, "Image")
+
+suite "layout-integrated widget behavior":
+  test "button hit testing uses a previous solved rect when present":
+    resetUi()
+    g_uiState.layoutRects[20] = rect(40, 40, 20, 20)
+    g_uiState.mx = 45
+    g_uiState.my = 45
+    g_uiState.mbLeftDown = true
+
+    discard button(20, 0, 0, 10, 10, "Button", "", disabled = false)
+
+    check isHot(20)
+    check isActive(20)
+    check g_drawLayers.layers[ord(layerDefault)].len == 1
+
+  test "button hit testing falls back to the current rect on first frame":
+    resetUi()
+    g_uiState.mx = 5
+    g_uiState.my = 5
+    g_uiState.mbLeftDown = true
+
+    discard button(21, 0, 0, 10, 10, "Button", "", disabled = false)
+
+    check isHot(21)
+    check isActive(21)
+
+  test "progress tooltip hit testing uses a previous solved rect":
+    resetUi()
+    g_uiState.layoutRects[22] = rect(30, 30, 20, 20)
+    g_uiState.mx = 35
+    g_uiState.my = 35
+
+    progress(22, 0, 0, 10, 10, 1, 2, tooltip = "Value")
+
+    check isHot(22)
+    check g_drawLayers.layers[ord(layerDefault)].len == 1
 
 suite "simple widget behavior":
   test "disabled widgets do not become active":

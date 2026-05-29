@@ -6,6 +6,7 @@ import koi/types
 import koi/core
 import koi/drawing
 import koi/layout
+import koi/rect
 import koi/input
 import koi/defaults
 import koi/internal/algorithms
@@ -67,13 +68,20 @@ proc progress*(
   alias(ui, g_uiState)
 
   let (x, y) = addDrawOffset(x, y)
+  let slot = layoutSlot(id, rect(x, y, w, h))
 
-  if tooltip != "" and isHit(x, y, w, h):
+  if tooltip != "" and
+      isHit(
+        slot.previousBounds.x, slot.previousBounds.y, slot.previousBounds.w,
+        slot.previousBounds.h,
+      ):
     markHot(id)
 
-  addDrawLayer(ui.currentLayer, vg):
+  addLayoutDrawLayer(ui.currentLayer, slot.nodeId, vg, bounds):
     let drawProc = if drawProc.isSome: drawProc.get else: DefaultProgressDrawProc
-    drawProc(vg, id, x, y, w, h, value, maxValue, label, style)
+    drawProc(
+      vg, id, bounds.x, bounds.y, bounds.w, bounds.h, value, maxValue, label, style
+    )
 
   if isHot(id):
     handleTooltip(id, tooltip)

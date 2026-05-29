@@ -48,6 +48,8 @@ type UIState* = object
   # Layout stack
   layoutStack*: seq[LayoutPresetFrame]
   layoutArena*: LayoutArena
+  layoutRoot*: LayoutNodeId
+  layoutRects*: Table[ItemId, Rect]
 
   # Hit checking clip rectangle (e.g., when inside a scrollview)
   # TODO should dialog and popup use this as well? or instead of

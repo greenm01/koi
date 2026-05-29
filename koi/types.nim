@@ -350,6 +350,12 @@ type
     nodeStack*: seq[LayoutNodeId]
     measureText*: MeasureTextProc
 
+  LayoutSlot* = object
+    itemId*: ItemId
+    nodeId*: LayoutNodeId
+    bounds*: Rect
+    previousBounds*: Rect
+
   ColMode* = enum
     cmStatic
     cmDynamic

@@ -1,4 +1,5 @@
 import std/math
+import std/tables
 import std/unittest
 
 import koi/core
@@ -203,6 +204,49 @@ suite "layout space":
     checkClose(outerY, 32)
     checkClose(g_uiState.autoLayoutState.y, 132)
 
+suite "layout frame integration":
+  test "frame root caches registered slot rects":
+    resetLayout()
+    beginFrameLayout()
+
+    discard layoutSlot(10, rect(7, 8, 30, 11))
+    finishFrameLayout()
+
+    checkRect(g_uiState.layoutRects[10], rect(7, 8, 30, 11))
+
+  test "slots read previous frame rects and draw with current solved rects":
+    resetLayout()
+    beginFrameLayout()
+    discard layoutSlot(11, rect(10, 20, 30, 40))
+    finishFrameLayout()
+
+    beginFrameLayout()
+    let slot = layoutSlot(11, rect(50, 60, 70, 80))
+    checkRect(slot.previousBounds, rect(10, 20, 30, 40))
+
+    var drawn = rect(0, 0, 0, 0)
+    addLayoutDrawLayer(layerDefault, slot.nodeId, vg, bounds):
+      drawn = bounds
+
+    finishFrameLayout()
+    g_drawLayers.draw(g_nvgContext)
+
+    checkRect(drawn, rect(50, 60, 70, 80))
+    checkRect(g_uiState.layoutRects[11], rect(50, 60, 70, 80))
+
+  test "row slots flow through the row node and keep centered row bounds":
+    resetLayout()
+    beginFrameLayout()
+
+    beginRowLayout(30, [col(100), colDynamic()])
+    autoLayoutPre()
+    discard layoutSlot(12, autoLayoutNextBounds())
+    autoLayoutPost()
+    endLayout()
+    finishFrameLayout()
+
+    checkRect(g_uiState.layoutRects[12], rect(13, 5, 100, 21))
+
 suite "unified layout solver":
   test "horizontal flow distributes remaining space to grow children":
     var arena: LayoutArena
@@ -221,6 +265,8 @@ suite "unified layout solver":
     checkRect(arena.layoutRect(first), rect(0, 0, 100, 100))
     checkRect(arena.layoutRect(second), rect(100, 0, 100, 100))
     checkRect(arena.layoutRect(third), rect(200, 0, 100, 100))
+    checkClose(arena.nodes[root.int].contentSize.w, 300)
+    checkClose(arena.nodes[root.int].contentSize.h, 100)
 
   test "padding, gap, percent, fixed, and grow resolve on one axis":
     var arena: LayoutArena

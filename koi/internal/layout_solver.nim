@@ -357,7 +357,7 @@ proc resolveSizes(arena: var LayoutArena, id: LayoutNodeId) =
     arena.resolveSizes(childId)
 
 proc placeChildren(arena: var LayoutArena, id: LayoutNodeId) =
-  let parent = arena.nodes[id.toIndex]
+  var parent = arena.nodes[id.toIndex]
   let mainHorizontal = parent.mainIsHorizontal
   let innerMain = max(
     0.0,
@@ -398,6 +398,9 @@ proc placeChildren(arena: var LayoutArena, id: LayoutNodeId) =
     else:
       parent.childGap
 
+  var contentMainExtent = 0.0
+  var contentCrossExtent = 0.0
+
   for childId in arena.children(parent):
     let childIndex = childId.toIndex
     var child = arena.nodes[childIndex]
@@ -413,7 +416,7 @@ proc placeChildren(arena: var LayoutArena, id: LayoutNodeId) =
         of lcaStart:
           0.0
         of lcaCenter:
-          crossExtra * 0.5
+          round(crossExtra * 0.5)
         of lcaEnd:
           crossExtra
         of lcaStretch:
@@ -431,7 +434,21 @@ proc placeChildren(arena: var LayoutArena, id: LayoutNodeId) =
       cursor += child.rect.axis(mainHorizontal) + childGap
 
     arena.nodes[childIndex] = child
+    contentMainExtent = max(
+      contentMainExtent,
+      child.rectStart(mainHorizontal) - parent.rectStart(mainHorizontal) +
+        child.rect.axis(mainHorizontal) + parent.paddingEnd(mainHorizontal),
+    )
+    contentCrossExtent = max(
+      contentCrossExtent,
+      child.rectStart(not mainHorizontal) - parent.rectStart(not mainHorizontal) +
+        child.rect.axis(not mainHorizontal) + parent.paddingEnd(not mainHorizontal),
+    )
     arena.placeChildren(childId)
+
+  parent.contentSize.setAxis(mainHorizontal, contentMainExtent)
+  parent.contentSize.setAxis(not mainHorizontal, contentCrossExtent)
+  arena.nodes[id.toIndex].contentSize = parent.contentSize
 
 proc solveLayout*(arena: var LayoutArena, root: LayoutNodeId = LayoutNodeId(0'i32)) =
   if arena.nodes.len == 0 or root.isNull:

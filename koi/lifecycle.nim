@@ -10,7 +10,6 @@ import koi/utils
 import koi/types
 import koi/core
 import koi/drawing
-import koi/internal/layout_solver
 import koi/layout
 import koi/input
 import koi/defaults
@@ -83,7 +82,7 @@ proc beginFrame*() =
 
   # Reset layout params
   ui.autoLayoutParams = DefaultAutoLayoutParams
-  ui.layoutArena.clearLayoutArena()
+  beginFrameLayout()
 
   # Clear all draw layers
   g_drawLayers.init()
@@ -110,7 +109,7 @@ proc endFrame*() =
 
   applyCursorShape(ui.cursorShape)
 
-  ui.layoutArena.solveLayout()
+  finishFrameLayout()
 
   g_drawLayers.draw(g_nvgContext)
 
