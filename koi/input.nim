@@ -217,18 +217,20 @@ func isAlphanumeric*(r: Rune): bool =
     return true
 
 func findNextWordEnd*(text: string, cursorPos: Natural): Natural =
-  var p = cursorPos
-  while p < text.runeLen and text.runeAtPos(p).isAlphanumeric:
+  let runes = text.toRunes
+  var p = min(cursorPos, runes.len.Natural)
+  while p < runes.len.Natural and runes[p].isAlphanumeric:
     inc(p)
-  while p < text.runeLen and not text.runeAtPos(p).isAlphanumeric:
+  while p < runes.len.Natural and not runes[p].isAlphanumeric:
     inc(p)
   result = p
 
 func findPrevWordStart*(text: string, cursorPos: Natural): Natural =
-  var p = cursorPos
-  while p > 0 and not text.runeAtPos(p - 1).isAlphanumeric:
+  let runes = text.toRunes
+  var p = min(cursorPos, runes.len.Natural)
+  while p > 0 and not runes[p - 1].isAlphanumeric:
     dec(p)
-  while p > 0 and text.runeAtPos(p - 1).isAlphanumeric:
+  while p > 0 and runes[p - 1].isAlphanumeric:
     dec(p)
   result = p
 

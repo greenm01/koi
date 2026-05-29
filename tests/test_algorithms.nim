@@ -248,6 +248,12 @@ suite "text editing algorithms":
     check res.get.cursorPos == 3
     check not hasSelection(res.get.selection)
 
+  test "word navigation handles unicode without repeated rune scans":
+    check findPrevWordStart("alpha βeta gamma", 11.Natural) == 6
+    check findNextWordEnd("alpha βeta gamma", 6.Natural) == 11
+    check findPrevWordStart("alpha βeta gamma", 999.Natural) == 11
+    check findNextWordEnd("alpha βeta gamma", 999.Natural) == 16
+
 suite "text field view algorithms":
   test "empty text keeps the view at the text box origin":
     let glyphs = fixedGlyphs(0, 10)

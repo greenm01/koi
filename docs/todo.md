@@ -10,8 +10,8 @@ to the deferred candidates that still look useful.
 
 ## Text And Editing
 
-- Replace repeated rune-length scans in text editing with cached rune metadata
-  only if profiling shows it matters for real text sizes.
+- Profile real text-editing workloads before adding persistent rune metadata
+  caches beyond the current per-operation word-navigation rune sequence.
 
 ## Layout And Theming
 
