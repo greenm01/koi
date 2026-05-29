@@ -536,6 +536,8 @@ proc placeChildren(arena: var LayoutArena, id: LayoutNodeId) =
           child.rect.x = target.x
           child.rect.y = target.y + target.h - child.rect.h
           child.rect.w = target.w
+        of lfkMatchTarget:
+          child.rect = target
     of lpkFlow:
       let crossSize = child.rect.axis(not mainHorizontal)
       let crossExtra = max(0.0, innerCross - crossSize)

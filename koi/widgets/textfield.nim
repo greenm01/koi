@@ -61,10 +61,9 @@ proc textFieldExitEditMode*(id: ItemId = 0, startX: float = 0) =
   ui.focusCaptured = false
   cursorShape(csArrow)
 
-# textField()
-proc textField*(
+proc textFieldWithSlot*(
+    slot: LayoutSlot,
     id: ItemId,
-    x, y, w, h: float,
     text_out: var string,
     tooltip: string = "",
     disabled: bool = false,
@@ -85,11 +84,9 @@ proc textField*(
 
   alias(ui, g_uiState)
   alias(tf, ui.textFieldState)
-  alias(s, style)
+  let s = if style == nil: borrowDefaultTextFieldStyle() else: style
   alias(tab, ui.tabActivationState)
 
-  let (x, y) = addDrawOffset(x, y)
-  let slot = layoutSlot(id, rect(x, y, w, h))
   let hitBounds = slot.previousBounds
 
   let (textBoxX, _, textBoxW, _) =
@@ -438,6 +435,26 @@ proc textField*(
   if isHot(id):
     handleTooltip(id, tooltip)
   tab.prevItem = id
+
+# textField()
+proc textField*(
+    id: ItemId,
+    x, y, w, h: float,
+    text_out: var string,
+    tooltip: string = "",
+    disabled: bool = false,
+    activate: bool = false,
+    drawWidget: bool = true,
+    constraint: Option[TextFieldConstraint] = TextFieldConstraint.none,
+    style: TextFieldStyle = borrowDefaultTextFieldStyle(),
+    filter: TextFieldFilterKind = tffAny,
+) =
+  let (x, y) = addDrawOffset(x, y)
+  let slot = layoutSlot(id, rect(x, y, w, h))
+  textFieldWithSlot(
+    slot, id, text_out, tooltip, disabled, activate, drawWidget, constraint, style,
+    filter,
+  )
 
 template rawTextField*(
     x, y, w, h: float,

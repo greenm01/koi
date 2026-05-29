@@ -592,6 +592,57 @@ suite "layout-integrated widget behavior":
     check int32(g_uiState.layoutArena.nodes[3].parent) == int32(sliderRow)
     check int32(g_uiState.layoutArena.nodes[5].parent) == int32(scrollRow)
 
+  test "horizontal slider edit field follows solved slider rect":
+    resetUi()
+    var params = DefaultAutoLayoutParams
+    params.itemsPerRow = 1
+    params.rowWidth = 80
+    params.leftPad = 0
+    params.rightPad = 0
+    params.rowPad = 0
+    params.sectionPad = 0
+    params.defaultRowHeight = 20
+    params.defaultItemHeight = 20
+    initAutoLayout(params)
+    beginFrameLayout()
+
+    let sliderId: ItemId = 88
+    let fieldId = hashId($sliderId & ":textField")
+    var value = 12.0
+    g_uiState.sliderState.editModeItem = sliderId
+    g_uiState.sliderState.textFieldId = fieldId
+    g_uiState.sliderState.valueText = "12"
+    g_uiState.sliderState.state = ssDefault
+
+    autoLayoutPre()
+    let sliderRow = g_uiState.autoLayoutState.autoRow
+    horizSlider(
+      sliderId,
+      g_uiState.autoLayoutState.x,
+      autoLayoutNextY(),
+      autoLayoutNextItemWidth(),
+      autoLayoutNextItemHeight(),
+      0,
+      100,
+      value,
+    )
+    autoLayoutPost()
+    finishFrameLayout()
+
+    var rowChildren = 0
+    var fieldNode = NullLayoutNodeId
+    for node in g_uiState.layoutArena.nodes:
+      if int32(node.parent) == int32(sliderRow):
+        inc rowChildren
+      if node.itemId == fieldId:
+        fieldNode = node.id
+
+    check rowChildren == 1
+    check not fieldNode.isNull
+    check g_uiState.layoutArena.nodes[fieldNode.int].placement.kind == lpkFollow
+    check g_uiState.layoutArena.nodes[fieldNode.int].placement.followKind == lfkMatchTarget
+    checkRect(g_uiState.layoutRects[fieldId], g_uiState.layoutRects[sliderId])
+
   test "text field hover testing uses a previous solved rect":
     resetUi()
     var text = ""

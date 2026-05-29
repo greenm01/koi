@@ -307,7 +307,11 @@ proc layoutFollowerSlot*(
   node.intrinsicPref = size(fallback.w, fallback.h)
   node.rect = fallback
 
-  let nodeId = ui.layoutArena.addLayoutNode(node)
+  let nodeId =
+    if ui.frameLayoutActive():
+      ui.layoutArena.addLayoutNode(node, ui.layoutRoot)
+    else:
+      ui.layoutArena.addLayoutNode(node)
   result = LayoutSlot(
     itemId: id,
     nodeId: nodeId,

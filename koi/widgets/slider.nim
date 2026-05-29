@@ -21,6 +21,9 @@ const
   SliderFineDragDivisor = 10.0
   SliderUltraFineDragDivisor = 100.0
 
+func sliderTextFieldId(id: ItemId): ItemId =
+  hashId($id & ":textField")
+
 # horizSlider()
 
 proc horizSlider*(
@@ -82,7 +85,7 @@ proc horizSlider*(
         # Transition to edit mode on double click or simple click without move
         if isDoubleClick():
           sl.editModeItem = id
-          sl.textFieldId = hashId(lastIdString() & ":textField")
+          sl.textFieldId = sliderTextFieldId(id)
           sl.valueText = value.formatFloat(ffDecimal, s.valuePrecision)
           sl.state = ssEditValue
       else: # LMB released
@@ -116,13 +119,15 @@ proc horizSlider*(
       sl.state = ssDefault
 
   if sl.editModeItem == id:
+    if sl.textFieldId == 0:
+      sl.textFieldId = sliderTextFieldId(id)
     let oldVal = sl.valueText
-    textField(
+    let textSlot = layoutFollowerSlot(
+      sl.textFieldId, rect(x, y, w, h), slot.nodeId, lfkMatchTarget
+    )
+    textFieldWithSlot(
+      textSlot,
       sl.textFieldId,
-      x,
-      y,
-      w,
-      h,
       sl.valueText,
       activate = (sl.state == ssEditValue),
       style = nil,

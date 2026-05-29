@@ -307,6 +307,7 @@ type
   LayoutFollowerKind* = enum
     lfkVerticalScrollBar
     lfkHorizontalScrollBar
+    lfkMatchTarget
 
   LayoutPlacement* = object
     case kind*: LayoutPlacementKind
