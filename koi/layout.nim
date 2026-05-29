@@ -459,6 +459,32 @@ proc endLayoutContainerSlot*() =
   ui.autoLayoutState.activeSlotParent = frame.savedActiveSlotParent
   ui.autoLayoutState.activeSlotUsed = frame.savedActiveSlotUsed
 
+proc beginLayoutViewportForSlot*(slot: LayoutSlot, frameBounds: Rect = slot.bounds) =
+  alias(ui, g_uiState)
+  alias(a, ui.autoLayoutState)
+
+  if slot.nodeId.isNull:
+    return
+
+  ui.layoutArena.nodeStack.add(slot.nodeId)
+  ui.layoutStack.add(
+    LayoutPresetFrame(
+      mode: lpmViewport,
+      x: frameBounds.x,
+      y: frameBounds.y,
+      w: frameBounds.w,
+      h: frameBounds.h,
+      nodeId: slot.nodeId,
+      savedActiveSlotParent: a.activeSlotParent,
+      savedActiveSlotUsed: a.activeSlotUsed,
+    )
+  )
+  a.activeSlotParent = NullLayoutNodeId
+  a.activeSlotUsed = false
+
+proc endLayoutViewportForSlot*() =
+  endLayoutContainerSlot()
+
 proc layoutDrawSlot*(id: ItemId, fallback: Rect): LayoutSlot =
   layoutSlotWithSizing(
     id, fallback, fixed(fallback.w), fixed(fallback.h), NullLayoutNodeId

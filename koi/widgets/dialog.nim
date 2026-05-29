@@ -8,10 +8,32 @@ import koi/core
 import koi/drawing
 import koi/layout
 import koi/rect
-import koi/input
 import koi/defaults
-import koi/widgets/common
 import koi/utils
+
+proc beginDialogFrame(
+    id: ItemId, x, y, w, h: float, style: DialogStyle
+) =
+  alias(ui, g_uiState)
+  alias(ds, ui.dialogState)
+
+  ui.dialogOpen = true
+  ui.focusCaptured = ds.widgetInsidePopupCapturedFocus
+  ui.currentLayer = layerDialog
+
+  let slot = layoutDrawSlot(id, rect(x, y, w, h))
+  addLayoutDrawLayer(ui.currentLayer, slot.nodeId, vg, bounds):
+    let (rx, ry, rw, rh) =
+      snapToGrid(bounds.x, bounds.y, bounds.w, bounds.h)
+    drawShadow(vg, rx, ry, rw, rh, style.shadow)
+    vg.beginPath()
+    vg.fillColor(style.backgroundColor)
+    vg.roundedRect(rx, ry, rw, rh, style.cornerRadius)
+    vg.fill()
+
+  beginLayoutViewportForSlot(slot)
+
+  pushDrawOffset(DrawOffset(ox: x, oy: y))
 
 # dialog()
 proc beginDialog*(
@@ -20,13 +42,7 @@ proc beginDialog*(
     title: string,
     style: DialogStyle = borrowDefaultDialogStyle(),
 ): bool =
-  alias(ui, g_uiState)
-  alias(s, style)
-
-  # ... implementation continue ...
-  # (Skipping full implementation for brevity)
-  ui.currentLayer = layerDialog
-  pushDrawOffset(DrawOffset(ox: x, oy: y))
+  beginDialogFrame(id, x, y, w, h, style)
   result = true
 
 proc beginDialog*(
@@ -37,42 +53,25 @@ proc beginDialog*(
     style: DialogStyle = borrowDefaultDialogStyle(),
 ) =
   alias(ui, g_uiState)
-  alias(ds, ui.dialogState)
-
-  ui.dialogOpen = true
-  ui.focusCaptured = ds.widgetInsidePopupCapturedFocus
-
   let
-    x =
+    dialogX =
       if x.isSome:
         x.get
       else:
         floor((ui.winWidth - w) * 0.5)
-    y =
+    dialogY =
       if y.isSome:
         y.get
       else:
         floor((ui.winHeight - h) * 0.5)
 
-  ui.currentLayer = layerDialog
-
-  let slot = layoutDrawSlot(0, rect(x, y, w, h))
-
-  addLayoutDrawLayer(ui.currentLayer, slot.nodeId, vg, bounds):
-    let (rx, ry, rw, rh) =
-      snapToGrid(bounds.x, bounds.y, bounds.w, bounds.h)
-    drawShadow(vg, rx, ry, rw, rh, style.shadow)
-    vg.beginPath()
-    vg.fillColor(style.backgroundColor)
-    vg.roundedRect(rx, ry, rw, rh, style.cornerRadius)
-    vg.fill()
-
-  pushDrawOffset(DrawOffset(ox: x, oy: y))
+  beginDialogFrame(0, dialogX, dialogY, w, h, style)
 
 proc endDialog*() =
   alias(ui, g_uiState)
   alias(ds, ui.dialogState)
   popDrawOffset()
+  endLayoutViewportForSlot()
   ui.currentLayer = layerDefault
   if ui.dialogOpen:
     ds.widgetInsidePopupCapturedFocus = ui.focusCaptured

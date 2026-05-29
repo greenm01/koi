@@ -1,16 +1,16 @@
 # Koi Refactor Direction
 
-This document records the next step after the current Koi refactor. It folds in
-the engine intent from `ENGINE_SPEC.md` and adds direction for borrowing layout
-and widget ideas from Nuklear without turning Koi into a Nuklear clone.
+This document records the direction of the Koi refactor. It folds in the engine
+intent from `ENGINE_SPEC.md` and adds direction for borrowing layout and widget
+ideas from Nuklear without turning Koi into a Nuklear clone.
 
 The current layout direction is documented in `LAYOUT_MODEL.md`. That document
 describes a single unified layout solver: Clay-inspired sizing
 (`fixed`/`grow`/`percent`/`fit`) drives one container model, and the row,
 vertical auto-layout, and manual-space APIs become presets over it rather than
 separate systems. The row, space, and bounds-resolution layout-core work
-described later in this document already shipped; the net-new piece is the
-container solver and its execution model.
+described later in this document has shipped together with the container solver
+and same-frame solve execution model.
 
 Koi remains a small immediate-mode UI library for Nim. The UI is still described
 by function calls every frame, and interaction, layout, style, focus, and draw
@@ -31,7 +31,7 @@ state still live in Koi's central runtime state.
 - Do not port Nuklear's C API.
 - Do not adopt Nuklear's window and panel architecture.
 - Do not make every widget a retained layout node.
-- Do not mix documentation cleanup with runtime implementation work.
+- Do not mix unrelated documentation cleanup with runtime implementation work.
 
 Backward compatibility with Gridmonger and the current public call shape is no
 longer a constraint. Prefer Koi-native names and lexical Nim templates over
@@ -65,13 +65,12 @@ auto-layout, rows, and manual spaces become presets over it rather than separate
 positioning layers. All of them feed widget bounds through the same widget
 execution cycle.
 
-The row, layout-space, and bounds-resolution work below already shipped
+The row, layout-space, bounds-resolution, and unified solver work below shipped
 (`koi/layout.nim`): `AutoLayoutParams`/`autoLayoutPre`/`autoLayoutPost`, the
 `ColMode` columns (`cmStatic`/`cmDynamic`/`cmRatio`/`cmVariable`) with
-`beginRowLayout`/`layoutRow`, and the `lmSpace` draw-offset spaces. They are
-retained here as the design record for what the unified node must subsume; under
-the unified model these become presets and their current standalone types
-(`LayoutNode`/`LayoutMode`/`LayoutColumn`/`ColMode`) are replaced.
+`beginRowLayout`/`layoutRow`, the `lmSpace` draw-offset spaces, layout slots,
+followers, and frame-local solved rect caching. They are retained here as the
+design record for the unified node and presets.
 
 ### Rows (shipped)
 
@@ -167,13 +166,15 @@ surface.
    - solve at `endFrame`, draws deferred to solved rects, interaction read from
      previous-frame rects;
    - fold rows, spaces, and vertical auto-layout into the unified node as
-     presets.
-4. Add `fit` and text wrapping via the `measureText` callback.
-5. Only then plan widget feature expansion from the Nuklear checklist.
+     presets. (done)
+4. Add `fit` and text wrapping via the `measureText` callback. (done)
+5. Integrate existing widgets, overlays, scroll regions, dialogs, tables, and
+   framed containers with layout slots/followers. (done)
+6. Plan widget feature expansion from the Nuklear checklist as a separate pass.
 
 ## Acceptance Checks
 
-The next implementation pass should be accepted only if:
+The unified layout refactor is accepted when:
 
 - the unified solver produces predictable rects for `fixed`/`grow`/`percent`,
   with row, auto-layout, and space presets resolving through it;
@@ -181,7 +182,7 @@ The next implementation pass should be accepted only if:
 - widget bodies are evaluated once per frame (no double evaluation);
 - layout-space examples draw and hit-test in the same coordinate system;
 - additions use Koi-native names;
-- docs and examples describe the intended call style;
+- docs and examples describe the shipped call style;
 - pure sizing/placement tests cover sizing, alignment, gap, and the one-frame
   interaction-lag semantics.
 

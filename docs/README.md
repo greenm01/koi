@@ -6,7 +6,9 @@
 
 GLFW is currently a hard requirement, but it should be easy to adapt it to other frameworks or backends.
 
-There is no documentation yet—check out the [examples](/examples) and Gridmonger for usage.
+Layout and widget references live in [TOOLSET.md](./TOOLSET.md) and
+[LAYOUT_MODEL.md](./LAYOUT_MODEL.md). Check the [examples](/examples) and
+Gridmonger for complete usage.
 
 Support is currently *alpha level*, meaning that the API or the functionality might change without warning at any moment.
 

@@ -22,6 +22,7 @@ import koi/widgets/dropdown
 import koi/widgets/groupbox
 import koi/widgets/image
 import koi/widgets/label
+import koi/widgets/listview
 import koi/widgets/dialog
 import koi/widgets/menu
 import koi/widgets/popup
@@ -128,6 +129,32 @@ suite "popup behavior":
 
     check not beginPopup(32, 10, 10, 20, 20, style)
     check not isPopupOpen(32)
+
+  test "popup body children are scoped to the solved popup rect":
+    resetUi()
+
+    openPopup(60)
+    g_uiState.mbLeftDown = false
+
+    beginFrameLayout()
+    let targetSlot = layoutSlot(61, rect(90, 80, 5, 5))
+    let popupSlot = layoutFollowerSlot(
+      62,
+      rect(90, 85, 30, 20),
+      targetSlot.nodeId,
+      lfkDropdownPopup,
+    )
+    var childSlot = LayoutSlot(nodeId: NullLayoutNodeId)
+    if beginPopupWithSlot(60, popupSlot):
+      childSlot = layoutDrawSlot(63, rect(92, 88, 4, 4))
+      endPopup()
+    finishFrameLayout()
+
+    check not childSlot.nodeId.isNull
+    check int32(g_uiState.layoutArena.nodes[childSlot.nodeId.int].parent) ==
+      int32(popupSlot.nodeId)
+    checkRect(g_uiState.layoutRects[62], rect(60, 60, 30, 20))
+    checkRect(g_uiState.layoutRects[63], rect(62, 63, 4, 4))
 
 suite "menu behavior":
   test "menu bar registers a draw-only layout node":
@@ -1667,6 +1694,29 @@ suite "scroll view behavior":
     check scrollViewStartY(92) > 0
     check g_uiState.layoutContentSizes[92].h == 10
 
+  test "standalone list view scopes row content under its scroll container":
+    resetUi()
+
+    beginFrameLayout()
+    let range = beginListView(94, 10, 15, 50, 20, 5, 10)
+    let (childX, childY) = addDrawOffset(0, 0)
+    let childSlot = layoutDrawSlot(95, rect(childX, childY, 40, 10))
+    endListView(range)
+    finishFrameLayout()
+
+    var listNode = NullLayoutNodeId
+    for node in g_uiState.layoutArena.nodes:
+      if node.itemId == 94:
+        listNode = node.id
+
+    check not listNode.isNull
+    check not childSlot.nodeId.isNull
+    check range.contentHeight == 50
+    check int32(g_uiState.layoutArena.nodes[childSlot.nodeId.int].parent) ==
+      int32(listNode)
+    checkRect(g_uiState.layoutRects[94], rect(10, 15, 50, 20))
+    checkRect(g_uiState.layoutRects[95], rect(10, 15, 40, 10))
+
 suite "feature widget behavior":
   test "tooltip drawing registers a draw-only layout node":
     resetUi()
@@ -1686,6 +1736,28 @@ suite "feature widget behavior":
     check g_drawLayers.layers[ord(layerDialog)].len == 1
 
     endDialog()
+
+  test "explicit dialog registers its id and scopes body children":
+    resetUi()
+
+    beginFrameLayout()
+    var childSlot = LayoutSlot(nodeId: NullLayoutNodeId)
+    if beginDialog(81, 10, 20, 40, 30, "Dialog"):
+      childSlot = layoutDrawSlot(82, rect(12, 23, 5, 5))
+      endDialog()
+    finishFrameLayout()
+
+    var dialogNode = NullLayoutNodeId
+    for node in g_uiState.layoutArena.nodes:
+      if node.itemId == 81:
+        dialogNode = node.id
+
+    check not dialogNode.isNull
+    check not childSlot.nodeId.isNull
+    check g_uiState.layoutRects.hasKey(81)
+    checkRect(g_uiState.layoutRects[81], rect(10, 20, 40, 30))
+    check int32(g_uiState.layoutArena.nodes[childSlot.nodeId.int].parent) ==
+      int32(dialogNode)
 
   test "color combo opens its popup from button click":
     resetUi()

@@ -27,7 +27,8 @@ proc beginListView*(
 
   result = listViewRange(itemCount, rowHeight, h, scrollY)
   beginScrollView(id, x, y, w, h)
-  pushDrawOffset(DrawOffset(ox: 0, oy: result.startY))
+  let baseOffset = drawOffset()
+  pushDrawOffset(DrawOffset(ox: baseOffset.ox, oy: baseOffset.oy + result.startY))
 
 proc beginListViewWithSlot*(
     id: ItemId, slot: LayoutSlot, itemCount: Natural, rowHeight: float
@@ -46,7 +47,8 @@ proc beginListViewWithSlot*(
     slot,
     rect(slot.bounds.x, slot.bounds.y - scrollY, slot.bounds.w, slot.bounds.h),
   )
-  pushDrawOffset(DrawOffset(ox: 0, oy: result.startY))
+  let baseOffset = drawOffset()
+  pushDrawOffset(DrawOffset(ox: baseOffset.ox, oy: baseOffset.oy + result.startY))
 
 proc endListView*(range: ListViewRange) =
   popDrawOffset()

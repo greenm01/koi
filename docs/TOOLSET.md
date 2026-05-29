@@ -1,8 +1,8 @@
 # Koi Toolset
 
-This is a reference for Koi's layout and widget toolset: what is available today,
-how the pieces relate, and where the layout core is headed. For the design of the
-unified layout solver and its execution model, see `LAYOUT_MODEL.md`.
+This is a reference for Koi's layout and widget toolset: what is available today
+and how the pieces relate. For the design of the unified layout solver and its
+execution model, see `LAYOUT_MODEL.md`.
 
 Koi is a small immediate-mode UI library for Nim. UI is described by widget calls
 every frame; interaction, layout, style, focus, and drawing live in the central
@@ -22,26 +22,25 @@ toolset:
 
 ## Layout Tools
 
-Koi is moving to a single unified container solver. Vertical auto-layout, rows,
-and manual spaces become presets over that one model rather than separate
-systems. The presets below are shipped and tested today; the sizing model and
-solver they will be expressed in terms of are described in `LAYOUT_MODEL.md`.
+Koi uses a single unified container solver. Vertical auto-layout, rows, manual
+spaces, scroll regions, popups, and framed containers are presets over that one
+model rather than separate positioning systems.
 
-### Sizing model (planned)
+### Sizing model (shipped)
 
-The unified solver sizes each axis of a container independently. These are the
-target primitives; rows and auto-layout map onto them.
+The unified solver sizes each axis of a container independently. Rows and
+auto-layout map onto these primitives.
 
 | Sizing | Meaning | Today's equivalent |
 | --- | --- | --- |
 | `fixed` | A fixed pixel size on that axis. | `col(width)`, explicit `w`/`h` |
 | `percent` | A fraction of the parent's content size. | `colRatio(ratio)` |
 | `grow` | A share of the parent's remaining space. | `colDynamic()`, `colVariable(min)` |
-| `fit` | Shrink-wrap to intrinsic child content. | not yet available |
+| `fit` | Shrink-wrap to intrinsic child content. | wrapped text and fit-height containers |
 
 `fixed`, `percent`, and `grow` resolve top-down once the parent size is known.
-`fit` (and text-wrapped height) needs bottom-up measurement and arrives with the
-solver; it is the main capability the presets cannot express today.
+`fit` and text-wrapped height use bottom-up measurement through the solver's
+text measurement callback.
 
 ### Vertical auto-layout (shipped)
 
@@ -171,10 +170,8 @@ state by ID). The tables group them by role.
 
 ## Where this is going
 
-The shipped layout presets cover dense widget composition (rows), spatial
-surfaces (spaces), and the simple top-to-bottom default (auto-layout). The next
-step is the unified container solver in `LAYOUT_MODEL.md`: one frame-local arena
-sized with `fixed`/`grow`/`percent`/`fit`, solved at frame end with current
-visuals, that the existing presets fold into. The capability it adds beyond
-today's tools is `fit` — content-derived sizing for popups, wrapped text, and
-panels that shrink-wrap their children.
+The unified layout refactor is in place: one frame-local arena is sized with
+`fixed`/`grow`/`percent`/`fit`, solved at frame end with current visuals, while
+pointer interaction reads previous-frame rects. Future work should build on that
+foundation: richer widget coverage, more complete theming, and higher-level
+fit-content container APIs where applications need them.

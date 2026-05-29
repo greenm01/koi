@@ -76,8 +76,6 @@ proc beginPopupWithSlot*(
   ps.prevActiveSlotUsed = ui.autoLayoutState.activeSlotUsed
   ui.currentLayer = layerPopup
   ui.focusCaptured = false
-  ui.autoLayoutState.activeSlotParent = NullLayoutNodeId
-  ui.autoLayoutState.activeSlotUsed = false
   hitClip(hitBounds.x, hitBounds.y, hitBounds.w, hitBounds.h)
 
   addLayoutDrawLayer(layerPopup, slot.nodeId, vg, bounds):
@@ -92,6 +90,7 @@ proc beginPopupWithSlot*(
     vg.fill()
     vg.stroke()
 
+  beginLayoutViewportForSlot(slot)
   pushDrawOffset(DrawOffset(ox: slot.bounds.x, oy: slot.bounds.y))
   result = true
 
@@ -110,6 +109,7 @@ proc endPopup*() =
   alias(ps, ui.popupState)
 
   popDrawOffset()
+  endLayoutViewportForSlot()
   ui.hitClipRect = ps.prevHitClip
   ui.currentLayer = ps.prevLayer
   ui.autoLayoutState.activeSlotParent = LayoutNodeId(ps.prevActiveSlotParent)

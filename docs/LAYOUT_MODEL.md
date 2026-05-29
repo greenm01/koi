@@ -5,10 +5,10 @@ This is the canonical layout design for Koi. It supersedes the earlier
 container layer as future work, under a Gridmonger backward-compatibility
 constraint that no longer applies.
 
-The direction is a single unified layout solver. Clay-inspired structural
-sizing (`fixed`, `grow`, `percent`, `fit`) drives one container model, and
-Koi's row, vertical auto-layout, and manual-space APIs become presets over that
-same model rather than separate systems.
+Koi uses a single unified layout solver. Clay-inspired structural sizing
+(`fixed`, `grow`, `percent`, `fit`) drives one container model, and Koi's row,
+vertical auto-layout, and manual-space APIs are presets over that same model
+rather than separate systems.
 
 ## Status & Context
 
@@ -18,6 +18,9 @@ central runtime state (`UIState` / `g_uiState` in `koi/core.nim`).
 
 What already exists and is headless-tested:
 
+- Unified frame-local layout arena and solver with `fixed`/`grow`/`percent`/
+  `fit` sizing, follower placement, same-frame solved drawing, and previous-frame
+  interaction rects (`koi/layout.nim`, `koi/internal/layout_solver.nim`).
 - Vertical auto-layout: `AutoLayoutParams`, `autoLayoutPre`/`autoLayoutPost`
   (`koi/layout.nim`, `koi/types.nim`).
 - Row layout with columns: `ColMode` = `cmStatic`/`cmDynamic`/`cmRatio`/
@@ -26,12 +29,12 @@ What already exists and is headless-tested:
 - Layout spaces: `lmSpace`, `beginSpaceLayout`, the draw-offset stack
   (`koi/drawing.nim`), and the screen/local coordinate helpers.
 - Scroll views (`beginScrollView`), virtual list (`listView`/`listViewRange`),
-  and popups (`beginPopup`).
+  dialogs, and popups (`beginPopup`) integrated with layout slots.
 - Per-widget retained state in `itemState: Table[ItemId, ref RootObj]`
   (`koi/core.nim`), keyed by call-site-stable IDs (`nextId`, `koi/input.nim`).
 - Pure layout/algorithm tests under `tests/`.
 
-What is new in this document:
+The model this document records:
 
 - A unified container solver with `fixed`/`grow`/`percent`/`fit` sizing on both
   axes and a defined multi-pass solve.
@@ -301,11 +304,11 @@ type LayoutArena* = object
   measureText*:  MeasureTextProc
 ```
 
-The exact names can change during implementation, but the ownership model should
-not: one arena owns frame-local layout nodes and solved rectangles. Widget state
-and scroll offsets remain in Koi's existing `itemState` tables. Solved rects are
-additionally cached per widget ID across frames to feed the next frame's
-interaction (see Execution Model).
+The names in code may evolve, but the ownership model should not: one arena owns
+frame-local layout nodes and solved rectangles. Widget state and scroll offsets
+remain in Koi's existing `itemState` tables. Solved rects are additionally
+cached per widget ID across frames to feed the next frame's interaction (see
+Execution Model).
 
 ## Nim Advantages
 
@@ -338,16 +341,16 @@ useful later, once the runtime model is proven.
 (Backward compatibility with Gridmonger and the current public call shape is no
 longer a constraint and is intentionally absent from this list.)
 
-## Implementation Sequencing
-
-When code work begins (out of scope for this document, recorded as the roadmap):
+## Implementation Status
 
 1. Execution model and arena: same-frame solve for `fixed`/`grow`/`percent`,
    draws deferred to solved rects, interaction read from previous-frame rects.
+   (done)
 2. Fold rows, layout spaces, and vertical auto-layout into the unified node, with
-   the presets implemented as templates over it.
-3. Add `fit` and text wrapping via the `measureText` callback.
-4. Migrate the remaining widgets' internal layout math into deferred draws.
+   the presets implemented as templates over it. (done)
+3. Add `fit` and text wrapping via the `measureText` callback. (done)
+4. Migrate existing widgets' internal layout math into deferred draws and layout
+   slots/followers. (done)
 
 Tests for pure sizing and placement (including alignment, gap, and the
 one-frame interaction-lag semantics) should accompany each stage, in the style
