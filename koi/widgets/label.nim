@@ -8,6 +8,18 @@ import koi/rect
 import koi/defaults
 import koi/utils
 
+proc labelWithSlot*(
+    slot: LayoutSlot,
+    id: ItemId,
+    labelText: string,
+    state: WidgetState = wsNormal,
+    style: LabelStyle = borrowDefaultLabelStyle(),
+) =
+  alias(ui, g_uiState)
+
+  addLayoutDrawLayer(ui.currentLayer, slot.nodeId, vg, bounds):
+    vg.drawLabel(bounds.x, bounds.y, bounds.w, bounds.h, labelText, state, style)
+
 proc label*(
     id: ItemId,
     x, y, w, h: float,
@@ -15,13 +27,9 @@ proc label*(
     state: WidgetState = wsNormal,
     style: LabelStyle = borrowDefaultLabelStyle(),
 ) =
-  alias(ui, g_uiState)
-
   let (x, y) = addDrawOffset(x, y)
   let slot = textLayoutSlot(id, rect(x, y, w, h), labelText, style)
-
-  addLayoutDrawLayer(ui.currentLayer, slot.nodeId, vg, bounds):
-    vg.drawLabel(bounds.x, bounds.y, bounds.w, bounds.h, labelText, state, style)
+  labelWithSlot(slot, id, labelText, state, style)
 
 proc label*(
     x, y, w, h: float,

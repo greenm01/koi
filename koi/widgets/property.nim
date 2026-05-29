@@ -6,8 +6,10 @@ import std/tables
 import koi/types
 import koi/core
 import koi/defaults
+import koi/drawing
 import koi/input
 import koi/layout
+import koi/rect
 import koi/internal/algorithms
 import koi/widgets/button
 import koi/widgets/label
@@ -25,6 +27,71 @@ proc propertyState(id: ItemId): PropertyState =
   discard ui.itemState.hasKeyOrPut(id, PropertyState())
   cast[PropertyState](ui.itemState[id])
 
+proc propertyLayoutSlots(
+    id: ItemId,
+    x, y, w, h: float,
+    labelText: string,
+    style: PropertyStyle,
+): tuple[
+  propertySlot: LayoutSlot,
+  labelSlot: LayoutSlot,
+  decSlot: LayoutSlot,
+  textSlot: LayoutSlot,
+  incSlot: LayoutSlot,
+] =
+  let
+    (sx, sy) = addDrawOffset(x, y)
+    labelId = hashId($id & ":label")
+    decId = hashId($id & ":dec")
+    textId = hashId($id & ":text")
+    incId = hashId($id & ":inc")
+    labelW = min(style.labelWidth, max(w * 0.5, 0.0))
+    buttonW = min(style.buttonWidth, max((w - labelW) * 0.5, 0.0))
+    gap = max(style.gap, 0.0)
+    textW = max(w - labelW - buttonW * 2 - gap * 4, 0.0)
+    decX = sx + labelW + gap
+    textX = decX + buttonW + gap
+    incX = textX + textW + gap
+
+  result.propertySlot = layoutContainerSlot(
+    id,
+    rect(sx, sy, w, h),
+    direction = ldLeftToRight,
+    childGap = gap,
+    padding = padding(0, gap, 0, 0),
+    alignCross = lcaStretch,
+  )
+  result.labelSlot = textLayoutChildSlot(
+    result.propertySlot.nodeId,
+    labelId,
+    rect(sx, sy, labelW, h),
+    labelText,
+    style.label,
+    fixed(labelW),
+    fixed(h),
+  )
+  result.decSlot = layoutChildSlot(
+    result.propertySlot.nodeId,
+    decId,
+    rect(decX, sy, buttonW, h),
+    fixed(buttonW),
+    fixed(h),
+  )
+  result.textSlot = layoutChildSlot(
+    result.propertySlot.nodeId,
+    textId,
+    rect(textX, sy, textW, h),
+    grow(min = 0.0),
+    fixed(h),
+  )
+  result.incSlot = layoutChildSlot(
+    result.propertySlot.nodeId,
+    incId,
+    rect(incX, sy, buttonW, h),
+    fixed(buttonW),
+    fixed(h),
+  )
+
 proc intProperty*(
     id: ItemId,
     x, y, w, h: float,
@@ -39,13 +106,7 @@ proc intProperty*(
     decId = hashId($id & ":dec")
     textId = hashId($id & ":text")
     incId = hashId($id & ":inc")
-    labelW = min(style.labelWidth, max(w * 0.5, 0.0))
-    buttonW = min(style.buttonWidth, max((w - labelW) * 0.5, 0.0))
-    gap = style.gap
-    textX = x + labelW + buttonW + gap * 2
-    textW = max(w - labelW - buttonW * 2 - gap * 4, 0.0)
-    decX = x + labelW + gap
-    incX = textX + textW + gap
+    slots = propertyLayoutSlots(id, x, y, w, h, labelText, style)
 
   var value = value_out.clamp(minValue, maxValue)
   let oldValue = value
@@ -54,20 +115,17 @@ proc intProperty*(
   if not isActive(textId):
     state.valueText = $value
 
-  label(x, y, labelW, h, labelText, style = style.label)
+  labelWithSlot(slots.labelSlot, hashId($id & ":label"), labelText, style = style.label)
 
-  if button(decId, decX, y, buttonW, h, "-", tooltip, disabled, style = style.button):
+  if buttonWithSlot(slots.decSlot, decId, "-", tooltip, disabled, style = style.button):
     value = propertyStepValue(value, minValue, maxValue, step, -1)
     state.valueText = $value
 
   let constraint =
     TextFieldConstraint(kind: tckInteger, minInt: minValue, maxInt: maxValue).some
-  textField(
+  textFieldWithSlot(
+    slots.textSlot,
     textId,
-    textX,
-    y,
-    textW,
-    h,
     state.valueText,
     tooltip = tooltip,
     disabled = disabled,
@@ -80,7 +138,7 @@ proc intProperty*(
   except ValueError:
     discard
 
-  if button(incId, incX, y, buttonW, h, "+", tooltip, disabled, style = style.button):
+  if buttonWithSlot(slots.incSlot, incId, "+", tooltip, disabled, style = style.button):
     value = propertyStepValue(value, minValue, maxValue, step, 1)
     state.valueText = $value
 
@@ -101,13 +159,7 @@ proc floatProperty*(
     decId = hashId($id & ":dec")
     textId = hashId($id & ":text")
     incId = hashId($id & ":inc")
-    labelW = min(style.labelWidth, max(w * 0.5, 0.0))
-    buttonW = min(style.buttonWidth, max((w - labelW) * 0.5, 0.0))
-    gap = style.gap
-    textX = x + labelW + buttonW + gap * 2
-    textW = max(w - labelW - buttonW * 2 - gap * 4, 0.0)
-    decX = x + labelW + gap
-    incX = textX + textW + gap
+    slots = propertyLayoutSlots(id, x, y, w, h, labelText, style)
 
   var value = value_out.clamp(minValue, maxValue)
   let oldValue = value
@@ -116,18 +168,15 @@ proc floatProperty*(
   if not isActive(textId):
     state.valueText = value.formatPropertyValue(style.valuePrecision)
 
-  label(x, y, labelW, h, labelText, style = style.label)
+  labelWithSlot(slots.labelSlot, hashId($id & ":label"), labelText, style = style.label)
 
-  if button(decId, decX, y, buttonW, h, "-", tooltip, disabled, style = style.button):
+  if buttonWithSlot(slots.decSlot, decId, "-", tooltip, disabled, style = style.button):
     value = propertyStepValue(value, minValue, maxValue, step, -1)
     state.valueText = value.formatPropertyValue(style.valuePrecision)
 
-  textField(
+  textFieldWithSlot(
+    slots.textSlot,
     textId,
-    textX,
-    y,
-    textW,
-    h,
     state.valueText,
     tooltip = tooltip,
     disabled = disabled,
@@ -139,7 +188,7 @@ proc floatProperty*(
   except ValueError:
     discard
 
-  if button(incId, incX, y, buttonW, h, "+", tooltip, disabled, style = style.button):
+  if buttonWithSlot(slots.incSlot, incId, "+", tooltip, disabled, style = style.button):
     value = propertyStepValue(value, minValue, maxValue, step, 1)
     state.valueText = value.formatPropertyValue(style.valuePrecision)
 

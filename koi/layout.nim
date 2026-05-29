@@ -209,6 +209,66 @@ proc layoutSlot*(id: ItemId, fallback: Rect): LayoutSlot =
     width = ui.layoutStack[^1].currentRowLayoutSize(ui.autoLayoutParams)
   layoutSlotWithSizing(id, fallback, width, fixed(fallback.h), parent)
 
+proc layoutContainerSlot*(
+    id: ItemId,
+    fallback: Rect,
+    direction: LayoutDirection = ldLeftToRight,
+    childGap: float = 0.0,
+    padding: Padding = Padding(),
+    alignCross: LayoutCrossAlign = lcaStretch,
+): LayoutSlot =
+  alias(ui, g_uiState)
+  let parent = ui.activeAutoSlotParent()
+  var width = fixed(fallback.w)
+  if parent.isNull and ui.layoutStack.len > 0 and ui.layoutStack[^1].mode == lpmRow:
+    width = ui.layoutStack[^1].currentRowLayoutSize(ui.autoLayoutParams)
+
+  var node = layoutNode(
+    kind = lnkContainer,
+    itemId = id,
+    width = width,
+    height = fixed(fallback.h),
+    direction = direction,
+    childGap = childGap,
+    padding = padding,
+    alignCross = alignCross,
+    placement =
+      if parent.isNull:
+        layoutPlacement(fallback)
+      else:
+        flow(),
+  )
+  node.intrinsicMin = size(fallback.w, fallback.h)
+  node.intrinsicPref = size(fallback.w, fallback.h)
+  if width.kind == lskGrow:
+    node.intrinsicMin.w = width.min
+    node.intrinsicPref.w = width.min
+  node.rect = fallback
+
+  let nodeId =
+    if parent.isNull:
+      ui.layoutArena.addLayoutNode(node)
+    else:
+      ui.layoutArena.addLayoutNode(node, parent)
+  ui.markAutoSlotUsed(parent)
+  ui.markPresetSlotUsed()
+
+  result = LayoutSlot(
+    itemId: id,
+    nodeId: nodeId,
+    bounds: fallback,
+    previousBounds: previousLayoutRect(id, fallback),
+  )
+
+proc layoutChildSlot*(
+    parent: LayoutNodeId,
+    id: ItemId,
+    fallback: Rect,
+    width: LayoutSize,
+    height: LayoutSize,
+): LayoutSlot =
+  layoutSlotWithSizing(id, fallback, width, height, parent)
+
 proc beginLayoutContainerSlotAt*(
     id: ItemId, fallback, frameBounds: Rect, scrollOffset: Size = size(0, 0)
 ): LayoutSlot =
@@ -386,6 +446,17 @@ proc textLayoutSlot*(
       fit(min = fallback.h),
     parent,
   )
+
+proc textLayoutChildSlot*(
+    parent: LayoutNodeId,
+    id: ItemId,
+    fallback: Rect,
+    text: string,
+    style: LabelStyle,
+    width: LayoutSize,
+    height: LayoutSize,
+): LayoutSlot =
+  textLayoutSlotWithSizing(id, fallback, text, style, width, height, parent)
 
 template addLayoutDrawLayer*(
     layer: DrawLayer, nodeId: LayoutNodeId, vg, bounds, body: untyped

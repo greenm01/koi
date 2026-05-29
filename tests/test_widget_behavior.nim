@@ -26,6 +26,7 @@ import koi/widgets/dialog
 import koi/widgets/menu
 import koi/widgets/popup
 import koi/widgets/progress
+import koi/widgets/property
 import koi/widgets/radiobuttons
 import koi/widgets/section
 import koi/widgets/selectable
@@ -524,6 +525,151 @@ suite "layout-integrated widget behavior":
       lfkInsetFixed
     check int32(g_uiState.layoutArena.nodes[previewNode.int].placement.target) ==
       int32(comboNode)
+
+  test "auto-layout int property editor registers one row child":
+    resetUi()
+    var params = DefaultAutoLayoutParams
+    params.itemsPerRow = 1
+    params.rowWidth = 120
+    params.leftPad = 0
+    params.rightPad = 0
+    params.rowPad = 0
+    params.sectionPad = 0
+    params.defaultRowHeight = 20
+    params.defaultItemHeight = 20
+    initAutoLayout(params)
+    beginFrameLayout()
+
+    let propertyId: ItemId = 34
+    let
+      labelId = hashId($propertyId & ":label")
+      decId = hashId($propertyId & ":dec")
+      textId = hashId($propertyId & ":text")
+      incId = hashId($propertyId & ":inc")
+    var value = 5
+    autoLayoutPre()
+    let propertyRow = g_uiState.autoLayoutState.autoRow
+    discard intProperty(
+      propertyId,
+      g_uiState.autoLayoutState.x,
+      autoLayoutNextY(),
+      autoLayoutNextItemWidth(),
+      autoLayoutNextItemHeight(),
+      "Count",
+      0,
+      10,
+      1,
+      value,
+    )
+    autoLayoutPost()
+    finishFrameLayout()
+
+    var rowChildren = 0
+    var propertyNode = NullLayoutNodeId
+    var labelNode = NullLayoutNodeId
+    var decNode = NullLayoutNodeId
+    var textNode = NullLayoutNodeId
+    var incNode = NullLayoutNodeId
+    for node in g_uiState.layoutArena.nodes:
+      if int32(node.parent) == int32(propertyRow):
+        inc rowChildren
+      if node.itemId == propertyId:
+        propertyNode = node.id
+      elif node.itemId == labelId:
+        labelNode = node.id
+      elif node.itemId == decId:
+        decNode = node.id
+      elif node.itemId == textId:
+        textNode = node.id
+      elif node.itemId == incId:
+        incNode = node.id
+
+    check rowChildren == 1
+    check not propertyNode.isNull
+    check not labelNode.isNull
+    check not decNode.isNull
+    check not textNode.isNull
+    check not incNode.isNull
+    check g_uiState.layoutArena.nodes[propertyNode.int].kind == lnkContainer
+    check int32(g_uiState.layoutArena.nodes[labelNode.int].parent) ==
+      int32(propertyNode)
+    check int32(g_uiState.layoutArena.nodes[decNode.int].parent) ==
+      int32(propertyNode)
+    check int32(g_uiState.layoutArena.nodes[textNode.int].parent) ==
+      int32(propertyNode)
+    check int32(g_uiState.layoutArena.nodes[incNode.int].parent) ==
+      int32(propertyNode)
+    check g_uiState.layoutArena.nodes[textNode.int].width.kind == lskGrow
+    check g_uiState.layoutArena.nodes[labelNode.int].width.kind == lskFixed
+    check g_uiState.layoutArena.nodes[decNode.int].width.kind == lskFixed
+    check g_uiState.layoutArena.nodes[incNode.int].width.kind == lskFixed
+
+  test "auto-layout float property editor registers one row child":
+    resetUi()
+    var params = DefaultAutoLayoutParams
+    params.itemsPerRow = 1
+    params.rowWidth = 120
+    params.leftPad = 0
+    params.rightPad = 0
+    params.rowPad = 0
+    params.sectionPad = 0
+    params.defaultRowHeight = 20
+    params.defaultItemHeight = 20
+    initAutoLayout(params)
+    beginFrameLayout()
+
+    let propertyId: ItemId = 35
+    var value = 0.5
+    autoLayoutPre()
+    let propertyRow = g_uiState.autoLayoutState.autoRow
+    discard floatProperty(
+      propertyId,
+      g_uiState.autoLayoutState.x,
+      autoLayoutNextY(),
+      autoLayoutNextItemWidth(),
+      autoLayoutNextItemHeight(),
+      "Scale",
+      0.0,
+      1.0,
+      0.1,
+      value,
+    )
+    autoLayoutPost()
+    finishFrameLayout()
+
+    var rowChildren = 0
+    var propertyNode = NullLayoutNodeId
+    var textNode = NullLayoutNodeId
+    for node in g_uiState.layoutArena.nodes:
+      if int32(node.parent) == int32(propertyRow):
+        inc rowChildren
+      if node.itemId == propertyId:
+        propertyNode = node.id
+      elif node.itemId == hashId($propertyId & ":text"):
+        textNode = node.id
+
+    check rowChildren == 1
+    check not propertyNode.isNull
+    check not textNode.isNull
+    check int32(g_uiState.layoutArena.nodes[textNode.int].parent) ==
+      int32(propertyNode)
+    check g_uiState.layoutArena.nodes[textNode.int].width.kind == lskGrow
+
+  test "property editor buttons hit test against previous child rects":
+    resetUi()
+    let
+      propertyId: ItemId = 36
+      incId = hashId($propertyId & ":inc")
+    var value = 5
+    g_uiState.layoutRects[incId] = rect(40, 40, 20, 10)
+    g_uiState.mx = 45
+    g_uiState.my = 45
+    g_uiState.mbLeftDown = true
+
+    discard intProperty(propertyId, 0, 0, 100, 20, "Count", 0, 10, 1, value)
+
+    check isHot(incId)
+    check isActive(incId)
 
   test "horizontal slider hit testing uses a previous solved rect":
     resetUi()
