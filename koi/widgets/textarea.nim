@@ -211,6 +211,10 @@ proc textArea*(
         ta.selection = TextSelection(startPos: startPos.int, endPos: endPos)
         ta.cursorPos = ta.selection.endPos
         ta.state = tasDoubleClicked
+      elif ta.state == tasEdit and shiftDown():
+        ta.selection = updateSelection(ta.selection, ta.cursorPos, cursorPos)
+        ta.cursorPos = cursorPos
+        ta.state = tasDragStart
       else:
         ta.cursorPos = cursorPos
         ta.selection = TextSelection(startPos: cursorPos.int, endPos: cursorPos)

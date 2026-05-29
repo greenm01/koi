@@ -77,6 +77,11 @@ proc clickRowAt(width: float, text: var string, rowIndex: Natural, x: float) =
   releaseLeft()
   taAt(width, text)
 
+proc shiftClickRowAt(width: float, text: var string, rowIndex: Natural, x: float) =
+  g_uiState.keyStates[ord(keyLeftShift)] = true
+  clickRowAt(width, text, rowIndex, x)
+  g_uiState.keyStates[ord(keyLeftShift)] = false
+
 proc cursorPos(): Natural =
   cast[TextAreaStateVars](g_uiState.itemState[2]).cursorPos
 
@@ -93,6 +98,16 @@ proc expectedCursorAtRowX(c: WrapCase, rowIndex: Natural, cursorX: float): Natur
     glyphs = measureRowGlyphs(c.text, row)
   textAreaCursorPosAt(
     glyphs, row.startPos, textAreaRowTextEndCursor(row, c.text), cursorX, textBoxX()
+  )
+
+proc cursorXForText(text: string, cursorPos: Natural, width: float = Aw): float =
+  let rows = measureTextRows(text, textBoxW(width))
+  let rowIndex = textAreaRowForCursor(rows, cursorPos)
+  textAreaCursorX(
+    measureRowGlyphs(text, rows[rowIndex]),
+    rows[rowIndex].startPos,
+    cursorPos,
+    textBoxX(),
   )
 
 suite "text area editing":
@@ -266,3 +281,26 @@ suite "text area double-click word selection":
 
     doubleClickAreaAt(text, textBoxX() + 8.0, rowMouseY(0))
     check selectedText(text) == "foo"
+
+suite "text area richer selection gestures":
+  test "shift-click extends selection from the cursor":
+    resetUi()
+    var text = ""
+    focusArea(text)
+    typeInto(text, "alpha beta gamma")
+    key(text, keyHome)
+
+    shiftClickRowAt(Aw, text, 0, cursorXForText(text, 10))
+    check selectedText(text) == "alpha beta"
+
+  test "shift-click extends from the existing selection anchor":
+    resetUi()
+    var text = ""
+    focusArea(text)
+    typeInto(text, "alpha beta gamma")
+    key(text, keyHome)
+    key(text, keyRight, {mkShift})
+    key(text, keyRight, {mkShift})
+
+    shiftClickRowAt(Aw, text, 0, cursorXForText(text, 10))
+    check selectedText(text) == "alpha beta"
