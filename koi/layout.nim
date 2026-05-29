@@ -740,9 +740,28 @@ proc beginSpaceLayout*(height: float) =
   alias(ui, g_uiState)
   alias(a, ui.autoLayoutState)
 
+  let rowSlotOwned =
+    ui.layoutStack.len > 0 and ui.layoutStack[^1].mode == lpmRow
+  if rowSlotOwned:
+    autoLayoutPre()
+
+  let width =
+    if rowSlotOwned or ui.layoutStack.len > 0:
+      a.nextItemWidth
+    else:
+      a.rowWidth
   let
     (x, y) = addDrawOffset(a.x, a.y)
-    width = if ui.layoutStack.len > 0: a.nextItemWidth else: a.rowWidth
+    layoutWidth =
+      if rowSlotOwned:
+        ui.layoutStack[^1].currentRowLayoutSize(ui.autoLayoutParams)
+      else:
+        fixed(width)
+    placement =
+      if rowSlotOwned:
+        flow()
+      else:
+        manual(x, y)
 
   ui.layoutStack.add(
     LayoutPresetFrame(
@@ -751,13 +770,14 @@ proc beginSpaceLayout*(height: float) =
       y: y,
       w: width,
       h: height,
+      rowSlotOwned: rowSlotOwned,
       nodeId: ui.layoutArena.beginLayoutNode(
-        layoutNode(
-          width = fixed(width), height = fixed(height), placement = manual(x, y)
-        )
+        layoutNode(width = layoutWidth, height = fixed(height), placement = placement)
       ),
     )
   )
+  if rowSlotOwned:
+    a.activeSlotUsed = true
   pushDrawOffset(DrawOffset(ox: x, oy: y))
 
 proc endLayout*() =
@@ -769,6 +789,9 @@ proc endLayout*() =
 
     if node.mode == lpmSpace:
       popDrawOffset()
+      if node.rowSlotOwned:
+        autoLayoutPost()
+        return
 
     ui.autoLayoutState.y += node.h
     ui.autoLayoutState.y += ui.autoLayoutParams.sectionPad

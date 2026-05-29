@@ -204,6 +204,21 @@ suite "layout space":
     checkClose(outerY, 32)
     checkClose(g_uiState.autoLayoutState.y, 132)
 
+  test "space children solve relative to the space node":
+    resetLayout()
+    g_uiState.drawOffsetStack = @[DrawOffset(ox: 20, oy: 30)]
+    beginFrameLayout()
+
+    beginSpaceLayout(120)
+    let spaceNode = g_uiState.layoutStack[^1].nodeId
+    let (x, y) = addDrawOffset(10, 15)
+    discard layoutSlot(25, rect(x, y, 30, 20))
+    endLayout()
+    finishFrameLayout()
+
+    checkRect(g_uiState.layoutArena.layoutRect(spaceNode), rect(20, 30, 320, 120))
+    checkRect(g_uiState.layoutRects[25], rect(30, 45, 30, 20))
+
 suite "layout frame integration":
   test "frame root caches registered slot rects":
     resetLayout()
@@ -392,6 +407,51 @@ suite "layout frame integration":
     finishFrameLayout()
 
     checkRect(g_uiState.layoutRects[18], rect(53, 5, 80, 21))
+
+  test "space in predeclared row consumes one solved column":
+    resetLayout()
+    beginFrameLayout()
+
+    beginRowLayout(30, [col(40), col(60), col(80)])
+    beginSpaceLayout(30)
+    let (x, y) = addDrawOffset(5, 5)
+    discard layoutSlot(26, rect(x, y, 10, 10))
+    endLayout()
+
+    autoLayoutPre()
+    discard layoutSlot(27, autoLayoutNextBounds())
+    autoLayoutPost()
+
+    endLayout()
+    finishFrameLayout()
+
+    checkRect(g_uiState.layoutRects[26], rect(18, 5, 10, 10))
+    checkRect(g_uiState.layoutRects[27], rect(53, 5, 60, 21))
+
+  test "space in imperative row consumes one solved column":
+    resetLayout()
+    beginFrameLayout()
+
+    beginRowLayout(30)
+
+    beginColumn(cmStatic, 40)
+    beginSpaceLayout(30)
+    let (x, y) = addDrawOffset(5, 5)
+    discard layoutSlot(28, rect(x, y, 10, 10))
+    endLayout()
+    endColumn()
+
+    beginColumn(cmStatic, 80)
+    autoLayoutPre()
+    discard layoutSlot(29, autoLayoutNextBounds())
+    autoLayoutPost()
+    endColumn()
+
+    endLayout()
+    finishFrameLayout()
+
+    checkRect(g_uiState.layoutRects[28], rect(18, 5, 10, 10))
+    checkRect(g_uiState.layoutRects[29], rect(53, 5, 80, 21))
 
   test "frame layout installs default text measurement":
     resetLayout()

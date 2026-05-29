@@ -384,6 +384,7 @@ type
     currentColumn*: LayoutColumn
     hasCurrentColumn*: bool
     nodeId*: LayoutNodeId
+    rowSlotOwned*: bool
 
 type
   DrawOffset* = object
