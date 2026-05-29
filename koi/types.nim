@@ -831,6 +831,7 @@ type ColorComboStyle* = ref object
   popupPad*: float
   swatchSize*: float
   swatchGap*: float
+  presetColors*: seq[Color]
   button*: ButtonStyle
   popup*: PopupStyle
   label*: LabelStyle

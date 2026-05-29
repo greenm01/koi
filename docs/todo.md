@@ -11,8 +11,3 @@ to the deferred candidates that still look useful.
 
 - Profile real text-editing workloads before adding persistent rune metadata
   caches beyond the current per-operation word-navigation rune sequence.
-
-## Layout And Theming
-
-- Audit remaining hard-coded widget colors and promote any broadly useful values
-  to style fields or global theme parameters.

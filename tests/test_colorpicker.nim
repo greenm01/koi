@@ -128,6 +128,44 @@ suite "color combo selection":
     check not changed
     check isPopupOpen(CcId)
 
+  test "style preset colors drive popup swatches":
+    resetUi()
+    var
+      color = rgb(0.2, 0.4, 0.8)
+      style = defaultColorComboStyle()
+    style.presetColors = @[rgb(0.11, 0.22, 0.33), rgb(0.44, 0.55, 0.66)]
+    let expected = style.presetColors[1]
+    let presetId = hashId($CcId & ":preset:1")
+
+    placeRect(CcId, rect(Bx, By, Bw, Bh))
+    pressLeftAt(Bx + Bw * 0.5, By + Bh * 0.5)
+    discard colorCombo(CcId, Bx, By, Bw, Bh, color, "Accent", style)
+    nextFrame()
+    releaseLeft()
+    mouseTo(Bx + Bw * 0.5, By + Bh * 0.5)
+    discard colorCombo(CcId, Bx, By, Bw, Bh, color, "Accent", style)
+    check isPopupOpen(CcId)
+
+    placeRect(PopupId, rect(Bx, By + Bh, 140, 120))
+    for i in 0 .. 8:
+      placeRect(hashId($CcId & ":preset:" & $i), rect(-100, -100, 1, 1))
+    placeRect(presetId, rect(72, 66, 12, 12))
+
+    nextFrame()
+    pressLeftAt(78, 72)
+    discard colorCombo(CcId, Bx, By, Bw, Bh, color, "Accent", style)
+
+    nextFrame()
+    releaseLeft()
+    mouseTo(78, 72)
+    let changed = colorCombo(CcId, Bx, By, Bw, Bh, color, "Accent", style)
+
+    check not isPopupOpen(CcId)
+    check abs(color.r - expected.r) < 1e-6
+    check abs(color.g - expected.g) < 1e-6
+    check abs(color.b - expected.b) < 1e-6
+    check changed
+
 suite "color picker popup":
   test "clicking the swatch opens the full picker popup":
     resetUi()

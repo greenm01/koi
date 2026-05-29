@@ -847,6 +847,18 @@ var DefaultColorComboStyle = ColorComboStyle(
   popupPad: 6.0,
   swatchSize: 22.0,
   swatchGap: 4.0,
+  presetColors:
+    @[
+      gray(0.0),
+      gray(1.0),
+      rgb(0.88, 0.18, 0.16),
+      rgb(0.95, 0.63, 0.12),
+      rgb(0.95, 0.86, 0.20),
+      rgb(0.18, 0.62, 0.24),
+      rgb(0.16, 0.45, 0.82),
+      rgb(0.55, 0.22, 0.78),
+      gray(0.0, 0.0),
+    ],
   button: defaultButtonStyle(),
   popup: defaultPopupStyle(),
   label: defaultLabelStyle(),

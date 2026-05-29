@@ -13,6 +13,8 @@ point when an application needs visuals outside the built-in style surface.
 Transient UI should follow the same rule as visible widgets. Tooltips use
 `TooltipStyle`, including font metrics, padding, maximum width, corner radius,
 background/text colors, and shadow, instead of hard-coded drawing constants.
+Color combo presets live on `ColorComboStyle.presetColors`, so applications can
+replace the built-in quick palette without forking the widget.
 
 Global theme parameters are intentionally small convenience setters layered on
 top of those same style values. `setDefaultFont` updates the default font face

@@ -681,21 +681,10 @@ proc colorCombo*(
     )
     if beginPopupWithSlot(id, popupSlot, style.popup):
       try:
-        let presets = [
-          gray(0.0),
-          gray(1.0),
-          rgb(0.88, 0.18, 0.16),
-          rgb(0.95, 0.63, 0.12),
-          rgb(0.95, 0.86, 0.20),
-          rgb(0.18, 0.62, 0.24),
-          rgb(0.16, 0.45, 0.82),
-          rgb(0.55, 0.22, 0.78),
-          gray(0.0, 0.0),
-        ]
         var
           px = style.popupPad
           py = style.popupPad
-        for i, preset in presets:
+        for i, preset in style.presetColors:
           if px + style.swatchSize > style.popupWidth - style.popupPad:
             px = style.popupPad
             py += style.swatchSize + style.swatchGap
