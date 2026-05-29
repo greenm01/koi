@@ -25,6 +25,30 @@ suite "context menu opening":
     check not beginContextMenu(MenuId, 0, 0, 30, 30, 100, 60)
     check not isPopupOpen(MenuId)
 
+  test "disabled context menu ignores right click":
+    resetUi()
+    pressRightAt(16, 16)
+    check not beginContextMenu(MenuId, 0, 0, 30, 30, 100, 60, disabled = true)
+    check not isPopupOpen(MenuId)
+
+  test "disabled context menu closes an already open popup":
+    resetUi()
+    check openContextMenu()
+    endContextMenu()
+
+    releaseRight()
+    nextFrame()
+    check isPopupOpen(MenuId)
+    check not beginContextMenu(MenuId, 0, 0, 30, 30, 100, 60, disabled = true)
+    check not isPopupOpen(MenuId)
+
+  test "disabled context menu template accepts explicit id":
+    resetUi()
+    pressRightAt(16, 16)
+    contextMenu(MenuId, 0, 0, 30, 30, 100, 60, disabled = true):
+      check false
+    check not isPopupOpen(MenuId)
+
 suite "context menu dismissal":
   test "escape closes an open context menu":
     resetUi()

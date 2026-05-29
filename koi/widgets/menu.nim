@@ -341,13 +341,18 @@ proc beginContextMenu*(
     id: ItemId,
     x, y, w, h, popupW, popupH: float,
     style: MenuStyle = borrowDefaultMenuStyle(),
+    disabled: bool = false,
 ): bool =
   alias(ui, g_uiState)
 
   let (sx, sy) = addDrawOffset(x, y)
   let state = contextMenuState(id)
 
-  if ui.mbRightDown and hasNoActiveItem() and isHit(sx, sy, w, h):
+  if disabled and isPopupOpen(id):
+    closePopup()
+    return false
+
+  if not disabled and ui.mbRightDown and hasNoActiveItem() and isHit(sx, sy, w, h):
     let offset = drawOffset()
     state.anchorX = ui.mx - offset.ox
     state.anchorY = ui.my - offset.oy
@@ -361,15 +366,35 @@ proc endContextMenu*() =
   endMenuItems()
   endPopup()
 
-template contextMenu*(id: ItemId, x, y, w, h, popupW, popupH: float, body: untyped) =
-  if beginContextMenu(id, x, y, w, h, popupW, popupH):
+template contextMenuImpl(
+    id: ItemId, x, y, w, h, popupW, popupH: float, isDisabled: bool, body: untyped
+) =
+  if beginContextMenu(id, x, y, w, h, popupW, popupH, disabled = isDisabled):
     try:
       body
     finally:
       endContextMenu()
 
+template contextMenu*(id: ItemId, x, y, w, h, popupW, popupH: float, body: untyped) =
+  contextMenuImpl(id, x, y, w, h, popupW, popupH, disabled = false):
+    body
+
+template contextMenu*(
+    id: ItemId, x, y, w, h, popupW, popupH: float, disabled: bool, body: untyped
+) =
+  contextMenuImpl(id, x, y, w, h, popupW, popupH, disabled):
+    body
+
 template contextMenu*(x, y, w, h, popupW, popupH: float, body: untyped) =
   let i = instantiationInfo(fullPaths = true)
   let id = nextId(i.filename, i.line)
-  contextMenu(id, x, y, w, h, popupW, popupH):
+  contextMenuImpl(id, x, y, w, h, popupW, popupH, disabled = false):
+    body
+
+template contextMenu*(
+    x, y, w, h, popupW, popupH: float, disabled: bool, body: untyped
+) =
+  let i = instantiationInfo(fullPaths = true)
+  let id = nextId(i.filename, i.line)
+  contextMenuImpl(id, x, y, w, h, popupW, popupH, disabled):
     body
