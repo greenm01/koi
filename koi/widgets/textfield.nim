@@ -10,6 +10,7 @@ import koi/types
 import koi/core
 import koi/drawing
 import koi/layout
+import koi/rect
 import koi/input
 import koi/defaults
 import koi/internal/algorithms
@@ -88,9 +89,16 @@ proc textField*(
   alias(tab, ui.tabActivationState)
 
   let (x, y) = addDrawOffset(x, y)
+  let slot = layoutSlot(id, rect(x, y, w, h))
+  let hitBounds = slot.previousBounds
 
-  let (textBoxX, textBoxY, textBoxW, textBoxH) =
-    snapToGrid(x = x + s.textPadHoriz, y = y, w = w - s.textPadHoriz * 2, h = h)
+  let (textBoxX, _, textBoxW, _) =
+    snapToGrid(
+      x = hitBounds.x + s.textPadHoriz,
+      y = hitBounds.y,
+      w = hitBounds.w - s.textPadHoriz * 2,
+      h = hitBounds.h,
+    )
 
   var glyphs: array[MaxTextRuneLen, GlyphPosition]
   var tabActivate = false
@@ -98,7 +106,8 @@ proc textField*(
   if not ui.focusCaptured and tf.state == tfsDefault:
     tabActivate = handleTabActivation(id)
 
-    if isHit(x, y, w, h) or activate or tabActivate:
+    if isHit(hitBounds.x, hitBounds.y, hitBounds.w, hitBounds.h) or activate or
+        tabActivate:
       markHot(id)
       if not disabled and
           ((ui.mbLeftDown and hasNoActiveItem()) or activate or tabActivate):
@@ -209,7 +218,7 @@ proc textField*(
         tf.state = tfsEdit
     else:
       if ui.mbLeftDown:
-        if mouseInside(x, y, w, h):
+        if mouseInside(hitBounds.x, hitBounds.y, hitBounds.w, hitBounds.h):
           tf.selection = NoSelection
           tf.cursorPos = cursorPosAt(ui.mx)
           if isDoubleClick():
@@ -323,9 +332,23 @@ proc textField*(
   text_out = text
   let editing = tf.activeItem == id
 
-  addDrawLayer(ui.currentLayer, vg):
+  addLayoutDrawLayer(ui.currentLayer, slot.nodeId, vg, bounds):
     vg.save()
-    let (x, y, w, h) = snapToGrid(x, y, w, h, s.bgStrokeWidth)
+    let
+      (x, y, w, h) =
+        snapToGrid(bounds.x, bounds.y, bounds.w, bounds.h, s.bgStrokeWidth)
+      (drawTextBoxX, drawTextBoxY, drawTextBoxW, drawTextBoxH) =
+        snapToGrid(
+          x = bounds.x + s.textPadHoriz,
+          y = bounds.y,
+          w = bounds.w - s.textPadHoriz * 2,
+          h = bounds.h,
+        )
+      drawView =
+        TextFieldView(
+          displayStartPos: tf.displayStartPos,
+          displayStartX: drawTextBoxX + (tf.displayStartX - textBoxX),
+        )
     let state =
       if disabled:
         wsDisabled
@@ -345,7 +368,7 @@ proc textField*(
         (s.bgFillColorActive, s.bgStrokeColorActive)
       of wsDisabled:
         (s.bgFillColorDisabled, s.bgStrokeColorDisabled)
-    var textX = textBoxX
+    var textX = drawTextBoxX
     var textY = y + h * TextVertAlignFactor
     if drawWidget:
       vg.beginPath()
@@ -355,26 +378,39 @@ proc textField*(
     elif editing:
       vg.beginPath()
       vg.rect(
-        textBoxX, textBoxY + s.textPadVert, textBoxW, textBoxH - s.textPadVert * 2
+        drawTextBoxX,
+        drawTextBoxY + s.textPadVert,
+        drawTextBoxW,
+        drawTextBoxH - s.textPadVert * 2,
       )
       vg.fillColor(fillColor)
       vg.fill()
     let xPad = 3.0
-    vg.intersectScissor(textBoxX - xPad, textBoxY, textBoxW + xPad, textBoxH)
+    vg.intersectScissor(
+      drawTextBoxX - xPad, drawTextBoxY, drawTextBoxW + xPad, drawTextBoxH
+    )
     if editing:
-      textX = tf.displayStartX
+      textX = drawView.displayStartX
       if hasSelection(tf.selection):
         var ns = normaliseSelection(tf.selection)
         ns.endPos = max(ns.endPos - 1, 0).Natural
         let
           x1 =
             if ns.startPos == 0:
-              tf.displayStartX
+              drawView.displayStartX
             else:
-              tf.displayStartX + glyphs[ns.startPos].x - glyphs[tf.displayStartPos].x
-          x2 = tf.displayStartX + glyphs[ns.endPos].maxX - glyphs[tf.displayStartPos].x
+              drawView.displayStartX + glyphs[ns.startPos].x -
+                glyphs[drawView.displayStartPos].x
+          x2 =
+            drawView.displayStartX + glyphs[ns.endPos].maxX -
+            glyphs[drawView.displayStartPos].x
         vg.beginPath()
-        vg.rect(x1, textBoxY + s.textPadVert, x2 - x1, textBoxH - s.textPadVert * 2)
+        vg.rect(
+          x1,
+          drawTextBoxY + s.textPadVert,
+          x2 - x1,
+          drawTextBoxH - s.textPadVert * 2,
+        )
         vg.fillColor(s.selectionColor)
         vg.fill()
     let textColor =
@@ -387,11 +423,13 @@ proc textField*(
     vg.fillColor(textColor)
     discard vg.text(textX, textY, text.runeSubStr(tf.displayStartPos))
     if editing:
-      let cursorX = cursorXPos()
+      let cursorX = textFieldCursorX(
+        glyphs, text.runeLen.Natural, tf.cursorPos, drawView
+      )
       vg.drawCursor(
         cursorX,
-        textBoxY + s.textPadVert,
-        textBoxY + textBoxH - s.textPadVert,
+        drawTextBoxY + s.textPadVert,
+        drawTextBoxY + drawTextBoxH - s.textPadVert,
         s.cursorColor,
         s.cursorWidth,
       )

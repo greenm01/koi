@@ -10,6 +10,7 @@ import koi/types
 import koi/core
 import koi/drawing
 import koi/layout
+import koi/rect
 import koi/input
 import koi/defaults
 import koi/internal/algorithms
@@ -41,13 +42,15 @@ proc textArea*(
   var ta = cast[TextAreaStateVars](ui.itemState[id])
 
   let (x, y) = addDrawOffset(x, y)
+  let slot = layoutSlot(id, rect(x, y, w, h))
+  let hitBounds = slot.previousBounds
 
   # The text is displayed within this rectangle (used for drawing later)
   let (textBoxX, textBoxY, textBoxW, textBoxH) = snapToGrid(
-    x = x + s.textPadHoriz,
-    y = y + s.textPadVert,
-    w = w - s.textPadHoriz * 2 - s.scrollBarWidth,
-    h = h - s.textPadVert * 2,
+    x = hitBounds.x + s.textPadHoriz,
+    y = hitBounds.y + s.textPadVert,
+    w = hitBounds.w - s.textPadHoriz * 2 - s.scrollBarWidth,
+    h = hitBounds.h - s.textPadVert * 2,
   )
 
   var tabActivate = false
@@ -55,7 +58,8 @@ proc textArea*(
   if not ui.focusCaptured and ta.state == tasDefault:
     tabActivate = handleTabActivation(id)
 
-    if isHit(x, y, w, h) or activate or tabActivate:
+    if isHit(hitBounds.x, hitBounds.y, hitBounds.w, hitBounds.h) or activate or
+        tabActivate:
       markHot(id)
       if not disabled and
           ((ui.mbLeftDown and hasNoActiveItem()) or activate or tabActivate):
@@ -192,7 +196,8 @@ proc textArea*(
       )
 
     # LMB pressed outside the text area exits edit mode
-    if ui.mbLeftDown and not mouseInside(x, y, w, h):
+    if ui.mbLeftDown and
+        not mouseInside(hitBounds.x, hitBounds.y, hitBounds.w, hitBounds.h):
       exitEditMode()
     elif ta.state in {tasEditLMBPressed, tasEdit} and ui.mbLeftDown and
         mouseInside(textBoxX, textBoxY, textBoxW, textBoxH):
@@ -227,7 +232,7 @@ proc textArea*(
       ta.state = tasEdit
 
     if ui.hasEvent and not ui.eventHandled and ui.currEvent.kind == ekScroll and
-        mouseInside(x, y, w, h):
+        mouseInside(hitBounds.x, hitBounds.y, hitBounds.w, hitBounds.h):
       scrollRows(-ui.currEvent.oy * TextAreaScrollRowsPerTick)
       markEventHandled()
 
@@ -337,9 +342,9 @@ proc textArea*(
     vertScrollBar(
       scrollBarId,
       x = x + w - s.scrollBarWidth,
-      y = textBoxY,
+      y = y + s.textPadVert,
       w = s.scrollBarWidth,
-      h = textBoxH,
+      h = h - s.textPadVert * 2,
       startVal = 0,
       endVal = maxStart,
       value_out = scrollValue,
@@ -354,9 +359,30 @@ proc textArea*(
   text_out = text
 
   # Draw
-  addDrawLayer(ui.currentLayer, vg):
-    let (rx, ry, rw, rh) = snapToGrid(x, y, w, h, s.bgStrokeWidth)
+  addLayoutDrawLayer(ui.currentLayer, slot.nodeId, vg, bounds):
+    let
+      (rx, ry, rw, rh) =
+        snapToGrid(bounds.x, bounds.y, bounds.w, bounds.h, s.bgStrokeWidth)
+      (drawTextBoxX, drawTextBoxY, drawTextBoxW, drawTextBoxH) = snapToGrid(
+        x = bounds.x + s.textPadHoriz,
+        y = bounds.y + s.textPadVert,
+        w = bounds.w - s.textPadHoriz * 2 - s.scrollBarWidth,
+        h = bounds.h - s.textPadVert * 2,
+      )
+      drawRows = text.textBreakLines(drawTextBoxW)
     let editing = ta.activeItem == id
+
+    proc fillDrawRowGlyphs(
+        row: types.TextRow, glyphs: var openArray[GlyphPosition]
+    ): int =
+      let rowEnd = textAreaRowEndCursor(row)
+      if rowEnd <= row.startPos:
+        return 0
+
+      useTextFont()
+      g_nvgContext.textGlyphPositions(
+        0, 0, text, startPos = row.startBytePos, endPos = row.endBytePos, glyphs
+      )
 
     if drawWidget:
       vg.beginPath()
@@ -365,39 +391,40 @@ proc textArea*(
       vg.fill()
 
     vg.save()
-    vg.intersectScissor(textBoxX, textBoxY, textBoxW, textBoxH)
+    vg.intersectScissor(drawTextBoxX, drawTextBoxY, drawTextBoxW, drawTextBoxH)
 
-    var ty = textBoxY + rowHeight * TextVertAlignFactor - ta.displayStartRow * rowHeight
-    var rowY = textBoxY - ta.displayStartRow * rowHeight
+    var ty =
+      drawTextBoxY + rowHeight * TextVertAlignFactor - ta.displayStartRow * rowHeight
+    var rowY = drawTextBoxY - ta.displayStartRow * rowHeight
 
     useTextFont()
 
     if editing and hasSelection(ta.selection):
-      for row in rows:
-        if rowY + rowHeight > textBoxY and rowY < textBoxY + textBoxH:
+      for row in drawRows:
+        if rowY + rowHeight > drawTextBoxY and rowY < drawTextBoxY + drawTextBoxH:
           let rowSelection = textAreaSelectionForRow(row, ta.selection)
           if rowSelection.active:
             var glyphs: array[1024, GlyphPosition]
-            let glyphCount = fillRowGlyphs(row, glyphs)
+            let glyphCount = fillDrawRowGlyphs(row, glyphs)
             let x1 =
               if glyphCount <= 0:
-                textBoxX
+                drawTextBoxX
               else:
                 textAreaCursorX(
                   toOpenArray(glyphs, 0, glyphCount - 1),
                   row.startPos,
                   rowSelection.startPos,
-                  textBoxX,
+                  drawTextBoxX,
                 )
             let x2 =
               if glyphCount <= 0:
-                textBoxX
+                drawTextBoxX
               else:
                 textAreaCursorX(
                   toOpenArray(glyphs, 0, glyphCount - 1),
                   row.startPos,
                   rowSelection.endPos,
-                  textBoxX,
+                  drawTextBoxX,
                 )
 
             vg.beginPath()
@@ -408,31 +435,31 @@ proc textArea*(
 
     vg.fillColor(if editing: s.textColorActive else: s.textColor)
 
-    for row in rows:
-      if ty + rowHeight > textBoxY and ty < textBoxY + textBoxH:
+    for row in drawRows:
+      if ty + rowHeight > drawTextBoxY and ty < drawTextBoxY + drawTextBoxH:
         discard vg.text(
-          textBoxX, ty, text, startPos = row.startBytePos, endPos = row.endBytePos
+          drawTextBoxX, ty, text, startPos = row.startBytePos, endPos = row.endBytePos
         )
       ty += rowHeight
 
-    if editing:
-      let rowIndex = textAreaRowForCursor(rows, ta.cursorPos)
-      let row = rows[rowIndex]
-      let cursorY1 = textBoxY + (rowIndex.float - ta.displayStartRow) * rowHeight
+    if editing and drawRows.len > 0:
+      let rowIndex = textAreaRowForCursor(drawRows, ta.cursorPos)
+      let row = drawRows[rowIndex]
+      let cursorY1 = drawTextBoxY + (rowIndex.float - ta.displayStartRow) * rowHeight
       let cursorY2 = cursorY1 + rowHeight
 
-      if cursorY2 > textBoxY and cursorY1 < textBoxY + textBoxH:
+      if cursorY2 > drawTextBoxY and cursorY1 < drawTextBoxY + drawTextBoxH:
         var glyphs: array[1024, GlyphPosition]
-        let glyphCount = fillRowGlyphs(row, glyphs)
+        let glyphCount = fillDrawRowGlyphs(row, glyphs)
         let cursorX =
           if glyphCount <= 0:
-            textBoxX
+            drawTextBoxX
           else:
             textAreaCursorX(
               toOpenArray(glyphs, 0, glyphCount - 1),
               row.startPos,
               ta.cursorPos,
-              textBoxX,
+              drawTextBoxX,
             )
         vg.drawCursor(cursorX, cursorY1, cursorY2, s.cursorColor, s.cursorWidth)
 

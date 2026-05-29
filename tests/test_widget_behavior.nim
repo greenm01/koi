@@ -28,6 +28,8 @@ import koi/widgets/scrollview
 import koi/widgets/scrollbar
 import koi/widgets/slider
 import koi/widgets/table
+import koi/widgets/textarea
+import koi/widgets/textfield
 import koi/widgets/togglebutton
 
 template checkRect(actual, expected: Rect) =
@@ -493,6 +495,75 @@ suite "layout-integrated widget behavior":
 
     check int32(g_uiState.layoutArena.nodes[3].parent) == int32(sliderRow)
     check int32(g_uiState.layoutArena.nodes[5].parent) == int32(scrollRow)
+
+  test "text field hover testing uses a previous solved rect":
+    resetUi()
+    var text = ""
+    g_uiState.layoutRects[39] = rect(40, 40, 20, 10)
+    g_uiState.mx = 45
+    g_uiState.my = 45
+
+    textField(39, 0, 0, 10, 10, text)
+
+    check isHot(39)
+    check g_uiState.layoutArena.nodes.len == 1
+    check g_drawLayers.layers[ord(layerDefault)].len == 1
+
+  test "text area hover testing uses a previous solved rect":
+    resetUi()
+    var text = ""
+    g_uiState.layoutRects[40] = rect(40, 40, 30, 20)
+    g_uiState.mx = 45
+    g_uiState.my = 45
+
+    textArea(40, 0, 0, 10, 10, text)
+
+    check isHot(40)
+    check g_uiState.layoutArena.nodes.len == 1
+    check g_drawLayers.layers[ord(layerDefault)].len == 1
+
+  test "auto-layout text inputs register under active rows":
+    resetUi()
+    var params = DefaultAutoLayoutParams
+    params.itemsPerRow = 1
+    params.rowWidth = 20
+    params.leftPad = 0
+    params.rightPad = 0
+    params.rowPad = 0
+    params.sectionPad = 0
+    params.defaultRowHeight = 10
+    params.defaultItemHeight = 10
+    initAutoLayout(params)
+    beginFrameLayout()
+
+    var fieldText = ""
+    autoLayoutPre()
+    let fieldRow = g_uiState.autoLayoutState.autoRow
+    textField(
+      41,
+      g_uiState.autoLayoutState.x,
+      autoLayoutNextY(),
+      autoLayoutNextItemWidth(),
+      autoLayoutNextItemHeight(),
+      fieldText,
+    )
+    autoLayoutPost()
+
+    var areaText = ""
+    autoLayoutPre()
+    let areaRow = g_uiState.autoLayoutState.autoRow
+    textArea(
+      42,
+      g_uiState.autoLayoutState.x,
+      autoLayoutNextY(),
+      autoLayoutNextItemWidth(),
+      autoLayoutNextItemHeight(),
+      areaText,
+    )
+    autoLayoutPost()
+
+    check int32(g_uiState.layoutArena.nodes[3].parent) == int32(fieldRow)
+    check int32(g_uiState.layoutArena.nodes[5].parent) == int32(areaRow)
 
   test "auto-layout label registers a fit-height text node under the active row":
     resetUi()
