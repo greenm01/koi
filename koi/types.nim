@@ -74,6 +74,13 @@ type RadioButtonStateVars* = object
 type SectionHeaderStateVars* = object
   openSubHeaders*: bool
 
+type MenuTraversalStateVars* = object
+  activeMenu*: ItemId
+  activeMenuIndex*: int
+  activeItem*: int
+  itemCount*: Natural
+  moved*: int
+
 type
   ScrollBarState* = enum
     sbsDefault
@@ -508,6 +515,13 @@ type DropDownStyle* = ref object
   scrollBarStyle*: ScrollBarStyle
 
 type
+  TextFieldFilterKind* = enum
+    tffAny
+    tffInteger
+    tffFloat
+    tffHex
+    tffBinary
+
   TextFieldConstraintKind* = enum
     tckString
     tckInteger
@@ -621,6 +635,37 @@ type MenuStyle* = ref object
   item*: SelectableStyle
   popup*: PopupStyle
 
+type ChartKind* = enum
+  ckLine
+  ckColumns
+
+type ChartStyle* = ref object
+  backgroundColor*: Color
+  strokeColor*: Color
+  lineColor*: Color
+  columnColor*: Color
+  zeroLineColor*: Color
+  strokeWidth*: float
+  lineWidth*: float
+  columnGap*: float
+  label*: LabelStyle
+
+type TableColumn* = object
+  label*: string
+  width*: float
+
+type TableStyle* = ref object
+  headerHeight*: float
+  rowHeight*: float
+  headerFillColor*: Color
+  rowFillColor*: Color
+  rowAltFillColor*: Color
+  rowHoverFillColor*: Color
+  strokeColor*: Color
+  strokeWidth*: float
+  headerLabel*: LabelStyle
+  rowLabel*: LabelStyle
+
 type SectionHeaderStyle* = ref object
   label*: LabelStyle
   labelLeftPad*: float
@@ -634,6 +679,7 @@ type SectionHeaderStyle* = ref object
 
 type ScrollViewStyle* = ref object
   vertScrollBarWidth*: float
+  horizScrollBarHeight*: float
   scrollBarStyle*: ScrollBarStyle
   scrollWheelSensitivity*: float
 

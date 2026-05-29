@@ -28,6 +28,7 @@ proc dropDown*[T](
     tooltip: string,
     disabled: bool,
     style: DropDownStyle = borrowDefaultDropDownStyle(),
+    itemPaints: seq[Paint] = @[],
 ) =
   assert selectedItem_out.ord <= items.high
   var selectedItem = selectedItem_out.clamp(T.low, T.high)
@@ -241,9 +242,30 @@ proc dropDown*[T](
     vg.fill()
     vg.stroke()
 
-    let itemText = items[ord(selectedItem)]
+    let
+      selectedIndex = ord(selectedItem)
+      itemText = items[selectedIndex]
+      hasImage =
+        selectedIndex < itemPaints.len and itemPaints[selectedIndex].image != NoImage
 
-    vg.drawLabel(x, y, w, h, itemText, state, s.label)
+    if hasImage:
+      let
+        imagePad = max(3.0, min(w, h) * 0.18)
+        imageSize = max(0.0, min(h - imagePad * 2, w - imagePad * 2))
+        imageX = x + imagePad
+        imageY = y + (h - imageSize) * 0.5
+      vg.drawImage(imageX, imageY, imageSize, imageSize, itemPaints[selectedIndex])
+      vg.drawLabel(
+        imageX + imageSize,
+        y,
+        max(0.0, w - (imageX - x) - imageSize),
+        h,
+        itemText,
+        state,
+        s.label,
+      )
+    else:
+      vg.drawLabel(x, y, w, h, itemText, state, s.label)
 
   # Drop-down items
   if isActive(id) and isPopupOpen(id) and ds.state >= dsOpenLMBPressed:
@@ -276,7 +298,18 @@ proc dropDown*[T](
           vg.fill()
           state = wsHover
 
-        vg.drawLabel(ix, iy, itemListW, h, items[i], state, s.item)
+        if i < itemPaints.len and itemPaints[i].image != NoImage:
+          let
+            imagePad = max(3.0, min(itemListW, h) * 0.18)
+            imageSize = max(0.0, min(h - imagePad * 2, itemListW - imagePad * 2))
+            imageX = ix
+            imageY = iy + (h - imageSize) * 0.5
+          vg.drawImage(imageX, imageY, imageSize, imageSize, itemPaints[i])
+          vg.drawLabel(
+            imageX + imageSize, iy, itemListW - imageSize, h, items[i], state, s.item
+          )
+        else:
+          vg.drawLabel(ix, iy, itemListW, h, items[i], state, s.item)
 
         iy += itemHeight
 
@@ -338,11 +371,12 @@ template dropDown*[T](
     tooltip: string = "",
     disabled: bool = false,
     style: DropDownStyle = borrowDefaultDropDownStyle(),
+    itemPaints: seq[Paint] = @[],
 ) =
   let i = instantiationInfo(fullPaths = true)
   let id = nextId(i.filename, i.line)
 
-  dropDown(id, x, y, w, h, items, selectedItem, tooltip, disabled, style)
+  dropDown(id, x, y, w, h, items, selectedItem, tooltip, disabled, style, itemPaints)
 
 template dropDown*[T](
     items: seq[string],
@@ -350,6 +384,7 @@ template dropDown*[T](
     tooltip: string = "",
     disabled: bool = false,
     style: DropDownStyle = borrowDefaultDropDownStyle(),
+    itemPaints: seq[Paint] = @[],
 ) =
   let i = instantiationInfo(fullPaths = true)
   let id = nextId(i.filename, i.line)
@@ -367,6 +402,7 @@ template dropDown*[T](
     tooltip,
     disabled,
     style,
+    itemPaints,
   )
 
   autoLayoutPost()
@@ -377,19 +413,21 @@ template dropDown*[E: enum](
     tooltip: string = "",
     disabled: bool = false,
     style: DropDownStyle = borrowDefaultDropDownStyle(),
+    itemPaints: seq[Paint] = @[],
 ) =
   let
     i = instantiationInfo(fullPaths = true)
     id = nextId(i.filename, i.line)
     items = enumToSeq[E]()
 
-  dropDown(id, x, y, w, h, items, selectedItem, tooltip, disabled, style)
+  dropDown(id, x, y, w, h, items, selectedItem, tooltip, disabled, style, itemPaints)
 
 template dropDown*[E: enum](
     selectedItem: var E,
     tooltip: string = "",
     disabled: bool = false,
     style: DropDownStyle = borrowDefaultDropDownStyle(),
+    itemPaints: seq[Paint] = @[],
 ) =
   let
     i = instantiationInfo(fullPaths = true)
@@ -409,6 +447,7 @@ template dropDown*[E: enum](
     tooltip,
     disabled,
     style,
+    itemPaints,
   )
 
   autoLayoutPost()

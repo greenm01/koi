@@ -1,6 +1,8 @@
+import std/math
 import std/tables
 
 import nanovg
+import glfw
 
 import koi/types
 import koi/core
@@ -22,28 +24,81 @@ var
   menuBarY = 0.0
   menuBarH = 0.0
   menuBarCursorX = 0.0
+  menuBarIndex = 0
   menuItemX = 0.0
   menuItemY = 0.0
   menuItemW = 0.0
+  menuItemIndex = 0
+  menuKeyboardActivate = false
   activeMenuStyle = borrowDefaultMenuStyle()
 
 proc beginMenuItems(popupW: float, style: MenuStyle) =
+  alias(mt, g_uiState.menuTraversalState)
   if isActive(g_uiState.popupState.activeItem):
     g_uiState.activeItem = 0
   menuItemX = style.popupPad
   menuItemY = style.popupPad
   menuItemW = max(0.0, popupW - style.popupPad * 2)
+  menuItemIndex = 0
+  menuKeyboardActivate = false
   activeMenuStyle = style
+  if g_uiState.hasEvent and not g_uiState.eventHandled and
+      g_uiState.currEvent.kind == ekKey and g_uiState.currEvent.action in {kaDown}:
+    case g_uiState.currEvent.key
+    of keyUp, keyKp8:
+      mt.activeItem = max(mt.activeItem - 1, 0)
+      markEventHandled()
+    of keyDown, keyKp2:
+      mt.activeItem = mt.activeItem + 1
+      markEventHandled()
+    of keyEnter, keyKpEnter:
+      menuKeyboardActivate = true
+      markEventHandled()
+    else:
+      discard
+
+proc endMenuItems() =
+  alias(mt, g_uiState.menuTraversalState)
+  mt.itemCount = menuItemIndex.Natural
+  if menuItemIndex > 0:
+    mt.activeItem = mt.activeItem.clamp(0, menuItemIndex - 1)
+  else:
+    mt.activeItem = 0
 
 proc beginMenuBar*(x, y, w, h: float, style: MenuStyle = borrowDefaultMenuStyle()) =
   alias(ui, g_uiState)
+  alias(mt, ui.menuTraversalState)
 
   menuBarActive = true
   menuBarX = x
   menuBarY = y
   menuBarH = h
   menuBarCursorX = x
+  menuBarIndex = 0
+  mt.moved = 0
   activeMenuStyle = style
+
+  if ui.hasEvent and not ui.eventHandled and ui.currEvent.kind == ekKey and
+      ui.currEvent.action in {kaDown}:
+    case ui.currEvent.key
+    of keyEscape:
+      mt.activeMenu = 0
+      mt.activeMenuIndex = 0
+      mt.activeItem = 0
+      closePopup()
+      markEventHandled()
+    of keyLeft, keyKp4:
+      mt.moved = -1
+      markEventHandled()
+    of keyRight, keyKp6:
+      mt.moved = 1
+      markEventHandled()
+    of keyDown, keyKp2:
+      if mt.activeMenu != 0:
+        mt.activeItem = 0
+        markEventHandled()
+    else:
+      discard
 
   let (sx, sy) = addDrawOffset(x, y)
   addDrawLayer(ui.currentLayer, vg):
@@ -76,7 +131,9 @@ proc menuItem*(
     tooltip: string = "",
     style: MenuStyle = activeMenuStyle,
 ): bool =
-  var selected = false
+  alias(mt, g_uiState.menuTraversalState)
+  let itemIndex = menuItemIndex
+  var selected = itemIndex == mt.activeItem
   result = selectable(
     id,
     menuItemX,
@@ -89,8 +146,12 @@ proc menuItem*(
     disabled,
     style = style.item,
   )
+  if not disabled and selected and menuKeyboardActivate:
+    result = true
   menuItemY += style.menuItemHeight
+  inc(menuItemIndex)
   if result:
+    mt.activeMenu = 0
     closePopup()
 
 template menuItem*(label: string, disabled: bool = false, tooltip: string = ""): bool =
@@ -98,23 +159,94 @@ template menuItem*(label: string, disabled: bool = false, tooltip: string = ""):
   let id = nextId(i.filename, i.line, label)
   menuItem(id, label, disabled, tooltip)
 
+proc menuItemImageLabel*(
+    id: ItemId,
+    paint: Paint,
+    label: string,
+    disabled: bool = false,
+    tooltip: string = "",
+    style: MenuStyle = activeMenuStyle,
+): bool =
+  alias(mt, g_uiState.menuTraversalState)
+  let itemIndex = menuItemIndex
+  var selected = itemIndex == mt.activeItem
+  result = selectableImageLabel(
+    id,
+    menuItemX,
+    menuItemY,
+    menuItemW,
+    style.menuItemHeight,
+    paint,
+    label,
+    selected,
+    tooltip,
+    disabled,
+    style = style.item,
+  )
+  if not disabled and selected and menuKeyboardActivate:
+    result = true
+  menuItemY += style.menuItemHeight
+  inc(menuItemIndex)
+  if result:
+    mt.activeMenu = 0
+    closePopup()
+
+proc menuItemImage*(
+    id: ItemId,
+    paint: Paint,
+    disabled: bool = false,
+    tooltip: string = "",
+    style: MenuStyle = activeMenuStyle,
+): bool =
+  menuItemImageLabel(id, paint, "", disabled, tooltip, style)
+
+template menuItemImageLabel*(
+    paint: Paint, label: string, disabled: bool = false, tooltip: string = ""
+): bool =
+  let i = instantiationInfo(fullPaths = true)
+  let id = nextId(i.filename, i.line, label)
+  menuItemImageLabel(id, paint, label, disabled, tooltip)
+
+template menuItemImage*(
+    paint: Paint, disabled: bool = false, tooltip: string = ""
+): bool =
+  let i = instantiationInfo(fullPaths = true)
+  let id = nextId(i.filename, i.line)
+  menuItemImage(id, paint, disabled, tooltip)
+
 template menu*(label: string, popupW, popupH: float, body: untyped) =
   let i = instantiationInfo(fullPaths = true)
   let id = nextId(i.filename, i.line, label)
   let style = activeMenuStyle
   let buttonX = menuBarCursorX
   let buttonW = style.menuButtonWidth
+  let headerIndex = menuBarIndex
+
+  if g_uiState.menuTraversalState.activeMenu != 0 and
+      g_uiState.menuTraversalState.activeMenuIndex + g_uiState.menuTraversalState.moved ==
+      headerIndex:
+    g_uiState.menuTraversalState.activeMenu = id
+    g_uiState.menuTraversalState.activeMenuIndex = headerIndex
+    g_uiState.menuTraversalState.activeItem = 0
+    openPopup(id)
 
   if button(buttonX, menuBarY, buttonW, menuBarH, label, style = style.button):
+    g_uiState.menuTraversalState.activeMenu = id
+    g_uiState.menuTraversalState.activeMenuIndex = headerIndex
+    g_uiState.menuTraversalState.activeItem = 0
     openPopup(id)
 
   menuBarCursorX += buttonW
+  inc(menuBarIndex)
 
   if beginPopup(id, buttonX, menuBarY + menuBarH, popupW, popupH, style.popup):
+    g_uiState.menuTraversalState.activeMenu = id
+    g_uiState.menuTraversalState.activeMenuIndex = headerIndex
     beginMenuItems(popupW, style)
     try:
       body
     finally:
+      endMenuItems()
       endPopup()
 
 proc contextMenuState(id: ItemId): ContextMenuState =

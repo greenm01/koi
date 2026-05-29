@@ -33,6 +33,7 @@ suite "auto-layout":
 
     autoLayoutPre()
     checkRect(autoLayoutNextBounds(), rect(13, 0, 143, 21))
+    checkRect(nextWidgetBounds(), rect(13, 0, 143, 21))
     autoLayoutPost()
 
     autoLayoutPre()
@@ -183,6 +184,8 @@ suite "layout space":
     beginSpaceLayout(120)
 
     checkRect(layoutSpaceBounds(), rect(0, 0, 320, 120))
+    checkRect(layoutSpaceRatioRect(0.25, 0.5, 0.5, 0.5), rect(80, 60, 160, 60))
+    checkRect(layoutSpaceRatioRect(-1, 0.5, 3, 1), rect(0, 60, 320, 60))
     let (sx, sy) = layoutSpaceToScreen(10, 15)
     checkClose(sx, 30)
     checkClose(sy, 45)

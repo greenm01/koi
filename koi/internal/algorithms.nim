@@ -1,9 +1,79 @@
 import std/math
+import std/strutils
 
 import nanovg
 
+import koi/rect
 import koi/types
 import koi/utils
+
+func filterTextInput*(text: string, filter: TextFieldFilterKind): string =
+  for ch in text:
+    let keep =
+      case filter
+      of tffAny:
+        true
+      of tffInteger:
+        ch.isDigit or (ch in {'-', '+'})
+      of tffFloat:
+        ch.isDigit or (ch in {'-', '+', '.', 'e', 'E'})
+      of tffHex:
+        ch in {'0' .. '9', 'a' .. 'f', 'A' .. 'F'}
+      of tffBinary:
+        ch in {'0', '1'}
+    if keep:
+      result.add(ch)
+
+func chartValueY*(value, minValue, maxValue, y, h: float): float =
+  if maxValue <= minValue or h <= 0:
+    y + h
+  else:
+    y + h - ((value - minValue) / (maxValue - minValue)).clamp(0.0, 1.0) * h
+
+func chartPointX*(index, count: Natural, x, w: float): float =
+  if count <= 1 or w <= 0:
+    x
+  else:
+    x + (index.float / (count - 1).float).clamp(0.0, 1.0) * w
+
+func chartColumnRect*(
+    index, count: Natural, value, minValue, maxValue, x, y, w, h, gap: float
+): Rect =
+  if count == 0 or w <= 0 or h <= 0:
+    return rect(x, y + h, 0, 0)
+
+  let
+    columnW = max(0.0, w / count.float - gap)
+    columnX = x + index.float * (w / count.float) + gap * 0.5
+    zeroY = chartValueY(0, minValue, maxValue, y, h)
+    valueY = chartValueY(value, minValue, maxValue, y, h)
+    topY = min(zeroY, valueY)
+
+  rect(columnX, topY, columnW, max(abs(zeroY - valueY), 1.0))
+
+func tableColumnWidths*(
+    columns: openArray[TableColumn], availableWidth: float
+): seq[float] =
+  result = newSeq[float](columns.len)
+  if columns.len == 0:
+    return
+
+  var fixedWidth = 0.0
+  var autoCount = 0
+  for column in columns:
+    if column.width > 0:
+      fixedWidth += column.width
+    else:
+      inc(autoCount)
+
+  let autoWidth =
+    if autoCount > 0:
+      max(0.0, availableWidth - fixedWidth) / autoCount.float
+    else:
+      0.0
+
+  for i, column in columns:
+    result[i] = if column.width > 0: column.width else: autoWidth
 
 type TextFieldView* = object
   displayStartPos*: Natural

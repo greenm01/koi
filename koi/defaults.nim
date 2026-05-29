@@ -737,9 +737,82 @@ proc defaultSubSectionHeaderStyle*(style: SectionHeaderStyle) =
 proc setDefaultSubSectionHeaderStyle*(style: SectionHeaderStyle) =
   defaultSubSectionHeaderStyle(style)
 
+# Chart
+var DefaultChartStyle = ChartStyle(
+  backgroundColor: gray(0.12),
+  strokeColor: gray(0.32),
+  lineColor: HighlightColor,
+  columnColor: HighlightLowColor,
+  zeroLineColor: gray(0.45),
+  strokeWidth: 1.0,
+  lineWidth: 2.0,
+  columnGap: 2.0,
+  label: defaultLabelStyle(),
+)
+
+with DefaultChartStyle.label:
+  align = haCenter
+  color = gray(0.8)
+
+proc defaultChartStyle*(): ChartStyle =
+  DefaultChartStyle.deepCopy
+
+proc borrowDefaultChartStyle*(): ChartStyle =
+  DefaultChartStyle
+
+proc getDefaultChartStyle*(): ChartStyle =
+  defaultChartStyle()
+
+proc defaultChartStyle*(style: ChartStyle) =
+  DefaultChartStyle = style.deepCopy
+
+proc setDefaultChartStyle*(style: ChartStyle) =
+  defaultChartStyle(style)
+
+# Table
+var DefaultTableStyle = TableStyle(
+  headerHeight: 24.0,
+  rowHeight: 22.0,
+  headerFillColor: gray(0.22),
+  rowFillColor: gray(0.14),
+  rowAltFillColor: gray(0.17),
+  rowHoverFillColor: gray(0.25),
+  strokeColor: gray(0.32),
+  strokeWidth: 1.0,
+  headerLabel: defaultLabelStyle(),
+  rowLabel: defaultLabelStyle(),
+)
+
+with DefaultTableStyle.headerLabel:
+  align = haLeft
+  padHoriz = 6.0
+  color = gray(0.9)
+
+with DefaultTableStyle.rowLabel:
+  align = haLeft
+  padHoriz = 6.0
+  color = gray(0.82)
+
+proc defaultTableStyle*(): TableStyle =
+  DefaultTableStyle.deepCopy
+
+proc borrowDefaultTableStyle*(): TableStyle =
+  DefaultTableStyle
+
+proc getDefaultTableStyle*(): TableStyle =
+  defaultTableStyle()
+
+proc defaultTableStyle*(style: TableStyle) =
+  DefaultTableStyle = style.deepCopy
+
+proc setDefaultTableStyle*(style: TableStyle) =
+  defaultTableStyle(style)
+
 # ScrollView
 var DefaultScrollViewStyle = ScrollViewStyle(
-  vertScrollBarWidth: 12.0, scrollWheelSensitivity: if defined(macosx): 10.0 else: 40.0
+  vertScrollBarWidth: 12.0,
+  horizScrollBarHeight: 12.0,
+  scrollWheelSensitivity: if defined(macosx): 10.0 else: 40.0,
 )
 
 DefaultScrollViewStyle.scrollBarStyle = defaultScrollBarStyle()

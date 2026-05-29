@@ -17,9 +17,18 @@ var
   progressValue = 0.45
   intValue = 4
   floatValue = 0.5
+  dropIndex = 0
+  filteredText = ""
   treeOpen = true
   treeChildOpen = true
   listSelected: array[30, bool]
+  chartValues = @[0.15, 0.45, 0.25, 0.8, 0.55, 0.95, 0.35]
+  tableColumns =
+    @[
+      TableColumn(label: "Name", width: 120),
+      TableColumn(label: "Kind", width: 80),
+      TableColumn(label: "Value", width: 0),
+    ]
 
 proc createWindow(): Window =
   var cfg = DefaultOpenglWindowConfig
@@ -36,12 +45,16 @@ proc loadData(vg: NVGContext) =
 
 proc renderUI() =
   koi.beginFrame()
+  let iconPaint = vg.imagePattern(
+    0.cfloat, 0.cfloat, g_checkeredImageSize.cfloat, g_checkeredImageSize.cfloat,
+    0.cfloat, g_checkeredImage, 1.cfloat,
+  )
 
   menuBar(0, 0, koi.winWidth(), 24):
     menu("File", 160, 70):
       if menuItem("New"):
         echo "New selected"
-      if menuItem("Open"):
+      if menuItemImageLabel(iconPaint, "Open"):
         echo "Open selected"
     menu("Edit", 160, 70):
       if menuItem("Copy"):
@@ -109,9 +122,13 @@ proc renderUI() =
 
   label("Selectable, Progress, Properties:")
   discard selectable("Selectable row", selectedRow)
+  discard selectableImageLabel(iconPaint, "Image selectable", selectedRow)
+  discard buttonImageLabel(iconPaint, "Image button")
+  dropDown(@["Paint A", "Paint B"], dropIndex, itemPaints = @[iconPaint, iconPaint])
   progress(progressValue, 1.0, "Progress")
   discard intProperty("Int value", 0, 10, 1, intValue)
   discard floatProperty("Float value", 0.0, 1.0, 0.1, floatValue)
+  textField(filteredText, filter = tffFloat)
 
   treeNode("Tree Node", treeOpen):
     label("Tree child")
@@ -130,6 +147,22 @@ proc renderUI() =
   layoutSpace(130.0):
     listView(0, 0, 300, 120, listSelected.len.Natural, 22.0, i):
       discard selectable(0, i.float * 22.0, 280, 20, "List item " & $i, listSelected[i])
+
+  label("Horizontal Scroll, Chart, Table:")
+  layoutSpace(80.0):
+    scrollView(0, 0, 260, 60, 520, 50):
+      label(0, 0, 120, 22, "Scroll left")
+      label(400, 0, 120, 22, "Scroll right")
+
+  layoutSpace(90.0):
+    plotLine(0, 0, 300, 80, chartValues, 0.0, 1.0, "Line")
+    plotColumns(320, 0, 240, 80, chartValues, 0.0, 1.0, "Columns")
+
+  layoutSpace(120.0):
+    tableView(0, 0, 360, 110, tableColumns, 4.Natural, i):
+      tableCell("Row " & $i)
+      tableCell(if i mod 2 == 0: "Even" else: "Odd")
+      tableCell($(i * 10))
 
   label("Context Menu Area:")
   layoutSpace(60.0):

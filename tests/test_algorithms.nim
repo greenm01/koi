@@ -134,6 +134,13 @@ suite "scrollbar algorithms":
     checkClose(scrollBarTrackClickValue(5, 100, 0, -1, 10), 0)
 
 suite "text editing algorithms":
+  test "text input filters keep only allowed characters":
+    check filterTextInput("a-12.5eX", tffAny) == "a-12.5eX"
+    check filterTextInput("a-12.5eX", tffInteger) == "-125"
+    check filterTextInput("a-12.5eX", tffFloat) == "-12.5e"
+    check filterTextInput("0x1afZ", tffHex) == "01af"
+    check filterTextInput("01029", tffBinary) == "010"
+
   test "insert max length accounts for replaced selection":
     let res = insertString(
       "abcde", 4.Natural, TextSelection(startPos: 1, endPos: 4), "XYZ", 5.Natural.some
@@ -235,6 +242,33 @@ suite "text field view algorithms":
     check textFieldCursorPosAt(
       glyphs, 10.Natural, view.displayStartPos, view.displayStartX, 500
     ) == 10
+
+suite "chart and table algorithms":
+  test "chart geometry maps values into the plot rectangle":
+    checkClose(chartValueY(0, -1, 1, 10, 100), 60)
+    checkClose(chartValueY(1, -1, 1, 10, 100), 10)
+    checkClose(chartValueY(-1, -1, 1, 10, 100), 110)
+    checkClose(chartPointX(2, 5, 20, 80), 60)
+
+    let r = chartColumnRect(1, 4, 0.5, 0, 1, 10, 20, 80, 40, 2)
+    checkClose(r.x, 31)
+    checkClose(r.w, 18)
+    checkClose(r.y, 40)
+    checkClose(r.h, 20)
+
+  test "table column widths split remaining space across automatic columns":
+    let widths = tableColumnWidths(
+      [
+        TableColumn(label: "A", width: 40),
+        TableColumn(label: "B", width: 0),
+        TableColumn(label: "C", width: 0),
+      ],
+      100,
+    )
+
+    checkClose(widths[0], 40)
+    checkClose(widths[1], 30)
+    checkClose(widths[2], 30)
 
 suite "text area view algorithms":
   test "empty text maps cursor and clicks to the first row":

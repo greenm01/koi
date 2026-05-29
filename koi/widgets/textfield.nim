@@ -71,6 +71,7 @@ proc textField*(
     drawWidget: bool = true,
     constraint: Option[TextFieldConstraint] = TextFieldConstraint.none,
     style: TextFieldStyle = borrowDefaultTextFieldStyle(),
+    filter: TextFieldFilterKind = tffAny,
 ) =
   const MaxTextRuneLen = 1024
 
@@ -285,7 +286,7 @@ proc textField*(
           exitEditMode()
 
     if not charBufEmpty():
-      var newChars = consumeCharBuf()
+      var newChars = filterTextInput(consumeCharBuf(), filter)
       let res = insertString(text, tf.cursorPos, tf.selection, newChars, maxLenOpt)
       text = res.text
       tf.cursorPos = res.cursorPos
@@ -406,6 +407,7 @@ template rawTextField*(
     activate: bool = false,
     constraint: Option[TextFieldConstraint] = TextFieldConstraint.none,
     style: TextFieldStyle = borrowDefaultTextFieldStyle(),
+    filter: TextFieldFilterKind = tffAny,
 ) =
   let i = instantiationInfo(fullPaths = true)
   let id = nextId(i.filename, i.line)
@@ -422,6 +424,7 @@ template rawTextField*(
     drawWidget = false,
     constraint,
     style,
+    filter,
   )
 
 template textField*(
@@ -433,11 +436,13 @@ template textField*(
     drawWidget: bool = true,
     constraint: Option[TextFieldConstraint] = TextFieldConstraint.none,
     style: TextFieldStyle = borrowDefaultTextFieldStyle(),
+    filter: TextFieldFilterKind = tffAny,
 ) =
   let i = instantiationInfo(fullPaths = true)
   let id = nextId(i.filename, i.line)
   textField(
-    id, x, y, w, h, text, tooltip, disabled, activate, drawWidget, constraint, style
+    id, x, y, w, h, text, tooltip, disabled, activate, drawWidget, constraint, style,
+    filter,
   )
 
 template textField*(
@@ -448,6 +453,7 @@ template textField*(
     drawWidget: bool = true,
     constraint: Option[TextFieldConstraint] = TextFieldConstraint.none,
     style: TextFieldStyle = borrowDefaultTextFieldStyle(),
+    filter: TextFieldFilterKind = tffAny,
 ) =
   let i = instantiationInfo(fullPaths = true)
   let id = nextId(i.filename, i.line)
@@ -465,5 +471,6 @@ template textField*(
     drawWidget,
     constraint,
     style,
+    filter,
   )
   autoLayoutPost()

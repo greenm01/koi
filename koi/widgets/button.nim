@@ -56,6 +56,44 @@ let DefaultButtonDrawProc*: ButtonDrawProc = proc(
 
   vg.drawLabel(x, y, w, h, label, state, s.label)
 
+proc drawButtonImageLabel(
+    vg: NVGContext,
+    id: ItemId,
+    x, y, w, h: float,
+    label: string,
+    state: WidgetState,
+    style: ButtonStyle,
+    paint: Paint,
+) =
+  alias(s, style)
+  DefaultButtonDrawProc(vg, id, x, y, w, h, "", state, style)
+
+  let hasImage = paint.image != NoImage
+  if hasImage:
+    let
+      imagePad = max(3.0, min(w, h) * 0.18)
+      imageSize = max(0.0, min(h - imagePad * 2, w - imagePad * 2))
+      imageX =
+        if label.len == 0:
+          x + (w - imageSize) * 0.5
+        else:
+          x + imagePad
+      imageY = y + (h - imageSize) * 0.5
+    vg.drawImage(imageX, imageY, imageSize, imageSize, paint)
+
+    if label.len > 0:
+      vg.drawLabel(
+        imageX + imageSize,
+        y,
+        max(0.0, w - (imageX - x) - imageSize),
+        h,
+        label,
+        state,
+        s.label,
+      )
+  elif label.len > 0:
+    vg.drawLabel(x, y, w, h, label, state, s.label)
+
 proc button*(
     id: ItemId,
     x, y, w, h: float,
@@ -84,6 +122,37 @@ proc button*(
   if isHot(id):
     handleTooltip(id, tooltip)
 
+proc buttonImageLabel*(
+    id: ItemId,
+    x, y, w, h: float,
+    paint: Paint,
+    label: string,
+    tooltip: string = "",
+    disabled: bool = false,
+    style: ButtonStyle = borrowDefaultButtonStyle(),
+): bool =
+  let drawProc: ButtonDrawProc = proc(
+      vg: NVGContext,
+      id: ItemId,
+      x, y, w, h: float,
+      label: string,
+      state: WidgetState,
+      style: ButtonStyle,
+  ) =
+    drawButtonImageLabel(vg, id, x, y, w, h, label, state, style, paint)
+
+  button(id, x, y, w, h, label, tooltip, disabled, drawProc.some, style)
+
+proc buttonImage*(
+    id: ItemId,
+    x, y, w, h: float,
+    paint: Paint,
+    tooltip: string = "",
+    disabled: bool = false,
+    style: ButtonStyle = borrowDefaultButtonStyle(),
+): bool =
+  buttonImageLabel(id, x, y, w, h, paint, "", tooltip, disabled, style)
+
 template button*(
     x, y, w, h: float,
     label: string,
@@ -96,6 +165,31 @@ template button*(
   let id = nextId(i.filename, i.line)
 
   button(id, x, y, w, h, label, tooltip, disabled, drawProc, style)
+
+template buttonImageLabel*(
+    x, y, w, h: float,
+    paint: Paint,
+    label: string,
+    tooltip: string = "",
+    disabled: bool = false,
+    style: ButtonStyle = borrowDefaultButtonStyle(),
+): bool =
+  let i = instantiationInfo(fullPaths = true)
+  let id = nextId(i.filename, i.line, label)
+
+  buttonImageLabel(id, x, y, w, h, paint, label, tooltip, disabled, style)
+
+template buttonImage*(
+    x, y, w, h: float,
+    paint: Paint,
+    tooltip: string = "",
+    disabled: bool = false,
+    style: ButtonStyle = borrowDefaultButtonStyle(),
+): bool =
+  let i = instantiationInfo(fullPaths = true)
+  let id = nextId(i.filename, i.line)
+
+  buttonImage(id, x, y, w, h, paint, tooltip, disabled, style)
 
 template button*(
     label: string,
@@ -122,5 +216,55 @@ template button*(
     style,
   )
 
+  autoLayoutPost()
+  res
+
+template buttonImageLabel*(
+    paint: Paint,
+    label: string,
+    tooltip: string = "",
+    disabled: bool = false,
+    style: ButtonStyle = borrowDefaultButtonStyle(),
+): bool =
+  let i = instantiationInfo(fullPaths = true)
+  let id = nextId(i.filename, i.line, label)
+
+  autoLayoutPre()
+  let res = buttonImageLabel(
+    id,
+    g_uiState.autoLayoutState.x,
+    autoLayoutNextY(),
+    autoLayoutNextItemWidth(),
+    autoLayoutNextItemHeight(),
+    paint,
+    label,
+    tooltip,
+    disabled,
+    style,
+  )
+  autoLayoutPost()
+  res
+
+template buttonImage*(
+    paint: Paint,
+    tooltip: string = "",
+    disabled: bool = false,
+    style: ButtonStyle = borrowDefaultButtonStyle(),
+): bool =
+  let i = instantiationInfo(fullPaths = true)
+  let id = nextId(i.filename, i.line)
+
+  autoLayoutPre()
+  let res = buttonImage(
+    id,
+    g_uiState.autoLayoutState.x,
+    autoLayoutNextY(),
+    autoLayoutNextItemWidth(),
+    autoLayoutNextItemHeight(),
+    paint,
+    tooltip,
+    disabled,
+    style,
+  )
   autoLayoutPost()
   res

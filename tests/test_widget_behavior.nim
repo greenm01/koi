@@ -1,6 +1,7 @@
 import std/unittest
 
 import glfw
+import nanovg
 
 import koi/core
 import koi/drawing
@@ -8,9 +9,11 @@ import koi/input
 import koi/internal/widget_behavior
 import koi/rect
 import koi/types
+import koi/widgets/button
 import koi/widgets/menu
 import koi/widgets/popup
 import koi/widgets/selectable
+import koi/widgets/scrollview
 
 template checkRect(actual, expected: Rect) =
   check actual.x == expected.x
@@ -122,6 +125,41 @@ suite "menu behavior":
     check menuItem(41, "Action")
     check not isPopupOpen(40)
     endContextMenu()
+
+  test "menu item activates from keyboard enter":
+    resetUi()
+
+    g_uiState.mx = 16
+    g_uiState.my = 16
+    g_uiState.mbRightDown = true
+    check beginContextMenu(40, 0, 0, 30, 30, 100, 60)
+    endContextMenu()
+
+    g_uiState.mbRightDown = false
+    g_uiState.hasEvent = true
+    g_uiState.currEvent = Event(kind: ekKey, key: keyEnter, action: kaDown, mods: {})
+    g_uiState.menuTraversalState.activeItem = 0
+
+    check beginContextMenu(40, 0, 0, 30, 30, 100, 60)
+    check menuItem(41, "Action")
+    check eventHandled()
+    check not isPopupOpen(40)
+    endContextMenu()
+
+suite "image widget behavior":
+  test "image button with an empty paint keeps normal click behavior":
+    resetUi()
+    var paint = Paint()
+
+    g_uiState.mx = 5
+    g_uiState.my = 5
+    g_uiState.mbLeftDown = true
+    check not buttonImageLabel(50, 0, 0, 30, 20, paint, "Image")
+    check isActive(50)
+
+    g_uiState.hotItem = 0
+    g_uiState.mbLeftDown = false
+    check buttonImageLabel(50, 0, 0, 30, 20, paint, "Image")
 
 suite "simple widget behavior":
   test "disabled widgets do not become active":
@@ -250,6 +288,18 @@ suite "simple widget behavior":
       hotButton = 1,
       buttonIndex = 0,
     ) == wsNormal
+
+suite "scroll view behavior":
+  test "horizontal scroll state affects the next draw offset":
+    resetUi()
+
+    beginScrollView(70, 0, 0, 50, 30)
+    endScrollView(100, 20)
+
+    scrollViewStartX(70, 25)
+    beginScrollView(70, 0, 0, 50, 30)
+    check drawOffset().ox == -25
+    endScrollView(100, 20)
 
 suite "drag widget behavior":
   test "capture requires a hit":

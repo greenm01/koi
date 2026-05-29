@@ -76,6 +76,9 @@ proc autoLayoutNextBounds*(): Rect =
     autoLayoutNextItemHeight(),
   )
 
+proc nextWidgetBounds*(): Rect =
+  autoLayoutNextBounds()
+
 func effectiveItemsPerRow(ap: AutoLayoutParams): Natural =
   max(ap.itemsPerRow, 1)
 
@@ -391,6 +394,15 @@ proc layoutSpaceBounds*(): Rect =
     result = rect(0, 0, node.w, node.h)
   else:
     result = autoLayoutNextBounds()
+
+proc layoutSpaceRatioRect*(x, y, w, h: float): Rect =
+  let b = layoutSpaceBounds()
+  let
+    rx = x.clamp(0.0, 1.0)
+    ry = y.clamp(0.0, 1.0)
+    rw = w.clamp(0.0, 1.0 - rx)
+    rh = h.clamp(0.0, 1.0 - ry)
+  rect(b.x + b.w * rx, b.y + b.h * ry, b.w * rw, b.h * rh)
 
 proc layoutSpaceToScreen*(x, y: float): (float, float) =
   addDrawOffset(x, y)

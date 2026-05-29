@@ -115,6 +115,7 @@ type UIState* = object
   radioButtonState*: RadioButtonStateVars
   scrollBarState*: ScrollBarStateVars
   scrollViewState*: ScrollViewStateVars
+  menuTraversalState*: MenuTraversalStateVars
   sectionHeaderState*: SectionHeaderStateVars
   sliderState*: SliderStateVars
   textFieldState*: TextFieldStateVars
