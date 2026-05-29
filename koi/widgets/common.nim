@@ -15,11 +15,6 @@ const
   TooltipShowDelay = 0.4
   TooltipFadeOutDelay = 0.1
   TooltipFadeOutDuration = 0.4
-  TooltipFontSize = 14.0
-  TooltipLineHeight = 1.4
-  TooltipPadX = 10.0
-  TooltipPadY = 10.0
-  TooltipMaxWidth = 300.0
 
 # Common widget utilities
 
@@ -49,10 +44,12 @@ proc handleTooltip*(id: ItemId, tooltip: string) =
       tt.text = tooltip
       requestFrames()
 
-proc tooltipBounds*(x, y: float, text: string): Rect =
+proc tooltipBounds*(
+    x, y: float, text: string, style: TooltipStyle = borrowDefaultTooltipStyle()
+): Rect =
   let
-    textMaxW = TooltipMaxWidth - TooltipPadX * 2
-    measure = measureLayoutText(text, TooltipFontSize, "sans-bold", textMaxW)
+    textMaxW = max(1.0, style.maxWidth - style.padX * 2)
+    measure = measureLayoutText(text, style.fontSize, style.fontFace, textMaxW)
     rows = textBreakLines(text, textMaxW)
 
   var textW = 0.0
@@ -64,38 +61,43 @@ proc tooltipBounds*(x, y: float, text: string): Rect =
 
   let
     lineCount = max(1, max(measure.lineCount, rows.len))
-    tooltipW = min(max(textW, 1.0), textMaxW) + TooltipPadX * 2
-    tooltipH = TooltipFontSize * TooltipLineHeight * lineCount.float + TooltipPadY * 2
+    tooltipW = min(max(textW, 1.0), textMaxW) + style.padX * 2
+    tooltipH = style.fontSize * style.lineHeight * lineCount.float + style.padY * 2
     (tx, ty) = fitRectWithinWindow(tooltipW, tooltipH, x - 8, y - 8, 30, 30, haLeft)
 
   rect(round(tx), round(ty), tooltipW, tooltipH)
 
-proc drawTooltip*(x, y: float, text: string, alpha: float = 1.0) =
+proc drawTooltip*(
+    x, y: float,
+    text: string,
+    alpha: float = 1.0,
+    style: TooltipStyle = borrowDefaultTooltipStyle(),
+) =
   let
-    bounds = tooltipBounds(x, y, text)
+    bounds = tooltipBounds(x, y, text, style)
     slot = layoutDrawSlot(0, bounds)
 
   addLayoutDrawLayer(layerTooltip, slot.nodeId, vg, bounds):
-    vg.useFont(TooltipFontSize, "sans-bold")
+    vg.useFont(style.fontSize, style.fontFace)
 
-    let rows = textBreakLines(text, bounds.w - TooltipPadX * 2)
+    let rows = textBreakLines(text, bounds.w - style.padX * 2)
 
     let (_, _, rw, rh) = snapToGrid(bounds.x, bounds.y, bounds.w, bounds.h)
 
     vg.globalAlpha(alpha)
-    drawShadow(vg, bounds.x, bounds.y, rw, rh, borrowDefaultShadowStyle())
+    drawShadow(vg, bounds.x, bounds.y, rw, rh, style.shadow)
 
     vg.beginPath()
-    vg.roundedRect(bounds.x, bounds.y, rw, rh, 5)
-    vg.fillColor(gray(0.1, 0.88))
+    vg.roundedRect(bounds.x, bounds.y, rw, rh, style.cornerRadius)
+    vg.fillColor(style.backgroundColor)
     vg.fill()
 
-    vg.fillColor(white(0.9))
-    var curY = bounds.y + TooltipPadY + TooltipFontSize * TooltipLineHeight * 0.55
+    vg.fillColor(style.textColor)
+    var curY = bounds.y + style.padY + style.fontSize * style.lineHeight * 0.55
     for row in rows:
       discard
-        vg.text(bounds.x + TooltipPadX, curY, text, row.startBytePos, row.endBytePos)
-      curY += TooltipFontSize * TooltipLineHeight
+        vg.text(bounds.x + style.padX, curY, text, row.startBytePos, row.endBytePos)
+      curY += style.fontSize * style.lineHeight
 
     vg.globalAlpha(1.0)
 

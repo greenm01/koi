@@ -10,6 +10,10 @@ defaulted from `koi/defaults.nim`, and draw code reads concrete colors, metrics,
 and label styles from that object. Custom widget draw procs are the extension
 point when an application needs visuals outside the built-in style surface.
 
+Transient UI should follow the same rule as visible widgets. Tooltips use
+`TooltipStyle`, including font metrics, padding, maximum width, corner radius,
+background/text colors, and shadow, instead of hard-coded drawing constants.
+
 Core style fields should meet three tests:
 
 - They describe widget behavior or appearance in renderer-neutral terms.

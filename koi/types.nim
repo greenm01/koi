@@ -474,6 +474,18 @@ type ShadowStyle* = ref object
   feather*: float
   color*: Color
 
+type TooltipStyle* = ref object
+  fontSize*: float
+  fontFace*: string
+  lineHeight*: float
+  padX*: float
+  padY*: float
+  maxWidth*: float
+  cornerRadius*: float
+  backgroundColor*: Color
+  textColor*: Color
+  shadow*: ShadowStyle
+
 type LabelStyle* = ref object
   fontSize*: float
   fontFace*: string

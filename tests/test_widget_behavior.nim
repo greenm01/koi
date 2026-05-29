@@ -2005,6 +2005,23 @@ suite "feature widget behavior":
     check bounds.w < 100
     check bounds.h > 40
 
+  test "tooltip bounds follow custom theme metrics":
+    resetUi()
+
+    let
+      baseStyle = defaultTooltipStyle()
+      baseBounds = tooltipBounds(20, 20, "A\nB", baseStyle)
+
+    var customStyle = defaultTooltipStyle()
+    customStyle.padX = baseStyle.padX + 30
+    customStyle.padY = baseStyle.padY + 20
+    customStyle.fontSize = baseStyle.fontSize + 4
+
+    let customBounds = tooltipBounds(20, 20, "A\nB", customStyle)
+
+    check customBounds.w > baseBounds.w
+    check customBounds.h > baseBounds.h
+
   test "dialog background registers a layout-backed draw node":
     resetUi()
 

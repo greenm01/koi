@@ -64,6 +64,35 @@ proc defaultShadowStyle*(style: ShadowStyle) =
 proc setDefaultShadowStyle*(style: ShadowStyle) =
   defaultShadowStyle(style)
 
+# Tooltip
+var DefaultTooltipStyle = TooltipStyle(
+  fontSize: 14.0,
+  fontFace: "sans-bold",
+  lineHeight: 1.4,
+  padX: 10.0,
+  padY: 10.0,
+  maxWidth: 300.0,
+  cornerRadius: 5.0,
+  backgroundColor: gray(0.1, 0.88),
+  textColor: white(0.9),
+  shadow: defaultShadowStyle(),
+)
+
+proc defaultTooltipStyle*(): TooltipStyle =
+  DefaultTooltipStyle.deepCopy
+
+proc borrowDefaultTooltipStyle*(): TooltipStyle =
+  DefaultTooltipStyle
+
+proc getDefaultTooltipStyle*(): TooltipStyle =
+  defaultTooltipStyle()
+
+proc defaultTooltipStyle*(style: TooltipStyle) =
+  DefaultTooltipStyle = style.deepCopy
+
+proc setDefaultTooltipStyle*(style: TooltipStyle) =
+  defaultTooltipStyle(style)
+
 # Popup
 var DefaultPopupStyle = PopupStyle(
   autoClose: true,
