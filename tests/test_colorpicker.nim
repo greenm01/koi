@@ -66,6 +66,21 @@ suite "color combo popup":
     check isPopupOpen(CcId)
     check g_uiState.focusCaptured
 
+  test "disabled combo does not open the preset popup":
+    resetUi()
+    var color = rgb(0.2, 0.4, 0.8)
+
+    placeRect(CcId, rect(Bx, By, Bw, Bh))
+    pressLeftAt(Bx + Bw * 0.5, By + Bh * 0.5)
+    check not colorCombo(CcId, Bx, By, Bw, Bh, color, "Accent", disabled = true)
+    check isHot(CcId)
+    check not isActive(CcId)
+
+    nextFrame()
+    releaseLeft()
+    discard colorCombo(CcId, Bx, By, Bw, Bh, color, "Accent", disabled = true)
+    check not isPopupOpen(CcId)
+
 suite "color combo selection":
   test "clicking a preset swatch commits the color and closes the popup":
     resetUi()
@@ -123,6 +138,21 @@ suite "color picker popup":
     check isPopupOpen(CpId)
     check g_uiState.focusCaptured
     check g_uiState.colorPickerState.activeItem == CpId
+
+  test "disabled picker does not open the full popup":
+    resetUi()
+    var color = rgb(0.2, 0.4, 0.8)
+
+    placeRect(CpId, rect(Px, Py, Pw, Ph))
+    pressLeftAt(Px + Pw * 0.5, Py + Ph * 0.5)
+    colorPicker(CpId, Px, Py, Pw, Ph, color, disabled = true)
+    check isHot(CpId)
+    check not isActive(CpId)
+
+    nextFrame()
+    releaseLeft()
+    colorPicker(CpId, Px, Py, Pw, Ph, color, disabled = true)
+    check not isPopupOpen(CpId)
 
   test "outside click closes the picker popup and releases focus":
     resetUi()

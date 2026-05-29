@@ -129,7 +129,11 @@ var ColorPickerTextFieldStyle = TextFieldStyle(
 )
 
 proc drawColorSwatchWithSlot(
-    slot: LayoutSlot, id: ItemId, color: Color, interactive: bool = true
+    slot: LayoutSlot,
+    id: ItemId,
+    color: Color,
+    interactive: bool = true,
+    disabled: bool = false,
 ): bool =
   alias(ui, g_uiState)
 
@@ -138,10 +142,10 @@ proc drawColorSwatchWithSlot(
         slot.previousBounds.x, slot.previousBounds.y, slot.previousBounds.w,
         slot.previousBounds.h,
       ):
-    captureSimpleWidget(id, disabled = false)
+    captureSimpleWidget(id, disabled)
 
   if interactive:
-    let behavior = simpleWidgetBehavior(id, disabled = false)
+    let behavior = simpleWidgetBehavior(id, disabled)
     result = behavior.clicked
 
   addLayoutDrawLayer(ui.currentLayer, slot.nodeId, vg, bounds):
@@ -167,10 +171,12 @@ proc drawColorSwatchWithSlot(
     vg.roundedRect(rx, ry, rw, rh, cr)
     vg.stroke()
 
-proc drawColorSwatch(id: ItemId, x, y, w, h: float, color: Color): bool =
+proc drawColorSwatch(
+    id: ItemId, x, y, w, h: float, color: Color, disabled: bool = false
+): bool =
   let (x, y) = addDrawOffset(x, y)
   let slot = layoutSlot(id, rect(x, y, w, h))
-  drawColorSwatchWithSlot(slot, id, color)
+  drawColorSwatchWithSlot(slot, id, color, disabled = disabled)
 
 proc colorWheel(x, y, w, h: float, hue, sat, val: var float) =
   alias(ui, g_uiState)
@@ -371,20 +377,25 @@ proc colorWheel(x, y, w, h: float, hue, sat, val: var float) =
     vg.stroke()
     vg.restore()
 
-proc color*(id: ItemId, x, y, w, h: float, color_out: var Color) =
-  discard drawColorSwatch(id, x, y, w, h, color_out)
+proc color*(
+    id: ItemId, x, y, w, h: float, color_out: var Color, disabled: bool = false
+) =
+  discard drawColorSwatch(id, x, y, w, h, color_out, disabled)
 
-proc colorPicker*(id: ItemId, x, y, w, h: float, color: var Color) =
+proc colorPicker*(
+    id: ItemId, x, y, w, h: float, color: var Color, disabled: bool = false
+) =
   alias(ui, g_uiState)
   alias(cs, ui.colorPickerState)
 
   let (sx, sy) = addDrawOffset(x, y)
   let swatchSlot = layoutSlot(id, rect(sx, sy, w, h))
 
-  if isHit(
-    swatchSlot.previousBounds.x, swatchSlot.previousBounds.y,
-    swatchSlot.previousBounds.w, swatchSlot.previousBounds.h,
-  ):
+  if not disabled and
+      isHit(
+        swatchSlot.previousBounds.x, swatchSlot.previousBounds.y,
+        swatchSlot.previousBounds.w, swatchSlot.previousBounds.h,
+      ):
     if hasEvent() and ui.currEvent.kind == ekKey and ui.currEvent.action == kaDown:
       let shortcut = mkKeyShortcut(ui.currEvent.key, ui.currEvent.mods)
       if shortcut == copyColorShortcut():
@@ -394,14 +405,17 @@ proc colorPicker*(id: ItemId, x, y, w, h: float, color: var Color) =
         markEventHandled()
         color = cs.colorCopyBuffer
 
-  if drawColorSwatchWithSlot(swatchSlot, id, color):
+  if drawColorSwatchWithSlot(swatchSlot, id, color, disabled = disabled):
     cs.activeItem = id
     cs.opened = true
     cs.mouseMode = cmmNormal
     openPopup(id)
 
   let popupId = hashId($id & ":popup")
-  if isPopupOpen(id):
+  if disabled and isPopupOpen(id):
+    closePopup()
+
+  if not disabled and isPopupOpen(id):
     let popupSlot = layoutFollowerSlot(
       popupId,
       rect(sx - 1, sy + h, ColorPickerPopupWidth, ColorPickerPopupHeight),
@@ -634,11 +648,12 @@ proc colorCombo*(
     color: var Color,
     label: string = "",
     style: ColorComboStyle = borrowDefaultColorComboStyle(),
+    disabled: bool = false,
 ): bool =
   let oldColor = color
   let (sx, sy) = addDrawOffset(x, y)
   let buttonSlot = layoutSlot(id, rect(sx, sy, w, h))
-  if buttonWithSlot(buttonSlot, id, label, "", false, style = style.button):
+  if buttonWithSlot(buttonSlot, id, label, "", disabled, style = style.button):
     openPopup(id)
 
   let swatchPad = max(3.0, h * 0.18)
@@ -654,7 +669,10 @@ proc colorCombo*(
   discard drawColorSwatchWithSlot(previewSlot, previewId, color, interactive = false)
 
   let popupId = hashId($id & ":popup")
-  if isPopupOpen(id):
+  if disabled and isPopupOpen(id):
+    closePopup()
+
+  if not disabled and isPopupOpen(id):
     let popupSlot = layoutFollowerSlot(
       popupId,
       rect(sx, sy + h, style.popupWidth, style.popupHeight),
@@ -688,6 +706,7 @@ proc colorCombo*(
             style.swatchSize,
             style.swatchSize,
             preset,
+            disabled,
           ):
             color = preset
             closePopup()
@@ -699,12 +718,12 @@ proc colorCombo*(
     color.r != oldColor.r or color.g != oldColor.g or color.b != oldColor.b or
     color.a != oldColor.a
 
-template color*(x, y, w, h: float, color: var Color) =
+template color*(x, y, w, h: float, color: var Color, disabled: bool = false) =
   let i = instantiationInfo(fullPaths = true)
   let id = nextId(i.filename, i.line)
-  color(id, x, y, w, h, color)
+  color(id, x, y, w, h, color, disabled)
 
-template color*(col: var Color) =
+template color*(col: var Color, disabled: bool = false) =
   let i = instantiationInfo(fullPaths = true)
   let id = nextId(i.filename, i.line)
   autoLayoutPre()
@@ -715,15 +734,16 @@ template color*(col: var Color) =
     autoLayoutNextItemWidth(),
     autoLayoutNextItemHeight(),
     col,
+    disabled,
   )
   autoLayoutPost()
 
-template colorPicker*(x, y, w, h: float, color: var Color) =
+template colorPicker*(x, y, w, h: float, color: var Color, disabled: bool = false) =
   let i = instantiationInfo(fullPaths = true)
   let id = nextId(i.filename, i.line)
-  colorPicker(id, x, y, w, h, color)
+  colorPicker(id, x, y, w, h, color, disabled)
 
-template colorPicker*(color: var Color) =
+template colorPicker*(color: var Color, disabled: bool = false) =
   let i = instantiationInfo(fullPaths = true)
   let id = nextId(i.filename, i.line)
   autoLayoutPre()
@@ -734,6 +754,7 @@ template colorPicker*(color: var Color) =
     autoLayoutNextItemWidth(),
     autoLayoutNextItemHeight(),
     color,
+    disabled,
   )
   autoLayoutPost()
 
@@ -742,15 +763,17 @@ template colorCombo*(
     color: var Color,
     label: string = "",
     style: ColorComboStyle = borrowDefaultColorComboStyle(),
+    disabled: bool = false,
 ): bool =
   let i = instantiationInfo(fullPaths = true)
   let id = nextId(i.filename, i.line, label)
-  colorCombo(id, x, y, w, h, color, label, style)
+  colorCombo(id, x, y, w, h, color, label, style, disabled)
 
 template colorCombo*(
     color: var Color,
     label: string = "",
     style: ColorComboStyle = borrowDefaultColorComboStyle(),
+    disabled: bool = false,
 ): bool =
   let i = instantiationInfo(fullPaths = true)
   let id = nextId(i.filename, i.line, label)
@@ -764,6 +787,7 @@ template colorCombo*(
     color,
     label,
     style,
+    disabled,
   )
   autoLayoutPost()
   changed
