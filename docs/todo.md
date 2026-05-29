@@ -32,18 +32,6 @@ to the deferred candidates that still look useful.
 
 ## Text And Editing
 
-- Retest text-field shortcuts with edge cases:
-  - empty string;
-  - single space;
-  - one character with cursor at start and end;
-  - multiple characters with cursor at end.
-- Retest text-area shortcuts with edge cases:
-  - empty string;
-  - single space;
-  - single newline;
-  - two newline characters;
-  - cursor in first and last rows;
-  - cursor at first and last characters.
 - Replace repeated rune-length scans in text editing with cached rune metadata
   only if profiling shows it matters for real text sizes.
 
