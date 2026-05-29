@@ -53,6 +53,7 @@ import koi/widgets/table
 import koi/widgets/textarea
 import koi/widgets/textfield
 import koi/widgets/togglebutton
+import koi/widgets/tree
 
 export options, tables, unicode, unittest
 export glfw, nanovg
@@ -60,7 +61,7 @@ export core, defaults, drawing, input, algorithms, widget_behavior, layout, rect
 export button, chart, checkbox, colorpicker, common, dialog, dropdown, groupbox
 export image, label, listview, menu, popup, progress, property, radiobuttons
 export scrollbar, scrollview, section, selectable, slider, table, textarea
-export textfield, togglebutton
+export textfield, togglebutton, tree
 
 const
   TestWinW* = 200.0

@@ -38,6 +38,7 @@ import koi/widgets/table
 import koi/widgets/textarea
 import koi/widgets/textfield
 import koi/widgets/togglebutton
+import koi/widgets/tree
 
 template checkRect(actual, expected: Rect) =
   check actual.x == expected.x
@@ -706,6 +707,32 @@ suite "layout-integrated widget behavior":
     useNextId("section-header-disabled")
     check not sectionHeader("Header", expanded, disabled = true)
     check not expanded
+
+  test "disabled tree node does not activate or toggle":
+    resetUi()
+    var expanded = false
+    var bodyRan = false
+    initAutoLayout(DefaultAutoLayoutParams)
+    let id = hashId("tree-node-disabled")
+    g_uiState.layoutRects[id] = rect(40, 40, 30, 20)
+    g_uiState.mx = 45
+    g_uiState.my = 45
+    g_uiState.mbLeftDown = true
+
+    useNextId("tree-node-disabled")
+    treeNode("Tree", expanded, disabled = true):
+      bodyRan = true
+    check isHot(id)
+    check not isActive(id)
+    check not bodyRan
+
+    g_uiState.hotItem = 0
+    g_uiState.mbLeftDown = false
+    useNextId("tree-node-disabled")
+    treeNode("Tree", expanded, disabled = true):
+      bodyRan = true
+    check not expanded
+    check not bodyRan
 
   test "color swatch hit testing uses a previous solved rect":
     resetUi()
