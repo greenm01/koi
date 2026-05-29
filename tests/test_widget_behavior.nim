@@ -658,6 +658,27 @@ suite "layout-integrated widget behavior":
     check sectionHeader("Header", expanded)
     check expanded
 
+  test "disabled section header does not activate or toggle":
+    resetUi()
+    var expanded = false
+    initAutoLayout(DefaultAutoLayoutParams)
+    let id = hashId("section-header-disabled")
+    g_uiState.layoutRects[id] = rect(40, 40, 30, 20)
+    g_uiState.mx = 45
+    g_uiState.my = 45
+    g_uiState.mbLeftDown = true
+
+    useNextId("section-header-disabled")
+    check not sectionHeader("Header", expanded, disabled = true)
+    check isHot(id)
+    check not isActive(id)
+
+    g_uiState.hotItem = 0
+    g_uiState.mbLeftDown = false
+    useNextId("section-header-disabled")
+    check not sectionHeader("Header", expanded, disabled = true)
+    check not expanded
+
   test "color swatch hit testing uses a previous solved rect":
     resetUi()
     var c = rgb(0.2, 0.4, 0.6)

@@ -21,6 +21,7 @@ proc sectionHeader(
     subHeader: bool,
     tooltip: string,
     style: SectionHeaderStyle,
+    disabled: bool = false,
 ): bool =
   alias(ui, g_uiState)
   alias(ss, ui.sectionHeaderState)
@@ -42,9 +43,9 @@ proc sectionHeader(
       max(0.0, slot.previousBounds.w - s.hitRightPad),
       slot.previousBounds.h,
     ):
-      captureSimpleWidget(id, disabled = false)
+      captureSimpleWidget(id, disabled)
 
-      let behavior = simpleWidgetBehavior(id, disabled = false)
+      let behavior = simpleWidgetBehavior(id, disabled)
       if behavior.clicked:
         if not subHeader and ctrlDown():
           expanded_out = true
@@ -84,8 +85,9 @@ proc sectionHeader(
     vg.fill()
     vg.restore()
 
+    let state = if disabled: wsDisabled else: wsNormal
     vg.drawLabel(
-      rx + s.labelLeftPad, ry, rw - s.labelLeftPad, rh, label, style = s.label
+      rx + s.labelLeftPad, ry, rw - s.labelLeftPad, rh, label, state, s.label
     )
 
   if isHot(id):
@@ -98,6 +100,7 @@ template sectionHeader*(
     expanded: var bool,
     tooltip: string = "",
     style: SectionHeaderStyle = borrowDefaultSectionHeaderStyle(),
+    disabled: bool = false,
 ): bool =
   let i = instantiationInfo(fullPaths = true)
   let id = nextId(i.filename, i.line, label)
@@ -114,6 +117,7 @@ template sectionHeader*(
     subHeader = false,
     tooltip,
     style,
+    disabled,
   )
   autoLayoutPost(section = true)
   result
@@ -123,6 +127,7 @@ template subSectionHeader*(
     expanded: var bool,
     tooltip: string = "",
     style: SectionHeaderStyle = borrowDefaultSubSectionHeaderStyle(),
+    disabled: bool = false,
 ): bool =
   let i = instantiationInfo(fullPaths = true)
   let id = nextId(i.filename, i.line, label)
@@ -139,6 +144,7 @@ template subSectionHeader*(
     subHeader = true,
     tooltip,
     style,
+    disabled,
   )
   autoLayoutPost(section = true)
   result
