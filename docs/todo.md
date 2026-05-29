@@ -11,9 +11,6 @@ to the deferred candidates that still look useful.
   sampling, clipping, and blend behavior.
 - Move inline wgpu shader source out of Nim modules and into dedicated shader
   files once the backend API has settled.
-- Harden multi-window wgpu surface creation on GLFW/Wayland; Gridmonger's
-  separate splash window currently needs this before it can be enabled by
-  default.
 - Coalesce adjacent wgpu draw calls with the same texture and blend state after
   image-based coverage exists.
 - Complete broader Wayland input support, especially keyboard/xkb mapping,
