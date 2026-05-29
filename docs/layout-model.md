@@ -129,6 +129,111 @@ known. Only `fit` (and text-wrapped height) requires bottom-up measurement of
 content; that is the source of the ordering problem the execution model below
 solves.
 
+## Common Layout Shapes
+
+These examples show the shipped solver behavior in the terms application code
+actually uses.
+
+### Fit And Wrapped Text
+
+A fit-height text node grows its row after text measurement, then later siblings
+are placed below the solved height in the same frame.
+
+```text
+Before wrap measurement              After solve
+
+┌──────────────────────────────┐      ┌──────────────────────────────┐
+│ label: fixed width, fit h    │      │ label line 1                 │
+├──────────────────────────────┤      │ label line 2                 │
+│ button below                 │      │ label line 3                 │
+└──────────────────────────────┘      ├──────────────────────────────┤
+                                      │ button below                 │
+                                      └──────────────────────────────┘
+```
+
+```nim
+initAutoLayout(params)
+label("A long label that wraps inside the current row width")
+button("Next row follows the solved text height")
+```
+
+### Scroll Views
+
+Scroll views are containers with a clipped viewport. Child layout is solved in
+content space; generated scrollbars are follower nodes that track the solved
+viewport rectangle without becoming children of the content node.
+
+```text
+┌──────────────────────── viewport ───────────────────────┐
+│ content y = -scrollY                                    │
+│ ┌──────────────────────────────────────────────────────┐ │
+│ │ row 0                                                │ │
+│ │ row 1                                                │ │
+│ │ row 2                                                │ │
+│ │ ...                                                  │ │
+│ └──────────────────────────────────────────────────────┘ │
+│                                                  ┌─────┐ │
+│                                                  │thumb│ │
+│                                                  └─────┘ │
+└──────────────────────────────────────────────────────────┘
+```
+
+```nim
+scrollView(20, 20, 280, 180, contentH = 600):
+  for i in 0 ..< 40:
+    label("Visible rows are clipped by the viewport")
+```
+
+### Tables
+
+Tables use one frame slot for the table body and a child slot for the header.
+Column widths are resolved from fixed widths plus automatic shares of remaining
+space.
+
+```text
+table width = 600
+
+┌────────────┬──────────────────────┬──────────────────────┐
+│ fixed 120  │ auto share 240       │ auto share 240       │
+├────────────┼──────────────────────┼──────────────────────┤
+│ row cell   │ row cell             │ row cell             │
+└────────────┴──────────────────────┴──────────────────────┘
+```
+
+```nim
+let columns = [
+  TableColumn(label: "Name", width: 120),
+  TableColumn(label: "State"),
+  TableColumn(label: "Updated"),
+]
+
+tableView(0, 0, 600, 300, columns, rows.len, i):
+  tableCell(rows[i].name)
+  tableCell(rows[i].state)
+  tableCell(rows[i].updated)
+```
+
+### Popup Followers
+
+Dropdowns, color pickers, and context menus are popup-layer nodes that follow a
+target rectangle solved by the current frame. The popup does not consume row
+space and can clamp to the root bounds independently.
+
+```text
+normal layout layer                       popup layer
+
+┌───────────────┐
+│ combo button  │◀──────── follow target ┌──────────────────────┐
+└───────────────┘                         │ popup body           │
+next row starts here                      │ rows / color picker  │
+                                          └──────────────────────┘
+```
+
+```nim
+dropDown("Mode", @["Edit", "Preview", "Export"], mode)
+colorPicker(accentColor)
+```
+
 ## Execution Model
 
 The solver needs the layout tree built before it can assign rectangles. Widget

@@ -15,8 +15,6 @@ to the deferred candidates that still look useful.
 
 ## Layout And Theming
 
-- Add more visual examples for `fit`, wrapped text, scroll views, tables, and
-  popup followers now that the unified layout model is shipped.
 - Finish complete theming coverage, including global theme parameters such as
   font, corner roundness, and colors.
 - Decide whether gradient, shadow, and text-shadow style support belongs in core
