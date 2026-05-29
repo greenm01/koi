@@ -346,7 +346,7 @@ type
   LayoutArena* = object
     nodes*: seq[LayoutNode]
     childIndices*: seq[LayoutNodeId]
-    childStack*: seq[seq[LayoutNodeId]]
+    childLists*: seq[seq[LayoutNodeId]]
     nodeStack*: seq[LayoutNodeId]
     measureText*: MeasureTextProc
 
@@ -404,6 +404,10 @@ type
     rowWidth*: float
     rowHeight*: float
     x*, y*: float
+    autoRoot*: LayoutNodeId
+    autoRow*: LayoutNodeId
+    activeSlotParent*: LayoutNodeId
+    activeSlotUsed*: bool
     currColIndex*: Natural
     nextRowHeight*: Option[float]
     nextItemWidth*: float

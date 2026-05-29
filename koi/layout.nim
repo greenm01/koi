@@ -112,6 +112,10 @@ proc beginFrameLayout*() =
       direction = ldTopToBottom,
     )
   )
+  ui.autoLayoutState.autoRoot = NullLayoutNodeId
+  ui.autoLayoutState.autoRow = NullLayoutNodeId
+  ui.autoLayoutState.activeSlotParent = NullLayoutNodeId
+  ui.autoLayoutState.activeSlotUsed = false
 
 proc layoutPlacement(fallback: Rect): LayoutPlacement =
   result = manual(fallback.x, fallback.y)
@@ -130,23 +134,93 @@ proc previousLayoutRect*(id: ItemId, fallback: Rect): Rect =
   else:
     fallback
 
-proc layoutSlot*(id: ItemId, fallback: Rect): LayoutSlot =
+func frameLayoutActive(ui: UIState): bool =
+  ui.layoutArena.nodes.len > 0 and not ui.layoutRoot.isNull
+
+func activeAutoSlotParent(ui: UIState): LayoutNodeId =
+  if ui.autoLayoutState.activeSlotParent.isNull:
+    NullLayoutNodeId
+  else:
+    ui.autoLayoutState.activeSlotParent
+
+proc markAutoSlotUsed(ui: var UIState, parent: LayoutNodeId) =
+  if not parent.isNull and int32(parent) == int32(ui.autoLayoutState.activeSlotParent):
+    ui.autoLayoutState.activeSlotUsed = true
+
+proc layoutSlotWithSizing(
+    id: ItemId, fallback: Rect, width, height: LayoutSize, parent: LayoutNodeId
+): LayoutSlot =
   alias(ui, g_uiState)
 
   var node = layoutNode(
     kind = lnkWidget,
     itemId = id,
-    width = fixed(fallback.w),
-    height = fixed(fallback.h),
-    placement = layoutPlacement(fallback),
+    width = width,
+    height = height,
+    placement =
+      if parent.isNull:
+        layoutPlacement(fallback)
+      else:
+        flow(),
   )
   node.intrinsicMin = size(fallback.w, fallback.h)
   node.intrinsicPref = size(fallback.w, fallback.h)
   node.rect = fallback
 
+  let nodeId =
+    if parent.isNull:
+      ui.layoutArena.addLayoutNode(node)
+    else:
+      ui.layoutArena.addLayoutNode(node, parent)
+  ui.markAutoSlotUsed(parent)
+
   result = LayoutSlot(
     itemId: id,
-    nodeId: ui.layoutArena.addLayoutNode(node),
+    nodeId: nodeId,
+    bounds: fallback,
+    previousBounds: previousLayoutRect(id, fallback),
+  )
+
+proc layoutSlot*(id: ItemId, fallback: Rect): LayoutSlot =
+  let parent = g_uiState.activeAutoSlotParent()
+  layoutSlotWithSizing(id, fallback, fixed(fallback.w), fixed(fallback.h), parent)
+
+proc textLayoutSlotWithSizing(
+    id: ItemId,
+    fallback: Rect,
+    text: string,
+    style: LabelStyle,
+    width, height: LayoutSize,
+    parent: LayoutNodeId,
+): LayoutSlot =
+  alias(ui, g_uiState)
+
+  var node = layoutNode(
+    kind = lnkText,
+    itemId = id,
+    width = width,
+    height = height,
+    placement =
+      if parent.isNull:
+        layoutPlacement(fallback)
+      else:
+        flow(),
+    text = text,
+    fontSize = style.fontSize,
+    fontFace = style.fontFace,
+  )
+  node.rect = fallback
+
+  let nodeId =
+    if parent.isNull:
+      ui.layoutArena.addLayoutNode(node)
+    else:
+      ui.layoutArena.addLayoutNode(node, parent)
+  ui.markAutoSlotUsed(parent)
+
+  result = LayoutSlot(
+    itemId: id,
+    nodeId: nodeId,
     bounds: fallback,
     previousBounds: previousLayoutRect(id, fallback),
   )
@@ -155,24 +229,18 @@ proc textLayoutSlot*(
     id: ItemId, fallback: Rect, text: string, style: LabelStyle
 ): LayoutSlot =
   alias(ui, g_uiState)
-
-  var node = layoutNode(
-    kind = lnkText,
-    itemId = id,
-    width = fixed(fallback.w),
-    height = fixed(fallback.h),
-    placement = layoutPlacement(fallback),
-    text = text,
-    fontSize = style.fontSize,
-    fontFace = style.fontFace,
-  )
-  node.rect = fallback
-
-  result = LayoutSlot(
-    itemId: id,
-    nodeId: ui.layoutArena.addLayoutNode(node),
-    bounds: fallback,
-    previousBounds: previousLayoutRect(id, fallback),
+  let parent = ui.activeAutoSlotParent()
+  textLayoutSlotWithSizing(
+    id,
+    fallback,
+    text,
+    style,
+    fixed(fallback.w),
+    if parent.isNull:
+      fixed(fallback.h)
+    else:
+      fit(min = fallback.h),
+    parent,
   )
 
 template addLayoutDrawLayer*(
@@ -225,6 +293,9 @@ proc initAutoLayout*(params: AutoLayoutParams) =
   a.rowWidth = params.rowWidth
   a.nextItemHeight = params.defaultItemHeight
   a.firstRow = true
+  a.autoRoot = NullLayoutNodeId
+  a.autoRow = NullLayoutNodeId
+  a.activeSlotParent = NullLayoutNodeId
 
 proc nextRowHeight*(h: float) =
   g_uiState.autoLayoutState.nextRowHeight = h.some
@@ -361,6 +432,96 @@ proc applyNextItemOverrides(a: var AutoLayoutStateVars) =
     a.nextItemHeight = a.nextItemHeightOverride.get
     a.nextItemHeightOverride = float.none
 
+proc ensureAutoLayoutRoot(ui: var UIState): LayoutNodeId =
+  alias(a, ui.autoLayoutState)
+  if not ui.frameLayoutActive():
+    return NullLayoutNodeId
+  if not a.autoRoot.isNull:
+    return a.autoRoot
+
+  let offset = drawOffset()
+  a.autoRoot = ui.layoutArena.addLayoutNode(
+    layoutNode(
+      width = fixed(a.rowWidth),
+      height = fit(),
+      direction = ldTopToBottom,
+      placement = manual(offset.ox, offset.oy),
+    ),
+    ui.layoutRoot,
+  )
+  a.autoRoot
+
+proc addAutoLayoutSpacer(ui: var UIState, height: float) =
+  if height <= 0:
+    return
+
+  let root = ui.ensureAutoLayoutRoot()
+  if root.isNull:
+    return
+
+  discard ui.layoutArena.addLayoutNode(
+    layoutNode(width = grow(), height = fixed(height)), root
+  )
+
+proc beginAutoLayoutRow(ui: var UIState) =
+  alias(a, ui.autoLayoutState)
+  alias(ap, ui.autoLayoutParams)
+
+  let root = ui.ensureAutoLayoutRoot()
+  if root.isNull:
+    a.activeSlotParent = NullLayoutNodeId
+    a.activeSlotUsed = false
+    return
+
+  a.autoRow = ui.layoutArena.addLayoutNode(
+    layoutNode(
+      width = fixed(a.rowWidth),
+      height = fit(min = a.rowHeight),
+      direction = ldLeftToRight,
+      padding = padding(ap.leftPad, ap.rightPad, 0, 0),
+      childGap = ap.leftPad + ap.rightPad,
+      alignCross = lcaCenter,
+    ),
+    root,
+  )
+  a.activeSlotParent = a.autoRow
+  a.activeSlotUsed = false
+
+proc prepareAutoLayoutSlot(ui: var UIState) =
+  alias(a, ui.autoLayoutState)
+  alias(ap, ui.autoLayoutParams)
+
+  if ui.layoutStack.len != 0:
+    a.activeSlotParent = NullLayoutNodeId
+    a.activeSlotUsed = false
+    return
+
+  if a.currColIndex == 0:
+    if not a.firstRow:
+      ui.addAutoLayoutSpacer(ap.rowPad)
+    if a.groupBegin:
+      ui.addAutoLayoutSpacer(ap.rowGroupPad)
+    ui.beginAutoLayoutRow()
+  else:
+    a.activeSlotParent = a.autoRow
+    a.activeSlotUsed = false
+
+proc addEmptyAutoSlot(ui: var UIState) =
+  alias(a, ui.autoLayoutState)
+  let parent = a.activeSlotParent
+  if parent.isNull or a.activeSlotUsed:
+    return
+
+  var node = layoutNode(
+    kind = lnkWidget,
+    width = fixed(a.nextItemWidth),
+    height = fixed(autoLayoutNextItemHeight()),
+  )
+  node.intrinsicMin = size(a.nextItemWidth, autoLayoutNextItemHeight())
+  node.intrinsicPref = node.intrinsicMin
+  discard ui.layoutArena.addLayoutNode(node, parent)
+  a.activeSlotUsed = true
+
 proc autoLayoutPre*(section: bool = false) =
   alias(ui, g_uiState)
   alias(a, ui.autoLayoutState)
@@ -370,6 +531,8 @@ proc autoLayoutPre*(section: bool = false) =
     alias(node, ui.layoutStack[^1])
     case node.mode
     of lpmRow:
+      a.activeSlotParent = NullLayoutNodeId
+      a.activeSlotUsed = false
       a.rowHeight = node.rowHeight
       a.x = node.currentX
       a.y = node.y
@@ -378,6 +541,8 @@ proc autoLayoutPre*(section: bool = false) =
       a.applyNextItemOverrides()
       return
     of lpmSpace:
+      a.activeSlotParent = NullLayoutNodeId
+      a.activeSlotUsed = false
       a.x = 0
       a.y = 0
       a.rowHeight = node.h
@@ -410,6 +575,7 @@ proc autoLayoutPre*(section: bool = false) =
     ) / itemsPerRow.float
   a.nextItemHeight = ap.defaultItemHeight
   a.applyNextItemOverrides()
+  ui.prepareAutoLayoutSlot()
 
 proc autoLayoutPost*(section: bool = false) =
   alias(ui, g_uiState)
@@ -430,11 +596,15 @@ proc autoLayoutPost*(section: bool = false) =
       return
 
   let lastColumn = a.currColIndex == ap.effectiveItemsPerRow() - 1
+  ui.addEmptyAutoSlot()
 
   if lastColumn or section:
     a.currColIndex = 0
     a.y += a.rowHeight
     a.y += ap.sectionPad
+    if not a.autoRoot.isNull:
+      ui.addAutoLayoutSpacer(ap.sectionPad)
+    a.autoRow = NullLayoutNodeId
     a.prevSection = section
     a.firstRow = false
   else:
@@ -442,6 +612,8 @@ proc autoLayoutPost*(section: bool = false) =
 
   a.lastItemWidth = a.nextItemWidth
   a.groupBegin = false
+  a.activeSlotParent = NullLayoutNodeId
+  a.activeSlotUsed = false
 
 proc autoLayoutFinal*() =
   alias(ui, g_uiState)

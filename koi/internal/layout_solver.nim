@@ -106,7 +106,7 @@ iterator children*(arena: LayoutArena, node: LayoutNode): LayoutNodeId =
 proc initLayoutArena*(arena: var LayoutArena, measureText: MeasureTextProc = nil) =
   arena.nodes.setLen(0)
   arena.childIndices.setLen(0)
-  arena.childStack.setLen(0)
+  arena.childLists.setLen(0)
   arena.nodeStack.setLen(0)
   arena.measureText = measureText
 
@@ -114,51 +114,55 @@ proc clearLayoutArena*(arena: var LayoutArena) =
   let measureText = arena.measureText
   arena.initLayoutArena(measureText)
 
-proc appendToOpenParent(arena: var LayoutArena, id: LayoutNodeId) =
-  if arena.childStack.len > 0:
-    arena.childStack[^1].add(id)
+proc appendToParent(arena: var LayoutArena, parent, child: LayoutNodeId) =
+  if not parent.isNull:
+    arena.childLists[parent.toIndex].add(child)
 
-proc addLayoutNode*(arena: var LayoutArena, node: LayoutNode): LayoutNodeId =
+proc addLayoutNode*(
+    arena: var LayoutArena, node: LayoutNode, parent: LayoutNodeId
+): LayoutNodeId =
   result = LayoutNodeId(arena.nodes.len.int32)
   var n = node
   n.id = result
-  n.parent =
-    if arena.nodeStack.len > 0:
-      arena.nodeStack[^1]
-    else:
-      NullLayoutNodeId
-  n.firstChild = int32(arena.childIndices.len)
+  n.parent = parent
+  n.firstChild = 0
   n.childCount = 0
   arena.nodes.add(n)
-  arena.appendToOpenParent(result)
+  arena.childLists.add(@[])
+  arena.appendToParent(parent, result)
 
-proc beginLayoutNode*(arena: var LayoutArena, node: LayoutNode): LayoutNodeId =
-  result = LayoutNodeId(arena.nodes.len.int32)
-  var n = node
-  n.id = result
-  n.parent =
+proc addLayoutNode*(arena: var LayoutArena, node: LayoutNode): LayoutNodeId =
+  let parent =
     if arena.nodeStack.len > 0:
       arena.nodeStack[^1]
     else:
       NullLayoutNodeId
-  arena.nodes.add(n)
+  arena.addLayoutNode(node, parent)
+
+proc beginLayoutNode*(arena: var LayoutArena, node: LayoutNode): LayoutNodeId =
+  let parent =
+    if arena.nodeStack.len > 0:
+      arena.nodeStack[^1]
+    else:
+      NullLayoutNodeId
+  result = arena.addLayoutNode(node, parent)
   arena.nodeStack.add(result)
-  arena.childStack.add(@[])
 
 proc endLayoutNode*(arena: var LayoutArena): LayoutNodeId =
   if arena.nodeStack.len == 0:
     return NullLayoutNodeId
 
   result = arena.nodeStack.pop()
-  let children = arena.childStack.pop()
-  let i = result.toIndex
-  arena.nodes[i].firstChild = int32(arena.childIndices.len)
-  arena.nodes[i].childCount = int32(children.len)
-  for child in children:
-    arena.nodes[child.toIndex].parent = result
-    arena.childIndices.add(child)
 
-  arena.appendToOpenParent(result)
+proc finalizeLayoutChildren(arena: var LayoutArena) =
+  arena.childIndices.setLen(0)
+  for i in 0 ..< arena.nodes.len:
+    let children = arena.childLists[i]
+    arena.nodes[i].firstChild = int32(arena.childIndices.len)
+    arena.nodes[i].childCount = int32(children.len)
+    for child in children:
+      arena.nodes[child.toIndex].parent = arena.nodes[i].id
+      arena.childIndices.add(child)
 
 func layoutNode*(
     kind: LayoutNodeKind = lnkContainer,
@@ -539,6 +543,7 @@ proc solveLayout*(arena: var LayoutArena, root: LayoutNodeId = LayoutNodeId(0'i3
   if arena.nodes.len == 0 or root.isNull:
     return
 
+  arena.finalizeLayoutChildren()
   arena.measureNode(root)
   arena.resolveAxis(root, horizontal = true)
   arena.wrapTextNodes(root)

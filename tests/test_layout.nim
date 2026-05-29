@@ -259,7 +259,153 @@ suite "layout frame integration":
     checkClose(m.lineHeight, 14)
     check m.lineCount == 1
 
+  test "auto-layout root is created at the active draw offset":
+    resetLayout()
+    g_uiState.drawOffsetStack = @[DrawOffset(ox: 20, oy: 30)]
+    beginFrameLayout()
+
+    autoLayoutPre()
+    discard layoutSlot(30, autoLayoutNextBounds())
+    autoLayoutPost()
+    finishFrameLayout()
+
+    let root = g_uiState.autoLayoutState.autoRoot
+    check not root.isNull
+    checkClose(g_uiState.layoutArena.layoutRect(root).x, 20)
+    checkClose(g_uiState.layoutArena.layoutRect(root).y, 30)
+    checkClose(g_uiState.layoutArena.layoutRect(root).w, 320)
+    check g_uiState.layoutArena.layoutRect(root).h > 0
+    checkRect(g_uiState.layoutRects[30], rect(33, 30, 143, 21))
+
+  test "wrapped auto-layout text grows its row and shifts later widgets":
+    var params = DefaultAutoLayoutParams
+    params.itemsPerRow = 1
+    params.rowWidth = 60
+    params.leftPad = 0
+    params.rightPad = 0
+    params.rowPad = 5
+    params.sectionPad = 0
+    params.defaultRowHeight = 20
+    params.defaultItemHeight = 20
+    resetLayout(params)
+    beginFrameLayout()
+    g_uiState.layoutArena.measureText = proc(
+        text: string, fontSize: float, fontFace: string, maxWidth: float
+    ): TextMeasure =
+      TextMeasure(
+        minWidth: 10,
+        prefWidth: 100,
+        lineHeight: 15,
+        lineCount: if maxWidth >= 60: 2 else: 3,
+      )
+
+    autoLayoutPre()
+    discard textLayoutSlot(
+      31, autoLayoutNextBounds(), "wrapped label", borrowDefaultLabelStyle()
+    )
+    autoLayoutPost()
+
+    autoLayoutPre()
+    checkRect(autoLayoutNextBounds(), rect(0, 25, 60, 20))
+    discard layoutSlot(32, autoLayoutNextBounds())
+    autoLayoutPost()
+    finishFrameLayout()
+
+    checkRect(g_uiState.layoutRects[31], rect(0, 0, 60, 30))
+    checkRect(g_uiState.layoutRects[32], rect(0, 35, 60, 20))
+
+  test "multi-column auto row grows to tallest text and centers fixed sibling":
+    var params = DefaultAutoLayoutParams
+    params.itemsPerRow = 2
+    params.rowWidth = 100
+    params.leftPad = 0
+    params.rightPad = 0
+    params.rowPad = 0
+    params.sectionPad = 0
+    params.defaultRowHeight = 20
+    params.defaultItemHeight = 10
+    resetLayout(params)
+    beginFrameLayout()
+    g_uiState.layoutArena.measureText = proc(
+        text: string, fontSize: float, fontFace: string, maxWidth: float
+    ): TextMeasure =
+      TextMeasure(
+        minWidth: 10,
+        prefWidth: 100,
+        lineHeight: 15,
+        lineCount: if maxWidth >= 50: 2 else: 3,
+      )
+
+    autoLayoutPre()
+    discard textLayoutSlot(
+      41, autoLayoutNextBounds(), "wrapped label", borrowDefaultLabelStyle()
+    )
+    autoLayoutPost()
+
+    autoLayoutPre()
+    discard layoutSlot(42, autoLayoutNextBounds())
+    autoLayoutPost()
+    finishFrameLayout()
+
+    checkRect(g_uiState.layoutRects[41], rect(0, 0, 50, 30))
+    checkRect(g_uiState.layoutRects[42], rect(50, 10, 50, 10))
+
+  test "auto-layout spacers preserve legacy row group and section y positions":
+    var params = DefaultAutoLayoutParams
+    params.itemsPerRow = 1
+    params.rowWidth = 50
+    params.leftPad = 0
+    params.rightPad = 0
+    params.rowPad = 5
+    params.rowGroupPad = 11
+    params.sectionPad = 7
+    params.defaultRowHeight = 20
+    params.defaultItemHeight = 10
+    resetLayout(params)
+    beginFrameLayout()
+
+    autoLayoutPre()
+    discard layoutSlot(51, autoLayoutNextBounds())
+    autoLayoutPost()
+
+    beginGroup()
+    autoLayoutPre()
+    discard layoutSlot(52, autoLayoutNextBounds())
+    autoLayoutPost(section = true)
+
+    autoLayoutPre()
+    discard layoutSlot(53, autoLayoutNextBounds())
+    autoLayoutPost()
+    finishFrameLayout()
+
+    checkRect(g_uiState.layoutRects[51], rect(0, 5, 50, 10))
+    checkRect(g_uiState.layoutRects[52], rect(0, 48, 50, 10))
+    checkRect(g_uiState.layoutRects[53], rect(0, 80, 50, 10))
+
 suite "unified layout solver":
+  test "direct parent insertion flattens children before solve":
+    var arena: LayoutArena
+    arena.initLayoutArena()
+
+    let root = arena.beginLayoutNode(
+      layoutNode(width = fixed(100), height = fixed(30), direction = ldLeftToRight)
+    )
+    let nested = arena.beginLayoutNode(layoutNode(width = fixed(20), height = grow()))
+    discard arena.endLayoutNode()
+    let direct =
+      arena.addLayoutNode(layoutNode(width = fixed(30), height = grow()), root)
+    discard arena.endLayoutNode()
+
+    arena.solveLayout(rect(0, 0, 100, 30), root)
+
+    check arena.nodes[root.int].childCount == 2
+    check int32(arena.childIndices[int(arena.nodes[root.int].firstChild)]) ==
+      int32(nested)
+    check int32(arena.childIndices[int(arena.nodes[root.int].firstChild) + 1]) ==
+      int32(direct)
+    checkRect(arena.layoutRect(nested), rect(0, 0, 20, 30))
+    checkRect(arena.layoutRect(direct), rect(20, 0, 30, 30))
+
   test "horizontal flow distributes remaining space to grow children":
     var arena: LayoutArena
     arena.initLayoutArena()

@@ -5,9 +5,11 @@ import glfw
 import nanovg
 
 import koi/core
+import koi/defaults
 import koi/drawing
 import koi/input
 import koi/internal/widget_behavior
+import koi/layout
 import koi/rect
 import koi/types
 import koi/widgets/button
@@ -234,6 +236,81 @@ suite "layout-integrated widget behavior":
 
     check isHot(22)
     check g_drawLayers.layers[ord(layerDefault)].len == 1
+
+  test "auto-layout label registers a fit-height text node under the active row":
+    resetUi()
+    var params = DefaultAutoLayoutParams
+    params.itemsPerRow = 1
+    params.rowWidth = 40
+    params.leftPad = 0
+    params.rightPad = 0
+    params.defaultRowHeight = 12
+    params.defaultItemHeight = 12
+    initAutoLayout(params)
+    beginFrameLayout()
+
+    label("Auto text")
+
+    check g_uiState.layoutArena.nodes.len == 5
+    let node = g_uiState.layoutArena.nodes[3]
+    let row = node.parent
+    check not row.isNull
+    check g_uiState.layoutArena.nodes[row.int].direction == ldLeftToRight
+    check node.kind == lnkText
+    check node.text == "Auto text"
+    check node.height.kind == lskFit
+
+  test "auto-layout button and progress register under active rows":
+    resetUi()
+    var params = DefaultAutoLayoutParams
+    params.itemsPerRow = 1
+    params.rowWidth = 20
+    params.leftPad = 0
+    params.rightPad = 0
+    params.rowPad = 0
+    params.sectionPad = 0
+    params.defaultRowHeight = 10
+    params.defaultItemHeight = 10
+    initAutoLayout(params)
+    beginFrameLayout()
+
+    g_uiState.layoutRects[24] = rect(40, 40, 20, 20)
+    g_uiState.mx = 45
+    g_uiState.my = 45
+    g_uiState.mbLeftDown = true
+
+    autoLayoutPre()
+    let buttonRow = g_uiState.autoLayoutState.autoRow
+    discard button(
+      24,
+      g_uiState.autoLayoutState.x,
+      autoLayoutNextY(),
+      autoLayoutNextItemWidth(),
+      autoLayoutNextItemHeight(),
+      "Button",
+      "",
+      disabled = false,
+    )
+    autoLayoutPost()
+
+    autoLayoutPre()
+    let progressRow = g_uiState.autoLayoutState.autoRow
+    progress(
+      25,
+      g_uiState.autoLayoutState.x,
+      autoLayoutNextY(),
+      autoLayoutNextItemWidth(),
+      autoLayoutNextItemHeight(),
+      1,
+      2,
+      tooltip = "Value",
+    )
+    autoLayoutPost()
+
+    check isHot(24)
+    check isActive(24)
+    check int32(g_uiState.layoutArena.nodes[3].parent) == int32(buttonRow)
+    check int32(g_uiState.layoutArena.nodes[5].parent) == int32(progressRow)
 
 suite "simple widget behavior":
   test "disabled widgets do not become active":
