@@ -1895,6 +1895,96 @@ suite "feature widget behavior":
     check g_uiState.layoutArena.nodes.len == 3
     check g_drawLayers.layers[ord(layerDefault)].len == 3
 
+  test "auto-layout table view registers one row child with internal body":
+    resetUi()
+    var params = DefaultAutoLayoutParams
+    params.itemsPerRow = 1
+    params.rowWidth = 160
+    params.leftPad = 0
+    params.rightPad = 0
+    params.rowPad = 0
+    params.sectionPad = 0
+    params.defaultRowHeight = 70
+    params.defaultItemHeight = 70
+    initAutoLayout(params)
+    beginFrameLayout()
+
+    let columns =
+      [TableColumn(label: "A", width: 80), TableColumn(label: "B", width: 80)]
+    var
+      widths: seq[float]
+      sortState = TableSortState(column: -1, direction: tsdNone)
+    useNextId("table-layout-test")
+    let
+      headerId = hashId("table-layout-test")
+      tableId = hashId($headerId & ":table")
+      bodyId = hashId($headerId & ":body")
+      style = borrowDefaultTableStyle()
+
+    autoLayoutPre()
+    let tableRow = g_uiState.autoLayoutState.autoRow
+    tableView(
+      g_uiState.autoLayoutState.x,
+      autoLayoutNextY(),
+      autoLayoutNextItemWidth(),
+      autoLayoutNextItemHeight(),
+      columns,
+      widths,
+      sortState,
+      2.Natural,
+      i,
+    ):
+      tableCell("Row " & $i)
+    autoLayoutPost()
+    finishFrameLayout()
+
+    var rowChildren = 0
+    var tableNode = NullLayoutNodeId
+    var headerNode = NullLayoutNodeId
+    var bodyNode = NullLayoutNodeId
+    var bodyDrawChildren = 0
+    for node in g_uiState.layoutArena.nodes:
+      if int32(node.parent) == int32(tableRow):
+        inc rowChildren
+      if node.itemId == tableId:
+        tableNode = node.id
+      elif node.itemId == headerId:
+        headerNode = node.id
+      elif node.itemId == bodyId:
+        bodyNode = node.id
+
+    check rowChildren == 1
+    check not tableNode.isNull
+    check not headerNode.isNull
+    check not bodyNode.isNull
+    check g_uiState.layoutArena.nodes[tableNode.int].kind == lnkContainer
+    check g_uiState.layoutArena.nodes[bodyNode.int].kind == lnkContainer
+    check int32(g_uiState.layoutArena.nodes[headerNode.int].parent) ==
+      int32(tableNode)
+    check int32(g_uiState.layoutArena.nodes[bodyNode.int].parent) ==
+      int32(tableNode)
+
+    for node in g_uiState.layoutArena.nodes:
+      if int32(node.parent) == int32(bodyNode):
+        inc bodyDrawChildren
+    check bodyDrawChildren > 0
+
+    let
+      tableRect = g_uiState.layoutRects[tableId]
+      headerRect = g_uiState.layoutRects[headerId]
+      bodyRect = g_uiState.layoutRects[bodyId]
+    checkRect(headerRect, rect(tableRect.x, tableRect.y, tableRect.w,
+      style.headerHeight))
+    checkRect(
+      bodyRect,
+      rect(
+        tableRect.x,
+        tableRect.y + style.headerHeight,
+        tableRect.w,
+        max(0.0, tableRect.h - style.headerHeight),
+      ),
+    )
+
   test "manual chart drawing registers a draw-only layout node":
     resetUi()
     let series: seq[ChartSeries] = @[]

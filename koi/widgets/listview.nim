@@ -4,6 +4,7 @@ import koi/types
 import koi/core
 import koi/drawing
 import koi/input
+import koi/rect
 import koi/internal/algorithms
 import koi/widgets/scrollview
 import koi/utils
@@ -26,6 +27,25 @@ proc beginListView*(
 
   result = listViewRange(itemCount, rowHeight, h, scrollY)
   beginScrollView(id, x, y, w, h)
+  pushDrawOffset(DrawOffset(ox: 0, oy: result.startY))
+
+proc beginListViewWithSlot*(
+    id: ItemId, slot: LayoutSlot, itemCount: Natural, rowHeight: float
+): ListViewRange =
+  alias(ui, g_uiState)
+
+  let scrollY =
+    if ui.itemState.hasKey(id):
+      scrollViewStartY(id)
+    else:
+      0.0
+
+  result = listViewRange(itemCount, rowHeight, slot.bounds.h, scrollY)
+  beginScrollViewWithSlot(
+    id,
+    slot,
+    rect(slot.bounds.x, slot.bounds.y - scrollY, slot.bounds.w, slot.bounds.h),
+  )
   pushDrawOffset(DrawOffset(ox: 0, oy: result.startY))
 
 proc endListView*(range: ListViewRange) =

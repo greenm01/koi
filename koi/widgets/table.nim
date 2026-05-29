@@ -1,3 +1,5 @@
+import std/tables
+
 import nanovg
 
 import koi/types
@@ -29,17 +31,15 @@ proc ensureTableColumnWidths(
   if widths.len != columns.len:
     widths = tableColumnWidths(columns, availableWidth)
 
-proc drawTableHeader*(
-    x, y, w: float,
+proc drawTableHeaderWithSlot*(
+    slot: LayoutSlot,
     columns: openArray[TableColumn],
     style: TableStyle = borrowDefaultTableStyle(),
 ) =
   alias(ui, g_uiState)
   let
-    (sx, sy) = addDrawOffset(x, y)
     tableColumns = @columns
-    widths = tableColumnWidths(columns, w)
-    slot = layoutDrawSlot(0, rect(sx, sy, w, style.headerHeight))
+    widths = tableColumnWidths(columns, slot.bounds.w)
 
   addLayoutDrawLayer(ui.currentLayer, slot.nodeId, vg, bounds):
     vg.fillColor(style.headerFillColor)
@@ -59,8 +59,18 @@ proc drawTableHeader*(
       cx += cw
 
 proc drawTableHeader*(
-    id: ItemId,
     x, y, w: float,
+    columns: openArray[TableColumn],
+    style: TableStyle = borrowDefaultTableStyle(),
+) =
+  let
+    (sx, sy) = addDrawOffset(x, y)
+    slot = layoutDrawSlot(0, rect(sx, sy, w, style.headerHeight))
+  drawTableHeaderWithSlot(slot, columns, style)
+
+proc drawTableHeaderWithSlot*(
+    slot: LayoutSlot,
+    id: ItemId,
     columns: openArray[TableColumn],
     widths: var seq[float],
     sortState: var TableSortState,
@@ -68,12 +78,10 @@ proc drawTableHeader*(
 ) =
   alias(ui, g_uiState)
   let
-    (sx, sy) = addDrawOffset(x, y)
     tableColumns = @columns
-    slot = layoutSlot(id, rect(sx, sy, w, style.headerHeight))
     hitBounds = slot.previousBounds
 
-  ensureTableColumnWidths(columns, w, widths)
+  ensureTableColumnWidths(columns, slot.bounds.w, widths)
 
   var cx = hitBounds.x
   for i, column in tableColumns:
@@ -145,6 +153,19 @@ proc drawTableHeader*(
         vg.stroke()
       cx += cw
 
+proc drawTableHeader*(
+    id: ItemId,
+    x, y, w: float,
+    columns: openArray[TableColumn],
+    widths: var seq[float],
+    sortState: var TableSortState,
+    style: TableStyle = borrowDefaultTableStyle(),
+) =
+  let
+    (sx, sy) = addDrawOffset(x, y)
+    slot = layoutSlot(id, rect(sx, sy, w, style.headerHeight))
+  drawTableHeaderWithSlot(slot, id, columns, widths, sortState, style)
+
 proc beginTableRow*(
     rowIndex: Natural,
     widths: openArray[float],
@@ -194,14 +215,52 @@ template tableView*(
     style: TableStyle = borrowDefaultTableStyle(),
 ) =
   let
+    i = instantiationInfo(fullPaths = true)
+    id = nextId(i.filename, i.line)
+    headerId = hashId($id & ":header")
+    bodyId = hashId($id & ":body")
     widths = tableColumnWidths(columns, w)
     rowH = style.rowHeight
     headerH = style.headerHeight
+    (sx, sy) = addDrawOffset(x, y)
+    tableSlot = layoutContainerSlot(
+      id,
+      rect(sx, sy, w, h),
+      direction = ldTopToBottom,
+      alignCross = lcaStretch,
+    )
+    headerSlot = layoutChildSlot(
+      tableSlot.nodeId,
+      headerId,
+      rect(sx, sy, w, headerH),
+      grow(),
+      fixed(headerH),
+    )
+    bodyH = max(0.0, h - headerH)
+    bodyScrollY =
+      if g_uiState.itemState.hasKey(bodyId):
+        scrollViewStartY(bodyId)
+      else:
+        0.0
+    bodySlot = beginLayoutChildContainerSlotAt(
+      tableSlot.nodeId,
+      bodyId,
+      rect(sx, sy + headerH, w, bodyH),
+      rect(sx, sy + headerH - bodyScrollY, w, bodyH),
+      grow(),
+      grow(min = 0.0),
+      scrollOffset = size(0, bodyScrollY),
+    )
+    range = beginListViewWithSlot(bodyId, bodySlot, itemCount, rowH)
 
-  drawTableHeader(x, y, w, columns, style)
-  listView(x, y + headerH, w, max(0.0, h - headerH), itemCount, rowH, index):
-    beginTableRow(index.Natural, widths, index.float * rowH, rowH, w, style)
-    body
+  drawTableHeaderWithSlot(headerSlot, columns, style)
+  try:
+    if itemCount > 0 and rowH > 0:
+      for index in range.first .. range.last:
+        beginTableRow(index.Natural, widths, index.float * rowH, rowH, w, style)
+        body
+  finally:
+    endListView(range)
 
 template tableView*(
     x, y, w, h: float,
@@ -216,11 +275,49 @@ template tableView*(
   let
     i = instantiationInfo(fullPaths = true)
     id = nextId(i.filename, i.line)
+    tableId = hashId($id & ":table")
+    bodyId = hashId($id & ":body")
     rowH = style.rowHeight
     headerH = style.headerHeight
 
   ensureTableColumnWidths(columns, w, columnWidths)
-  drawTableHeader(id, x, y, w, columns, columnWidths, sortState, style)
-  listView(x, y + headerH, w, max(0.0, h - headerH), itemCount, rowH, index):
-    beginTableRow(index.Natural, columnWidths, index.float * rowH, rowH, w, style)
-    body
+  let
+    (sx, sy) = addDrawOffset(x, y)
+    tableSlot = layoutContainerSlot(
+      tableId,
+      rect(sx, sy, w, h),
+      direction = ldTopToBottom,
+      alignCross = lcaStretch,
+    )
+    headerSlot = layoutChildSlot(
+      tableSlot.nodeId,
+      id,
+      rect(sx, sy, w, headerH),
+      grow(),
+      fixed(headerH),
+    )
+    bodyH = max(0.0, h - headerH)
+    bodyScrollY =
+      if g_uiState.itemState.hasKey(bodyId):
+        scrollViewStartY(bodyId)
+      else:
+        0.0
+    bodySlot = beginLayoutChildContainerSlotAt(
+      tableSlot.nodeId,
+      bodyId,
+      rect(sx, sy + headerH, w, bodyH),
+      rect(sx, sy + headerH - bodyScrollY, w, bodyH),
+      grow(),
+      grow(min = 0.0),
+      scrollOffset = size(0, bodyScrollY),
+    )
+    range = beginListViewWithSlot(bodyId, bodySlot, itemCount, rowH)
+
+  drawTableHeaderWithSlot(headerSlot, id, columns, columnWidths, sortState, style)
+  try:
+    if itemCount > 0 and rowH > 0:
+      for index in range.first .. range.last:
+        beginTableRow(index.Natural, columnWidths, index.float * rowH, rowH, w, style)
+        body
+  finally:
+    endListView(range)

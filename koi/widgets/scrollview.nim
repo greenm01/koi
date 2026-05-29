@@ -138,6 +138,9 @@ proc beginScrollViewWithSlot*(
     style: ScrollViewStyle = borrowDefaultScrollViewStyle(),
 ) =
   alias(ui, g_uiState)
+  discard prepareScrollViewState(
+    id, slot.bounds.x, slot.bounds.y, slot.bounds.w, slot.bounds.h, style
+  )
 
   addLayoutDrawLayer(ui.currentLayer, slot.nodeId, vg, bounds):
     vg.save()
