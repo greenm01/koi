@@ -276,7 +276,7 @@ template menuItemImage*(
   let id = nextId(i.filename, i.line)
   menuItemImage(id, paint, disabled, tooltip)
 
-template menu*(label: string, popupW, popupH: float, body: untyped) =
+template menuImpl(label: string, popupW, popupH: float, disabled: bool, body: untyped) =
   let i = instantiationInfo(fullPaths = true)
   let id = nextId(i.filename, i.line, label)
   let popupId = hashId($id & ":popup")
@@ -287,7 +287,7 @@ template menu*(label: string, popupW, popupH: float, body: untyped) =
   let (buttonSx, buttonSy) = addDrawOffset(buttonX, menuBarY)
   let buttonSlot = layoutSlot(id, rect(buttonSx, buttonSy, buttonW, menuBarH))
 
-  if g_uiState.menuTraversalState.activeMenu != 0 and
+  if not disabled and g_uiState.menuTraversalState.activeMenu != 0 and
       g_uiState.menuTraversalState.activeMenuIndex + g_uiState.menuTraversalState.moved ==
       headerIndex:
     g_uiState.menuTraversalState.activeMenu = id
@@ -295,7 +295,7 @@ template menu*(label: string, popupW, popupH: float, body: untyped) =
     g_uiState.menuTraversalState.activeItem = 0
     openPopup(id)
 
-  if buttonWithSlot(buttonSlot, id, label, "", false, style = style.button):
+  if buttonWithSlot(buttonSlot, id, label, "", disabled, style = style.button):
     g_uiState.menuTraversalState.activeMenu = id
     g_uiState.menuTraversalState.activeMenuIndex = headerIndex
     g_uiState.menuTraversalState.activeItem = 0
@@ -304,7 +304,10 @@ template menu*(label: string, popupW, popupH: float, body: untyped) =
   menuBarCursorX += buttonW
   inc(menuBarIndex)
 
-  if isPopupOpen(id):
+  if disabled and isPopupOpen(id):
+    closePopup()
+
+  if not disabled and isPopupOpen(id):
     let popupSlot = layoutFollowerSlot(
       popupId,
       rect(buttonSx, buttonSy + menuBarH, popupW, popupH),
@@ -320,6 +323,14 @@ template menu*(label: string, popupW, popupH: float, body: untyped) =
       finally:
         endMenuItems()
         endPopup()
+
+template menu*(label: string, popupW, popupH: float, body: untyped) =
+  menuImpl(label, popupW, popupH, disabled = false):
+    body
+
+template menu*(label: string, popupW, popupH: float, disabled: bool, body: untyped) =
+  menuImpl(label, popupW, popupH, disabled):
+    body
 
 proc contextMenuState(id: ItemId): ContextMenuState =
   alias(ui, g_uiState)

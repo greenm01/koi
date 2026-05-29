@@ -325,6 +325,34 @@ suite "menu behavior":
     check popupRect.y == buttonRect.y + buttonRect.h
     check popupRect != buttonRect
 
+  test "disabled menu header does not open popup":
+    resetUi()
+    let menuId = hashId("disabled-menu")
+    g_uiState.layoutRects[menuId] = rect(10, 10, 80, 24)
+    g_uiState.mx = 20
+    g_uiState.my = 18
+    g_uiState.mbLeftDown = true
+
+    beginMenuBar(10, 10, 120, 24)
+    useNextId("disabled-menu")
+    menu("File", 80, 40, disabled = true):
+      menuLabel("Open")
+    endMenuBar()
+
+    check isHot(menuId)
+    check not isActive(menuId)
+    check not isPopupOpen(menuId)
+
+    openPopup(menuId)
+    check isPopupOpen(menuId)
+    beginMenuBar(10, 10, 120, 24)
+    useNextId("disabled-menu")
+    menu("File", 80, 40, disabled = true):
+      menuLabel("Open")
+    endMenuBar()
+
+    check not isPopupOpen(menuId)
+
 suite "image widget behavior":
   test "image button with an empty paint keeps normal click behavior":
     resetUi()
