@@ -3,12 +3,32 @@ const std = @import("std");
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
+    const xdg_shell_xml = "/usr/share/wayland-protocols/stable/xdg-shell/xdg-shell.xml";
+
+    const xdg_header_step = b.addSystemCommand(&.{
+        "wayland-scanner",
+        "client-header",
+        xdg_shell_xml,
+    });
+    const xdg_header = xdg_header_step.addOutputFileArg("xdg-shell-client-protocol.h");
+
+    const xdg_code_step = b.addSystemCommand(&.{
+        "wayland-scanner",
+        "private-code",
+        xdg_shell_xml,
+    });
+    const xdg_code = xdg_code_step.addOutputFileArg("xdg-shell-protocol.c");
 
     const module = b.createModule(.{
         .root_source_file = b.path("koi_wayland.zig"),
         .target = target,
         .optimize = optimize,
         .link_libc = true,
+    });
+    module.addIncludePath(xdg_header.dirname());
+    module.addCSourceFile(.{
+        .file = xdg_code,
+        .flags = &.{ "-std=c11", "-Wall", "-Wextra" },
     });
     module.linkSystemLibrary("wayland-client", .{ .use_pkg_config = .yes });
     module.linkSystemLibrary("xkbcommon", .{ .use_pkg_config = .yes });

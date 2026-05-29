@@ -1,30 +1,244 @@
 const std = @import("std");
 const c = @cImport({
     @cInclude("wayland-client.h");
+    @cInclude("xdg-shell-client-protocol.h");
 });
 
 const allocator = std.heap.c_allocator;
 
+const KoiWaylandCallbacks = extern struct {
+    on_close: ?*const fn (?*anyopaque) callconv(.c) void,
+    on_resize: ?*const fn (u32, u32, ?*anyopaque) callconv(.c) void,
+    on_key_down: ?*const fn (u32, u32, ?*anyopaque) callconv(.c) void,
+    on_key_up: ?*const fn (u32, u32, ?*anyopaque) callconv(.c) void,
+    on_mouse_move: ?*const fn (f64, f64, ?*anyopaque) callconv(.c) void,
+    on_mouse_button: ?*const fn (u32, bool, ?*anyopaque) callconv(.c) void,
+    on_scroll: ?*const fn (f64, f64, ?*anyopaque) callconv(.c) void,
+    on_scale: ?*const fn (f64, ?*anyopaque) callconv(.c) void,
+    userdata: ?*anyopaque,
+};
+
 const KoiWaylandDisplay = extern struct {
     wl_display: ?*c.struct_wl_display,
+    wl_registry: ?*c.struct_wl_registry,
+    wl_compositor: ?*c.struct_wl_compositor,
+    xdg_wm_base: ?*c.struct_xdg_wm_base,
 };
 
 const KoiWaylandWindow = extern struct {
     display: ?*KoiWaylandDisplay,
     wl_surface: ?*c.struct_wl_surface,
+    xdg_surface: ?*c.struct_xdg_surface,
+    xdg_toplevel: ?*c.struct_xdg_toplevel,
+    callbacks: KoiWaylandCallbacks,
     width: u32,
     height: u32,
 };
+
+fn cStringEquals(value: [*c]const u8, expected: []const u8) bool {
+    if (value == null) {
+        return false;
+    }
+    const sentinel: [*:0]const u8 = @ptrCast(value);
+    return std.mem.eql(u8, std.mem.span(sentinel), expected);
+}
+
+fn bindGlobal(
+    comptime T: type,
+    registry: *c.struct_wl_registry,
+    name: u32,
+    interface: *const c.struct_wl_interface,
+    version: u32,
+) ?*T {
+    const proxy = c.wl_registry_bind(registry, name, interface, version) orelse return null;
+    return @ptrCast(@alignCast(proxy));
+}
+
+fn registryGlobal(
+    data: ?*anyopaque,
+    registry: ?*c.struct_wl_registry,
+    name: u32,
+    interface: [*c]const u8,
+    version: u32,
+) callconv(.c) void {
+    const display: *KoiWaylandDisplay = @ptrCast(@alignCast(data orelse return));
+    const reg = registry orelse return;
+
+    if (cStringEquals(interface, "wl_compositor")) {
+        display.wl_compositor = bindGlobal(
+            c.struct_wl_compositor,
+            reg,
+            name,
+            &c.wl_compositor_interface,
+            @min(version, 4),
+        );
+    } else if (cStringEquals(interface, "xdg_wm_base")) {
+        display.xdg_wm_base = bindGlobal(
+            c.struct_xdg_wm_base,
+            reg,
+            name,
+            &c.xdg_wm_base_interface,
+            @min(version, 6),
+        );
+        if (display.xdg_wm_base) |wm_base| {
+            _ = c.xdg_wm_base_add_listener(wm_base, &xdg_wm_base_listener, display);
+        }
+    }
+}
+
+fn registryGlobalRemove(
+    data: ?*anyopaque,
+    registry: ?*c.struct_wl_registry,
+    name: u32,
+) callconv(.c) void {
+    _ = data;
+    _ = registry;
+    _ = name;
+}
+
+const registry_listener = c.struct_wl_registry_listener{
+    .global = registryGlobal,
+    .global_remove = registryGlobalRemove,
+};
+
+fn xdgWmBasePing(
+    data: ?*anyopaque,
+    xdg_wm_base: ?*c.struct_xdg_wm_base,
+    serial: u32,
+) callconv(.c) void {
+    _ = data;
+    const wm_base = xdg_wm_base orelse return;
+    c.xdg_wm_base_pong(wm_base, serial);
+}
+
+const xdg_wm_base_listener = c.struct_xdg_wm_base_listener{
+    .ping = xdgWmBasePing,
+};
+
+fn xdgSurfaceConfigure(
+    data: ?*anyopaque,
+    xdg_surface: ?*c.struct_xdg_surface,
+    serial: u32,
+) callconv(.c) void {
+    _ = data;
+    const surface = xdg_surface orelse return;
+    c.xdg_surface_ack_configure(surface, serial);
+}
+
+const xdg_surface_listener = c.struct_xdg_surface_listener{
+    .configure = xdgSurfaceConfigure,
+};
+
+fn xdgToplevelConfigure(
+    data: ?*anyopaque,
+    xdg_toplevel: ?*c.struct_xdg_toplevel,
+    width: i32,
+    height: i32,
+    states: ?*c.struct_wl_array,
+) callconv(.c) void {
+    _ = xdg_toplevel;
+    _ = states;
+
+    const window: *KoiWaylandWindow = @ptrCast(@alignCast(data orelse return));
+    if (width > 0 and height > 0) {
+        const next_width: u32 = @intCast(width);
+        const next_height: u32 = @intCast(height);
+        if (window.width != next_width or window.height != next_height) {
+            window.width = next_width;
+            window.height = next_height;
+            if (window.callbacks.on_resize) |on_resize| {
+                on_resize(next_width, next_height, window.callbacks.userdata);
+            }
+        }
+    }
+}
+
+fn xdgToplevelClose(
+    data: ?*anyopaque,
+    xdg_toplevel: ?*c.struct_xdg_toplevel,
+) callconv(.c) void {
+    _ = xdg_toplevel;
+    const window: *KoiWaylandWindow = @ptrCast(@alignCast(data orelse return));
+    if (window.callbacks.on_close) |on_close| {
+        on_close(window.callbacks.userdata);
+    }
+}
+
+fn xdgToplevelConfigureBounds(
+    data: ?*anyopaque,
+    xdg_toplevel: ?*c.struct_xdg_toplevel,
+    width: i32,
+    height: i32,
+) callconv(.c) void {
+    _ = data;
+    _ = xdg_toplevel;
+    _ = width;
+    _ = height;
+}
+
+fn xdgToplevelWmCapabilities(
+    data: ?*anyopaque,
+    xdg_toplevel: ?*c.struct_xdg_toplevel,
+    capabilities: ?*c.struct_wl_array,
+) callconv(.c) void {
+    _ = data;
+    _ = xdg_toplevel;
+    _ = capabilities;
+}
+
+const xdg_toplevel_listener = c.struct_xdg_toplevel_listener{
+    .configure = xdgToplevelConfigure,
+    .close = xdgToplevelClose,
+    .configure_bounds = xdgToplevelConfigureBounds,
+    .wm_capabilities = xdgToplevelWmCapabilities,
+};
+
+fn destroyDisplayResources(display: *KoiWaylandDisplay) void {
+    if (display.xdg_wm_base) |wm_base| {
+        c.xdg_wm_base_destroy(wm_base);
+    }
+    if (display.wl_compositor) |compositor| {
+        c.wl_compositor_destroy(compositor);
+    }
+    if (display.wl_registry) |registry| {
+        c.wl_registry_destroy(registry);
+    }
+    if (display.wl_display) |wl_display| {
+        c.wl_display_disconnect(wl_display);
+    }
+}
 
 export fn koi_wayland_init() ?*KoiWaylandDisplay {
     const display = allocator.create(KoiWaylandDisplay) catch return null;
     display.* = .{
         .wl_display = c.wl_display_connect(null),
+        .wl_registry = null,
+        .wl_compositor = null,
+        .xdg_wm_base = null,
     };
     if (display.wl_display == null) {
         allocator.destroy(display);
         return null;
     }
+    display.wl_registry = c.wl_display_get_registry(display.wl_display.?);
+    if (display.wl_registry == null) {
+        destroyDisplayResources(display);
+        allocator.destroy(display);
+        return null;
+    }
+
+    _ = c.wl_registry_add_listener(display.wl_registry.?, &registry_listener, display);
+    if (c.wl_display_roundtrip(display.wl_display.?) < 0) {
+        destroyDisplayResources(display);
+        allocator.destroy(display);
+        return null;
+    }
+    if (display.wl_compositor == null or display.xdg_wm_base == null) {
+        destroyDisplayResources(display);
+        allocator.destroy(display);
+        return null;
+    }
+
     return display;
 }
 
@@ -34,15 +248,48 @@ export fn koi_wayland_create_window(
     h: u32,
     title: [*:0]const u8,
 ) ?*KoiWaylandWindow {
-    _ = title;
     const d = display orelse return null;
+    const compositor = d.wl_compositor orelse return null;
+    const wm_base = d.xdg_wm_base orelse return null;
+
     const window = allocator.create(KoiWaylandWindow) catch return null;
     window.* = .{
         .display = d,
-        .wl_surface = null,
+        .wl_surface = c.wl_compositor_create_surface(compositor),
+        .xdg_surface = null,
+        .xdg_toplevel = null,
+        .callbacks = std.mem.zeroes(KoiWaylandCallbacks),
         .width = w,
         .height = h,
     };
+    if (window.wl_surface == null) {
+        allocator.destroy(window);
+        return null;
+    }
+
+    window.xdg_surface = c.xdg_wm_base_get_xdg_surface(wm_base, window.wl_surface.?);
+    if (window.xdg_surface == null) {
+        c.wl_surface_destroy(window.wl_surface.?);
+        allocator.destroy(window);
+        return null;
+    }
+
+    _ = c.xdg_surface_add_listener(window.xdg_surface.?, &xdg_surface_listener, window);
+    window.xdg_toplevel = c.xdg_surface_get_toplevel(window.xdg_surface.?);
+    if (window.xdg_toplevel == null) {
+        c.xdg_surface_destroy(window.xdg_surface.?);
+        c.wl_surface_destroy(window.wl_surface.?);
+        allocator.destroy(window);
+        return null;
+    }
+
+    _ = c.xdg_toplevel_add_listener(window.xdg_toplevel.?, &xdg_toplevel_listener, window);
+    c.xdg_toplevel_set_title(window.xdg_toplevel.?, title);
+    c.wl_surface_commit(window.wl_surface.?);
+    if (d.wl_display) |wl_display| {
+        _ = c.wl_display_flush(wl_display);
+    }
+
     return window;
 }
 
@@ -50,8 +297,12 @@ export fn koi_wayland_set_callbacks(
     window: ?*KoiWaylandWindow,
     callbacks: ?*const anyopaque,
 ) void {
-    _ = window;
-    _ = callbacks;
+    const win = window orelse return;
+    if (callbacks) |cb| {
+        win.callbacks = @as(*const KoiWaylandCallbacks, @ptrCast(@alignCast(cb))).*;
+    } else {
+        win.callbacks = std.mem.zeroes(KoiWaylandCallbacks);
+    }
 }
 
 export fn koi_wayland_poll_events(display: ?*KoiWaylandDisplay) void {
@@ -72,8 +323,10 @@ export fn koi_wayland_get_wl_surface(window: ?*KoiWaylandWindow) ?*anyopaque {
 }
 
 export fn koi_wayland_set_title(window: ?*KoiWaylandWindow, title: [*:0]const u8) void {
-    _ = window;
-    _ = title;
+    const win = window orelse return;
+    if (win.xdg_toplevel) |toplevel| {
+        c.xdg_toplevel_set_title(toplevel, title);
+    }
 }
 
 export fn koi_wayland_set_size(window: ?*KoiWaylandWindow, w: u32, h: u32) void {
@@ -84,6 +337,12 @@ export fn koi_wayland_set_size(window: ?*KoiWaylandWindow, w: u32, h: u32) void 
 
 export fn koi_wayland_destroy_window(window: ?*KoiWaylandWindow) void {
     const win = window orelse return;
+    if (win.xdg_toplevel) |toplevel| {
+        c.xdg_toplevel_destroy(toplevel);
+    }
+    if (win.xdg_surface) |surface| {
+        c.xdg_surface_destroy(surface);
+    }
     if (win.wl_surface) |surface| {
         c.wl_surface_destroy(surface);
     }
@@ -92,8 +351,6 @@ export fn koi_wayland_destroy_window(window: ?*KoiWaylandWindow) void {
 
 export fn koi_wayland_destroy(display: ?*KoiWaylandDisplay) void {
     const d = display orelse return;
-    if (d.wl_display) |wl_display| {
-        c.wl_display_disconnect(wl_display);
-    }
+    destroyDisplayResources(d);
     allocator.destroy(d);
 }
