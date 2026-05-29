@@ -119,7 +119,7 @@ proc textArea*(
     textAreaCursorPosAt(
       toOpenArray(glyphs, 0, glyphCount - 1),
       row.startPos,
-      textAreaRowEndCursor(row),
+      textAreaRowTextEndCursor(row, text),
       mx,
       textBoxX,
     )
@@ -144,7 +144,7 @@ proc textArea*(
     textAreaCursorPosAt(
       toOpenArray(glyphs, 0, glyphCount - 1),
       row.startPos,
-      textAreaRowEndCursor(row),
+      textAreaRowTextEndCursor(row, text),
       cursorX,
       textBoxX,
     )
@@ -264,13 +264,13 @@ proc textArea*(
           setCursor(textAreaLineStartCursor(rows, ta.cursorPos), selecting = false)
           cursorChanged = true
         elif sc in shortcuts[tesCursorToLineEnd]:
-          setCursor(textAreaLineEndCursor(rows, ta.cursorPos), selecting = false)
+          setCursor(textAreaLineEndCursor(rows, ta.cursorPos, text), selecting = false)
           cursorChanged = true
         elif sc in shortcuts[tesSelectionToLineStart]:
           setCursor(textAreaLineStartCursor(rows, ta.cursorPos), selecting = true)
           cursorChanged = true
         elif sc in shortcuts[tesSelectionToLineEnd]:
-          setCursor(textAreaLineEndCursor(rows, ta.cursorPos), selecting = true)
+          setCursor(textAreaLineEndCursor(rows, ta.cursorPos, text), selecting = true)
           cursorChanged = true
         elif sc in shortcuts[tesCursorToPreviousLine]:
           moveCursorByRows(-1, selecting = false)

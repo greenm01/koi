@@ -300,6 +300,24 @@ func textAreaRowEndCursor*(row: types.TextRow): Natural =
   else:
     row.endPos + 1
 
+func textAreaRowTextEndCursor*(row: types.TextRow, text: string): Natural =
+  ## Cursor position just past the last *visible* character of the row. Unlike
+  ## textAreaRowEndCursor (which returns nextRowPos for row ownership/binning),
+  ## this stops before a trailing hard newline, so X-based positioning (End
+  ## key, clicking past the text, vertical navigation) lands on the row's own
+  ## line rather than overshooting onto the start of the next row.
+  ##
+  ## nanovg sets `endPos` to the newline's index for hard-break rows, so for
+  ## those the position after the last visible glyph is `endPos` itself (before
+  ## the newline). Soft-wrapped, final and empty rows keep textAreaRowEndCursor's
+  ## behaviour, so this only corrects the hard-newline overshoot.
+  if row.startPos == row.endPos and row.width == 0:
+    row.startPos
+  elif row.endPos < text.runeLen and text.runeAtPos(row.endPos) == Rune(0x0A):
+    row.endPos
+  else:
+    textAreaRowEndCursor(row)
+
 func textAreaRowForCursor*(
     rows: openArray[types.TextRow], cursorPos: Natural
 ): Natural =
@@ -379,12 +397,12 @@ func textAreaLineStartCursor*(
   rows[textAreaRowForCursor(rows, cursorPos)].startPos
 
 func textAreaLineEndCursor*(
-    rows: openArray[types.TextRow], cursorPos: Natural
+    rows: openArray[types.TextRow], cursorPos: Natural, text: string
 ): Natural =
   if rows.len == 0:
     return 0.Natural
 
-  textAreaRowEndCursor(rows[textAreaRowForCursor(rows, cursorPos)])
+  textAreaRowTextEndCursor(rows[textAreaRowForCursor(rows, cursorPos)], text)
 
 func textAreaSelectionForRow*(
     row: types.TextRow, selection: types.TextSelection

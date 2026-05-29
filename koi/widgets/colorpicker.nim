@@ -608,7 +608,11 @@ proc colorPicker*(id: ItemId, x, y, w, h: float, color: var Color) =
             style = ColorPickerSliderStyle,
           )
 
-          var editedColor = colorFromHexStr(cs.hexString).withAlpha(a / AlphaMax)
+          var editedColor =
+            if cs.hexString.len >= 6:
+              colorFromHexStr(cs.hexString).withAlpha(a / AlphaMax)
+            else:
+              color.withAlpha(a / AlphaMax)
           var (hue, sat, value) = editedColor.toHSV
           let (oldHue, oldSat, oldValue) = (hue, sat, value)
           colorWheel(px, ColorPickerWheelY, pw + 0.5, pw + 0.5, hue, sat, value)

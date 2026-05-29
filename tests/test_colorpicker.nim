@@ -234,3 +234,21 @@ suite "color picker editing":
     check color.g > 0.95
     check color.r < 0.05
     check color.b < 0.05
+
+  test "empty hex text keeps the previous color":
+    resetUi()
+    var color = rgb(0.25, 0.5, 0.75)
+    openPicker(color)
+    g_uiState.colorPickerState.colorMode = ccmHex
+    g_uiState.colorPickerState.opened = false
+    g_uiState.colorPickerState.lastColorMode = ccmHex
+    g_uiState.colorPickerState.hexString = ""
+    placePickerPopup()
+
+    nextFrame()
+    mouseTo(5, 5)
+    picker(color)
+
+    check abs(color.r - 0.25) < 1e-6
+    check abs(color.g - 0.5) < 1e-6
+    check abs(color.b - 0.75) < 1e-6

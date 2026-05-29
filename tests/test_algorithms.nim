@@ -335,11 +335,13 @@ suite "text area view algorithms":
 
   test "line start and end use the cursor row":
     let rows = @[textRow(0, 4, 5), textRow(5, 9, 10), textRow(10, 10, -1, width = 0)]
+    # soft-wrapped rows (no newline at endPos) keep the nextRowPos end cursor
+    let text = "0123456789012"
 
     check textAreaLineStartCursor(rows, 7) == 5
-    check textAreaLineEndCursor(rows, 7) == 10
+    check textAreaLineEndCursor(rows, 7, text) == 10
     check textAreaLineStartCursor(rows, 10) == 10
-    check textAreaLineEndCursor(rows, 10) == 10
+    check textAreaLineEndCursor(rows, 10, text) == 10
 
   test "row delta clamps at document bounds":
     check textAreaRowByDelta(4, 1, -10) == 0

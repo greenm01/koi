@@ -233,8 +233,16 @@ proc textFieldWithSlot*(
           tf.selection = NoSelection
           tf.cursorPos = cursorPosAt(ui.mx)
           if isDoubleClick():
-            tf.selection.startPos = findPrevWordStart(text, tf.cursorPos).int
-            tf.selection.endPos = findNextWordEnd(text, tf.cursorPos).Natural
+            let startPos = findPrevWordStart(text, tf.cursorPos)
+            var endPos = findNextWordEnd(text, tf.cursorPos)
+            # findNextWordEnd skips trailing whitespace/punctuation (it is a
+            # cursor-nav helper); for word selection trim that back so a
+            # double-click selects just the word, not the following space.
+            while endPos > startPos and
+                not text.runeAtPos(endPos - 1).isAlphanumeric:
+              dec endPos
+            tf.selection.startPos = startPos.int
+            tf.selection.endPos = endPos.Natural
             tf.cursorPos = tf.selection.endPos
             tf.state = tfsDoubleClicked
           else:
@@ -426,7 +434,9 @@ proc textFieldWithSlot*(
       of wsDisabled: s.textColorDisabled
     vg.useFont(s.textFontSize, name = s.textFontFace)
     vg.fillColor(textColor)
-    discard vg.text(textX, textY, text.runeSubStr(tf.displayStartPos))
+    if text.len > 0:
+      let displayStartPos = min(tf.displayStartPos, text.runeLen.Natural)
+      discard vg.text(textX, textY, text.runeSubStr(displayStartPos))
     if editing:
       let cursorX =
         textFieldCursorX(glyphs, text.runeLen.Natural, tf.cursorPos, drawView)
