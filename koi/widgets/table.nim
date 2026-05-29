@@ -35,6 +35,7 @@ proc drawTableHeaderWithSlot*(
     slot: LayoutSlot,
     columns: openArray[TableColumn],
     style: TableStyle = borrowDefaultTableStyle(),
+    disabled: bool = false,
 ) =
   alias(ui, g_uiState)
   let
@@ -51,22 +52,22 @@ proc drawTableHeaderWithSlot*(
     vg.stroke()
 
     var cx = bounds.x
+    let state = if disabled: wsDisabled else: wsNormal
     for i, column in tableColumns:
       let cw = widths[i]
-      vg.drawLabel(
-        cx, bounds.y, cw, bounds.h, column.label, wsNormal, style.headerLabel
-      )
+      vg.drawLabel(cx, bounds.y, cw, bounds.h, column.label, state, style.headerLabel)
       cx += cw
 
 proc drawTableHeader*(
     x, y, w: float,
     columns: openArray[TableColumn],
     style: TableStyle = borrowDefaultTableStyle(),
+    disabled: bool = false,
 ) =
   let
     (sx, sy) = addDrawOffset(x, y)
     slot = layoutDrawSlot(0, rect(sx, sy, w, style.headerHeight))
-  drawTableHeaderWithSlot(slot, columns, style)
+  drawTableHeaderWithSlot(slot, columns, style, disabled)
 
 proc drawTableHeaderWithSlot*(
     slot: LayoutSlot,
@@ -75,6 +76,7 @@ proc drawTableHeaderWithSlot*(
     widths: var seq[float],
     sortState: var TableSortState,
     style: TableStyle = borrowDefaultTableStyle(),
+    disabled: bool = false,
 ) =
   alias(ui, g_uiState)
   let
@@ -100,15 +102,15 @@ proc drawTableHeaderWithSlot*(
         )
 
     if resizeHit:
-      discard captureDragWidget(resizeId, true)
+      discard captureDragWidget(resizeId, true, disabled = disabled)
     elif headerHit:
-      captureSimpleWidget(sortId, disabled = false)
+      captureSimpleWidget(sortId, disabled)
 
-    if i < tableColumns.high and isActive(resizeId) and ui.mbLeftDown:
+    if not disabled and i < tableColumns.high and isActive(resizeId) and ui.mbLeftDown:
       widths =
         resizedTableColumnWidths(widths, i, ui.mx - ui.lastmx, TableMinColumnWidth)
 
-    let behavior = simpleWidgetBehavior(sortId, disabled = false)
+    let behavior = simpleWidgetBehavior(sortId, disabled)
     if behavior.clicked:
       sortState = nextTableSortState(sortState, i)
 
@@ -138,8 +140,9 @@ proc drawTableHeaderWithSlot*(
             " v"
           else:
             ""
+      let state = if disabled: wsDisabled else: wsNormal
       vg.drawLabel(
-        cx, bounds.y, cw, bounds.h, column.label & sortMark, wsNormal, style.headerLabel
+        cx, bounds.y, cw, bounds.h, column.label & sortMark, state, style.headerLabel
       )
       if i < tableColumns.high:
         vg.beginPath()
@@ -154,11 +157,12 @@ proc drawTableHeader*(
     widths: var seq[float],
     sortState: var TableSortState,
     style: TableStyle = borrowDefaultTableStyle(),
+    disabled: bool = false,
 ) =
   let
     (sx, sy) = addDrawOffset(x, y)
     slot = layoutSlot(id, rect(sx, sy, w, style.headerHeight))
-  drawTableHeaderWithSlot(slot, id, columns, widths, sortState, style)
+  drawTableHeaderWithSlot(slot, id, columns, widths, sortState, style, disabled)
 
 proc beginTableRow*(
     rowIndex: Natural,
@@ -207,6 +211,7 @@ template tableView*(
     index: untyped,
     body: untyped,
     style: TableStyle = borrowDefaultTableStyle(),
+    disabled: bool = false,
 ) =
   let
     i = instantiationInfo(fullPaths = true)
@@ -240,7 +245,7 @@ template tableView*(
     )
     range = beginListViewWithSlot(bodyId, bodySlot, itemCount, rowH)
 
-  drawTableHeaderWithSlot(headerSlot, columns, style)
+  drawTableHeaderWithSlot(headerSlot, columns, style, disabled)
   try:
     if itemCount > 0 and rowH > 0:
       for index in range.first .. range.last:
@@ -258,6 +263,7 @@ template tableView*(
     index: untyped,
     body: untyped,
     style: TableStyle = borrowDefaultTableStyle(),
+    disabled: bool = false,
 ) =
   let
     i = instantiationInfo(fullPaths = true)
@@ -293,7 +299,9 @@ template tableView*(
     )
     range = beginListViewWithSlot(bodyId, bodySlot, itemCount, rowH)
 
-  drawTableHeaderWithSlot(headerSlot, id, columns, columnWidths, sortState, style)
+  drawTableHeaderWithSlot(
+    headerSlot, id, columns, columnWidths, sortState, style, disabled
+  )
   try:
     if itemCount > 0 and rowH > 0:
       for index in range.first .. range.last:

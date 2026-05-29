@@ -2315,6 +2315,37 @@ suite "feature widget behavior":
     check sortState.column == 0
     check sortState.direction == tsdAsc
 
+  test "disabled table header ignores sort and resize input":
+    resetUi()
+    let columns =
+      [TableColumn(label: "A", width: 50), TableColumn(label: "B", width: 50)]
+    var
+      widths = @[50.0, 50.0]
+      sortState = TableSortState(column: -1, direction: tsdNone)
+
+    g_uiState.mx = 10
+    g_uiState.my = 10
+    g_uiState.mbLeftDown = true
+    drawTableHeader(100, 0, 0, 100, columns, widths, sortState, disabled = true)
+
+    g_uiState.hotItem = 0
+    g_uiState.mbLeftDown = false
+    drawTableHeader(100, 0, 0, 100, columns, widths, sortState, disabled = true)
+
+    check sortState.column == -1
+    check sortState.direction == tsdNone
+
+    resetUi()
+    widths = @[50.0, 50.0]
+    g_uiState.mx = 50
+    g_uiState.lastmx = 20
+    g_uiState.my = 10
+    g_uiState.mbLeftDown = true
+    drawTableHeader(100, 0, 0, 100, columns, widths, sortState, disabled = true)
+
+    check widths == @[50.0, 50.0]
+    check not isActive(hashId("100:resize:0"))
+
 suite "drag widget behavior":
   test "capture requires a hit":
     resetUi()
