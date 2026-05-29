@@ -9,14 +9,18 @@ type
   KoiWaylandCallbacks* {.
     bycopy, importc, header: "koi_wayland.h"
   .} = object
-    onClose*: proc(userdata: pointer) {.cdecl.}
-    onResize*: proc(w, h: uint32, userdata: pointer) {.cdecl.}
-    onKeyDown*: proc(sym, mods: uint32, userdata: pointer) {.cdecl.}
-    onKeyUp*: proc(sym, mods: uint32, userdata: pointer) {.cdecl.}
-    onMouseMove*: proc(x, y: cdouble, userdata: pointer) {.cdecl.}
-    onMouseButton*: proc(btn: uint32, pressed: bool, userdata: pointer) {.cdecl.}
-    onScroll*: proc(dx, dy: cdouble, userdata: pointer) {.cdecl.}
-    onScale*: proc(scale: cdouble, userdata: pointer) {.cdecl.}
+    onClose* {.importc: "on_close".}: proc(userdata: pointer) {.cdecl.}
+    onResize* {.importc: "on_resize".}: proc(w, h: uint32, userdata: pointer) {.cdecl.}
+    onKeyDown* {.importc: "on_key_down".}: proc(sym, mods: uint32, userdata: pointer) {.cdecl.}
+    onKeyUp* {.importc: "on_key_up".}: proc(sym, mods: uint32, userdata: pointer) {.cdecl.}
+    onMouseMove* {.importc: "on_mouse_move".}: proc(x, y: cdouble, userdata: pointer) {.cdecl.}
+    onMouseButton* {.importc: "on_mouse_button".}: proc(
+      btn: uint32,
+      pressed: bool,
+      userdata: pointer,
+    ) {.cdecl.}
+    onScroll* {.importc: "on_scroll".}: proc(dx, dy: cdouble, userdata: pointer) {.cdecl.}
+    onScale* {.importc: "on_scale".}: proc(scale: cdouble, userdata: pointer) {.cdecl.}
     userdata*: pointer
 
 proc koiWaylandInit*(): ptr KoiWaylandDisplay {.
