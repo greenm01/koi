@@ -46,10 +46,12 @@ type
 
   WebGpuInputVertex* = object
     x*, y*, u*, v*: float32
+    maskU*, maskV*: float32
 
   WebGpuDrawVertex* = object
     x*, y*: float32
     u*, v*: float32
+    maskU*, maskV*: float32
     r*, g*, b*, a*: float32
     mode*: float32
     aaMult*: float32
@@ -119,6 +121,8 @@ func clipVertex*(
     y: 1'f32 - (vertex.y / viewport.height) * 2'f32,
     u: vertex.u,
     v: vertex.v,
+    maskU: vertex.maskU,
+    maskV: vertex.maskV,
     r: color[0],
     g: color[1],
     b: color[2],

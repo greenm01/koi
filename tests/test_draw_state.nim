@@ -38,7 +38,7 @@ suite "wgpu draw geometry":
 
   test "clip conversion maps viewport pixels to device coordinates":
     let vertex = clipVertex(
-      WebGpuInputVertex(x: 50, y: 25, u: 0.25, v: 0.75),
+      WebGpuInputVertex(x: 50, y: 25, u: 0.25, v: 0.75, maskU: 0.5, maskV: 1.0),
       WebGpuViewport(width: 100, height: 50),
       [0.1'f32, 0.2, 0.3, 0.4],
       mode = 2,
@@ -49,6 +49,8 @@ suite "wgpu draw geometry":
     checkClose vertex.y, 0
     checkClose vertex.u, 0.25
     checkClose vertex.v, 0.75
+    checkClose vertex.maskU, 0.5
+    checkClose vertex.maskV, 1.0
     checkClose vertex.r, 0.1
     checkClose vertex.g, 0.2
     checkClose vertex.b, 0.3

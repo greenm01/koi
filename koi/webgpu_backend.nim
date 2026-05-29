@@ -12,6 +12,7 @@ import koi/internal/webgpu_draw_state
 
 const
   NvgTextureAlpha = 0x01
+  WebGpuTextureRowAlignment = 256'u32
 
 {.
   emit:
@@ -190,7 +191,56 @@ proc rgba(c: nvg.Color): array[4, float32] =
   [c.r.float32, c.g.float32, c.b.float32, c.a.float32]
 
 func inputVertex(v: NvgVertex): WebGpuInputVertex =
-  WebGpuInputVertex(x: v.x.float32, y: v.y.float32, u: v.u.float32, v: v.v.float32)
+  WebGpuInputVertex(
+    x: v.x.float32,
+    y: v.y.float32,
+    u: v.u.float32,
+    v: v.v.float32,
+    maskU: v.u.float32,
+    maskV: v.v.float32,
+  )
+
+func invertTransform(
+    xform: array[6, cfloat], inverse: var array[6, float32]
+): bool =
+  let
+    a = xform[0].float32
+    b = xform[1].float32
+    c = xform[2].float32
+    d = xform[3].float32
+    e = xform[4].float32
+    f = xform[5].float32
+    det = a * d - c * b
+
+  if abs(det) < 1e-6'f32:
+    return false
+
+  let invDet = 1'f32 / det
+  inverse[0] = d * invDet
+  inverse[1] = -b * invDet
+  inverse[2] = -c * invDet
+  inverse[3] = a * invDet
+  inverse[4] = (c * f - d * e) * invDet
+  inverse[5] = (b * e - a * f) * invDet
+  true
+
+proc patternVertex(v: NvgVertex, paint: ptr nvg.Paint): WebGpuInputVertex =
+  result = inputVertex(v)
+  if paint.image == nvg.NoImage or paint.extent[0] == 0 or paint.extent[1] == 0:
+    return
+
+  var inverse: array[6, float32]
+  if not invertTransform(paint.xform, inverse):
+    return
+
+  let
+    x = v.x.float32
+    y = v.y.float32
+    px = inverse[0] * x + inverse[2] * y + inverse[4]
+    py = inverse[1] * x + inverse[3] * y + inverse[5]
+
+  result.u = px / paint.extent[0].float32
+  result.v = py / paint.extent[1].float32
 
 proc backend(userPtr: pointer): ptr KoiWgpuBackend =
   cast[ptr KoiWgpuBackend](userPtr)
@@ -251,7 +301,7 @@ func toWgpuBlendFactor(factor: WebGpuBlendFactor): wgpu.BlendFactor =
 
 proc appendVertex(
     b: var KoiWgpuBackend,
-    v: NvgVertex,
+    v: WebGpuInputVertex,
     color: array[4, float32],
     mode: float32,
     aaMult: float32,
@@ -260,7 +310,7 @@ proc appendVertex(
   if not hasDrawableViewport(viewport):
     return
 
-  b.vertices.add clipVertex(inputVertex(v), viewport, color, mode, aaMult)
+  b.vertices.add clipVertex(v, viewport, color, mode, aaMult)
 
 proc appendTriangleList(
     b: var KoiWgpuBackend,
@@ -280,7 +330,7 @@ proc appendTriangleList(
     src = cast[ptr UncheckedArray[NvgVertex]](verts)
 
   for i in triangleListIndices(count):
-    b.appendVertex(src[i], color, mode, 0'f32)
+    b.appendVertex(inputVertex(src[i]), color, mode, 0'f32)
 
   let added = b.vertices.len.uint32 - first
   if added > 0:
@@ -311,7 +361,7 @@ proc appendFan(
     src = cast[ptr UncheckedArray[NvgVertex]](verts)
 
   for i in fanIndices(count):
-    b.appendVertex(src[i], color, mode, aaMult)
+    b.appendVertex(patternVertex(src[i], paint), color, mode, aaMult)
 
   let added = b.vertices.len.uint32 - first
   if added > 0:
@@ -342,7 +392,7 @@ proc appendStrip(
     src = cast[ptr UncheckedArray[NvgVertex]](verts)
 
   for i in stripIndices(count):
-    b.appendVertex(src[i], color, mode, aaMult)
+    b.appendVertex(patternVertex(src[i], paint), color, mode, aaMult)
 
   let added = b.vertices.len.uint32 - first
   if added > 0:
@@ -394,6 +444,19 @@ proc createTexture(
   result.alphaOnly = alphaOnly
 
   if not data.isNil:
+    let
+      rowBytes = bytesPerPixel * width.uint32
+      paddedRowBytes =
+        ((rowBytes + WebGpuTextureRowAlignment - 1) div WebGpuTextureRowAlignment) *
+        WebGpuTextureRowAlignment
+      copyBytes = (paddedRowBytes * height.uint32).int
+    var upload = newSeq[uint8](copyBytes)
+    for row in 0..<height:
+      copyMem(
+        upload[row * paddedRowBytes.int].addr,
+        cast[pointer](cast[uint](data) + (row.uint * rowBytes.uint)),
+        rowBytes.int,
+      )
     var dst = TexelCopyTextureInfo(
       texture: result.texture,
       mipLevel: 0,
@@ -401,12 +464,12 @@ proc createTexture(
       aspect: TextureAspect.All,
     )
     var layout = TexelCopyBufferLayout(
-      offset: 0, bytesPerRow: bytesPerPixel * width.uint32, rowsPerImage: height.uint32
+      offset: 0, bytesPerRow: paddedRowBytes, rowsPerImage: height.uint32
     )
     b.queue.write(
       dst.addr,
-      cast[pointer](data),
-      (bytesPerPixel * width.uint32 * height.uint32).csize_t,
+      upload[0].addr,
+      copyBytes.csize_t,
       layout.addr,
       size.addr,
     )
@@ -481,7 +544,21 @@ proc renderUpdateTexture(
 
   let tex = b.textures[id]
   let bytesPerPixel = if tex.alphaOnly: 1'u32 else: 4'u32
-  let dataOffset = ((y.int * tex.width + x.int) * bytesPerPixel.int)
+  let
+    rowBytes = bytesPerPixel * w.uint32
+    sourceStride = bytesPerPixel * tex.width.uint32
+    paddedRowBytes =
+      ((rowBytes + WebGpuTextureRowAlignment - 1) div WebGpuTextureRowAlignment) *
+      WebGpuTextureRowAlignment
+    copyBytes = (paddedRowBytes * h.uint32).int
+    dataOffset = ((y.int * tex.width + x.int) * bytesPerPixel.int)
+  var upload = newSeq[uint8](copyBytes)
+  for row in 0..<h.int:
+    copyMem(
+      upload[row * paddedRowBytes.int].addr,
+      cast[pointer](cast[uint](data) + dataOffset.uint + (row.uint * sourceStride.uint)),
+      rowBytes.int,
+    )
   var dst = TexelCopyTextureInfo(
     texture: tex.texture,
     mipLevel: 0,
@@ -489,18 +566,13 @@ proc renderUpdateTexture(
     aspect: TextureAspect.All,
   )
   var layout = TexelCopyBufferLayout(
-    offset: 0, bytesPerRow: bytesPerPixel * tex.width.uint32, rowsPerImage: h.uint32
+    offset: 0, bytesPerRow: paddedRowBytes, rowsPerImage: h.uint32
   )
   var size = Extent3D(width: w.uint32, height: h.uint32, depthOrArrayLayers: 1)
-  let dataSize =
-    if h <= 1:
-      bytesPerPixel * w.uint32
-    else:
-      bytesPerPixel * tex.width.uint32 * (h.uint32 - 1) + bytesPerPixel * w.uint32
   b.queue.write(
     dst.addr,
-    cast[pointer](cast[uint](data) + dataOffset.uint),
-    dataSize.csize_t,
+    upload[0].addr,
+    copyBytes.csize_t,
     layout.addr,
     size.addr,
   )
@@ -524,6 +596,30 @@ proc renderViewport(
   b.width = width.float32
   b.height = height.float32
   b.devicePixelRatio = devicePixelRatio.float32
+
+func nonSrgbEquivalent(format: TextureFormat): TextureFormat =
+  case format
+  of TextureFormat.RGBA8UnormSrgb:
+    TextureFormat.RGBA8Unorm
+  of TextureFormat.BGRA8UnormSrgb:
+    TextureFormat.BGRA8Unorm
+  else:
+    format
+
+func chooseSurfaceFormat(formats: ptr UncheckedArray[TextureFormat], count: int): TextureFormat =
+  result = formats[0]
+  let preferred = [TextureFormat.BGRA8Unorm, TextureFormat.RGBA8Unorm]
+
+  for wanted in preferred:
+    for i in 0 ..< count:
+      if formats[i] == wanted:
+        return wanted
+
+  let linearDefault = nonSrgbEquivalent(result)
+  if linearDefault != result:
+    for i in 0 ..< count:
+      if formats[i] == linearDefault:
+        return linearDefault
 
 proc renderCancel(userPtr: pointer) {.cdecl.} =
   let b = backend(userPtr)
@@ -706,17 +802,19 @@ const shaderCode =
 struct VertexIn {
   @location(0) pos: vec2<f32>,
   @location(1) uv: vec2<f32>,
-  @location(2) color: vec4<f32>,
-  @location(3) mode: f32,
-  @location(4) aaMult: f32,
+  @location(2) maskUv: vec2<f32>,
+  @location(3) color: vec4<f32>,
+  @location(4) mode: f32,
+  @location(5) aaMult: f32,
 };
 
 struct VertexOut {
   @builtin(position) pos: vec4<f32>,
   @location(0) uv: vec2<f32>,
-  @location(1) color: vec4<f32>,
-  @location(2) mode: f32,
-  @location(3) aaMult: f32,
+  @location(1) maskUv: vec2<f32>,
+  @location(2) color: vec4<f32>,
+  @location(3) mode: f32,
+  @location(4) aaMult: f32,
 };
 
 @group(0) @binding(0) var image: texture_2d<f32>;
@@ -727,6 +825,7 @@ fn vs_main(input: VertexIn) -> VertexOut {
   var out: VertexOut;
   out.pos = vec4<f32>(input.pos, 0.0, 1.0);
   out.uv = input.uv;
+  out.maskUv = input.maskUv;
   out.color = input.color;
   out.mode = input.mode;
   out.aaMult = input.aaMult;
@@ -745,7 +844,7 @@ fn edge_alpha(uv: vec2<f32>, aaMult: f32) -> f32 {
 
 @fragment
 fn fs_main(input: VertexOut) -> @location(0) vec4<f32> {
-  let edgeAlpha = edge_alpha(input.uv, input.aaMult);
+  let edgeAlpha = edge_alpha(input.maskUv, input.aaMult);
   if input.mode < 0.5 {
     let alpha = input.color.a * edgeAlpha;
     return vec4<f32>(input.color.rgb * alpha, alpha);
@@ -780,9 +879,10 @@ proc createRenderPipeline(b: KoiWgpuBackend, blendKey: WebGpuBlend): RenderPipel
   var attributes = [
     VertexAttribute(format: VertexFormat.Float32x2, offset: 0, shaderLocation: 0),
     VertexAttribute(format: VertexFormat.Float32x2, offset: 8, shaderLocation: 1),
-    VertexAttribute(format: VertexFormat.Float32x4, offset: 16, shaderLocation: 2),
-    VertexAttribute(format: VertexFormat.Float32, offset: 32, shaderLocation: 3),
-    VertexAttribute(format: VertexFormat.Float32, offset: 36, shaderLocation: 4),
+    VertexAttribute(format: VertexFormat.Float32x2, offset: 16, shaderLocation: 2),
+    VertexAttribute(format: VertexFormat.Float32x4, offset: 24, shaderLocation: 3),
+    VertexAttribute(format: VertexFormat.Float32, offset: 40, shaderLocation: 4),
+    VertexAttribute(format: VertexFormat.Float32, offset: 44, shaderLocation: 5),
   ]
   var vertexLayout = VertexBufferLayout(
     arrayStride: sizeof(GpuVertex).uint64,
@@ -902,7 +1002,8 @@ proc configureSurface(b: var KoiWgpuBackend, width, height: uint32) =
   doAssert b.surface.get(b.adapter, caps.addr) == Status.Success
   doAssert caps.formatCount > 0
   doAssert caps.alphaModeCount > 0
-  b.surfaceFormat = cast[ptr UncheckedArray[TextureFormat]](caps.formats)[0]
+  let formats = cast[ptr UncheckedArray[TextureFormat]](caps.formats)
+  b.surfaceFormat = chooseSurfaceFormat(formats, caps.formatCount.int)
   b.surfaceAlpha = cast[ptr UncheckedArray[CompositeAlphaMode]](caps.alphaModes)[0]
   b.config = SurfaceConfiguration(
     nextInChain: nil,
