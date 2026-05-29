@@ -1024,6 +1024,56 @@ suite "unified layout solver":
     check int32(layoutInspectorHoveredNode()) >= 0
     check g_drawLayers.layers[ord(layerGlobalOverlay)].len == 1
 
+  test "attached slots follow frame-local targets and expose z-index to draws":
+    resetLayout()
+    g_drawLayers.init()
+
+    beginFrameLayout()
+    let anchor = layoutSlot(201, rect(20, 20, 30, 10))
+    let attached = layoutAttachSlot(
+      202,
+      rect(0, 0, 12, 8),
+      anchor.nodeId,
+      lapBottomLeft,
+      lapTopLeft,
+      offset = size(2, 3),
+      zIndex = 12,
+    )
+    var drawOrder: seq[int]
+    addLayoutDrawLayer(layerDefault, attached.nodeId, vg, bounds):
+      drawOrder.add(g_uiState.layoutArena.layoutZIndex(attached.nodeId))
+      checkRect(bounds, rect(22, 33, 12, 8))
+    finishFrameLayout()
+
+    checkRect(g_uiState.layoutRects[202], rect(22, 33, 12, 8))
+    check g_uiState.layoutArena.nodes[attached.nodeId.int].placement.kind == lpkAttach
+    check g_drawLayers.layers[ord(layerDefault)][0].zIndex == 12
+
+    g_drawLayers.draw(g_nvgContext)
+    check drawOrder == @[12]
+
+  test "attached containers scope child layout to the solved attached rect":
+    resetLayout()
+
+    beginFrameLayout()
+    let anchor = layoutSlot(211, rect(40, 20, 20, 10))
+    let container = beginLayoutAttachContainerSlotAt(
+      212,
+      rect(0, 0, 30, 20),
+      rect(0, 0, 30, 20),
+      anchor.nodeId,
+      lapBottomLeft,
+      lapTopLeft,
+      offset = size(0, 5),
+    )
+    discard layoutSlot(213, rect(3, 4, 10, 6))
+    endLayoutContainerSlot()
+    finishFrameLayout()
+
+    checkRect(g_uiState.layoutRects[212], rect(40, 35, 30, 20))
+    checkRect(g_uiState.layoutRects[213], rect(43, 39, 10, 6))
+    check g_uiState.layoutArena.nodes[container.nodeId.int].placement.kind == lpkAttach
+
   test "draw layers render lower z-index entries first while preserving insertion order":
     g_drawLayers.init()
     var order: seq[int]

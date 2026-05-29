@@ -42,6 +42,9 @@ auto-layout map onto these primitives.
 `fit` and text-wrapped height use bottom-up measurement through the solver's
 text measurement callback.
 
+Nodes can also declare `aspectRatio`; when one axis is fixed or already solved
+and the other is flexible, the solver derives the flexible axis from the ratio.
+
 ### Vertical auto-layout (shipped)
 
 The default convenience path. Widgets flow top to bottom in a grid driven by
@@ -86,6 +89,24 @@ hit-testing share the same origin.
 | `layoutSpaceRatioRect(x, y, w, h)` | A sub-rectangle expressed as `0..1` fractions of the space. |
 | `layoutSpaceToScreen` / `layoutSpaceToLocal` | Point conversions between space and screen. |
 | `layoutSpaceRectToScreen` / `layoutSpaceRectToLocal` | Rectangle conversions between space and screen. |
+
+### Floating and attached layout (shipped)
+
+Floating content can attach one of its nine anchor points to a parent, root, or
+target node anchor point. Attached nodes do not consume row/content size.
+
+| Tool | What it does |
+| --- | --- |
+| `attach(target, targetPoint, selfPoint, ...)` | Builds node-to-node attach placement. |
+| `attachParent(...)` / `attachRoot(...)` | Builds parent/root attach placement. |
+| `layoutAttachSlot(...)` | Registers an attached leaf slot. |
+| `layoutAttachParentSlot(...)` / `layoutAttachRootSlot(...)` | Convenience attached slots for parent/root targets. |
+| `beginLayoutAttachContainerSlotAt(...)` / `endLayoutContainerSlot()` | Scoped attached container for popup-like content. |
+| `layoutFollowerSlot(...)` | Compatibility wrapper for existing scrollbar, match-target, inset, and dropdown followers. |
+
+Attached layout stores `zIndex`; layout-backed draw calls inherit it and are
+sorted within their draw layer while preserving insertion order for equal
+z-index values.
 
 ### Grouping and queries (shipped)
 

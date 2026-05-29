@@ -449,6 +449,83 @@ proc beginLayoutFollowerContainerSlotAt*(
     previousBounds: previousLayoutRect(id, fallback),
   )
 
+proc beginLayoutAttachContainerSlotAt*(
+    id: ItemId,
+    fallback, frameBounds: Rect,
+    placement: LayoutPlacement,
+    scrollOffset: Size = size(0, 0),
+): LayoutSlot =
+  alias(ui, g_uiState)
+  alias(a, ui.autoLayoutState)
+
+  doAssert placement.kind == lpkAttach
+
+  var node = layoutNode(
+    kind = lnkContainer,
+    itemId = id,
+    width = fixed(fallback.w),
+    height = fixed(fallback.h),
+    scrollOffset = scrollOffset,
+    placement = placement,
+  )
+  node.intrinsicMin = size(fallback.w, fallback.h)
+  node.intrinsicPref = size(fallback.w, fallback.h)
+  node.rect = fallback
+
+  let nodeId =
+    if ui.frameLayoutActive():
+      let child = ui.layoutArena.addLayoutNode(node, ui.layoutRoot)
+      if not child.isNull:
+        ui.layoutArena.nodeStack.add(child)
+      child
+    else:
+      ui.layoutArena.beginLayoutNode(node)
+
+  ui.layoutStack.add(
+    LayoutPresetFrame(
+      mode: lpmViewport,
+      x: frameBounds.x,
+      y: frameBounds.y,
+      w: frameBounds.w,
+      h: frameBounds.h,
+      nodeId: nodeId,
+      savedActiveSlotParent: a.activeSlotParent,
+      savedActiveSlotUsed: a.activeSlotUsed,
+    )
+  )
+  a.activeSlotParent = NullLayoutNodeId
+  a.activeSlotUsed = false
+
+  result = LayoutSlot(
+    itemId: id,
+    nodeId: nodeId,
+    bounds: fallback,
+    previousBounds: previousLayoutRect(id, fallback),
+  )
+
+proc beginLayoutAttachContainerSlotAt*(
+    id: ItemId,
+    fallback, frameBounds: Rect,
+    target: LayoutNodeId,
+    targetPoint, selfPoint: LayoutAttachPoint,
+    offset: Size = size(0, 0),
+    windowPad: float = 0.0,
+    clipToRoot: bool = false,
+    zIndex: int = 0,
+    capturePointer: bool = false,
+    scrollOffset: Size = size(0, 0),
+): LayoutSlot =
+  beginLayoutAttachContainerSlotAt(
+    id,
+    fallback,
+    frameBounds,
+    attach(
+      target, targetPoint, selfPoint, offset, windowPad, clipToRoot, zIndex,
+      capturePointer,
+    ),
+    scrollOffset,
+  )
+
 proc endLayoutContainerSlot*() =
   alias(ui, g_uiState)
   if ui.layoutStack.len == 0 or ui.layoutStack[^1].mode != lpmViewport:
@@ -523,6 +600,92 @@ proc layoutFollowerSlot*(
     nodeId: nodeId,
     bounds: fallback,
     previousBounds: previousLayoutRect(id, fallback),
+  )
+
+proc layoutAttachSlot*(
+    id: ItemId, fallback: Rect, placement: LayoutPlacement
+): LayoutSlot =
+  alias(ui, g_uiState)
+
+  doAssert placement.kind == lpkAttach
+
+  var node = layoutNode(
+    kind = lnkWidget,
+    itemId = id,
+    width = fixed(fallback.w),
+    height = fixed(fallback.h),
+    placement = placement,
+  )
+  node.intrinsicMin = size(fallback.w, fallback.h)
+  node.intrinsicPref = size(fallback.w, fallback.h)
+  node.rect = fallback
+
+  let nodeId =
+    if ui.frameLayoutActive():
+      ui.layoutArena.addLayoutNode(node, ui.layoutRoot)
+    else:
+      ui.layoutArena.addLayoutNode(node)
+  result = LayoutSlot(
+    itemId: id,
+    nodeId: nodeId,
+    bounds: fallback,
+    previousBounds: previousLayoutRect(id, fallback),
+  )
+
+proc layoutAttachSlot*(
+    id: ItemId,
+    fallback: Rect,
+    target: LayoutNodeId,
+    targetPoint, selfPoint: LayoutAttachPoint,
+    offset: Size = size(0, 0),
+    windowPad: float = 0.0,
+    clipToRoot: bool = false,
+    zIndex: int = 0,
+    capturePointer: bool = false,
+): LayoutSlot =
+  layoutAttachSlot(
+    id,
+    fallback,
+    attach(
+      target, targetPoint, selfPoint, offset, windowPad, clipToRoot, zIndex,
+      capturePointer,
+    ),
+  )
+
+proc layoutAttachParentSlot*(
+    id: ItemId,
+    fallback: Rect,
+    targetPoint, selfPoint: LayoutAttachPoint,
+    offset: Size = size(0, 0),
+    windowPad: float = 0.0,
+    clipToRoot: bool = false,
+    zIndex: int = 0,
+    capturePointer: bool = false,
+): LayoutSlot =
+  layoutAttachSlot(
+    id,
+    fallback,
+    attachParent(
+      targetPoint, selfPoint, offset, windowPad, clipToRoot, zIndex, capturePointer
+    ),
+  )
+
+proc layoutAttachRootSlot*(
+    id: ItemId,
+    fallback: Rect,
+    targetPoint, selfPoint: LayoutAttachPoint,
+    offset: Size = size(0, 0),
+    windowPad: float = 0.0,
+    clipToRoot: bool = false,
+    zIndex: int = 0,
+    capturePointer: bool = false,
+): LayoutSlot =
+  layoutAttachSlot(
+    id,
+    fallback,
+    attachRoot(
+      targetPoint, selfPoint, offset, windowPad, clipToRoot, zIndex, capturePointer
+    ),
   )
 
 proc textLayoutSlotWithSizing(
