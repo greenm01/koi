@@ -12,11 +12,8 @@ proc onResize(w, h: uint32, userdata: pointer) {.cdecl.} =
 
 when isMainModule:
   var closed = false
-  var callbacks = KoiWaylandCallbacks(
-    onClose: onClose,
-    onResize: onResize,
-    userdata: addr closed,
-  )
+  var callbacks =
+    KoiWaylandCallbacks(onClose: onClose, onResize: onResize, userdata: addr closed)
 
   let display = koiWaylandInit()
   if display == nil:

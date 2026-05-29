@@ -57,14 +57,8 @@ proc beginPopupWithSlot*(
       ps.state = psOpen
   elif ui.mbLeftDown and
       popupShouldAutoClose(
-        ui.mx,
-        ui.my,
-        hitBounds.x,
-        hitBounds.y,
-        hitBounds.w,
-        hitBounds.h,
-        style.autoCloseBorder,
-        style.autoClose,
+        ui.mx, ui.my, hitBounds.x, hitBounds.y, hitBounds.w, hitBounds.h,
+        style.autoCloseBorder, style.autoClose,
       ):
     closePopup()
     return false

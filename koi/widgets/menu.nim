@@ -242,9 +242,7 @@ proc menuSeparator*(style: MenuStyle = activeMenuStyle) =
     vg.strokeColor(style.item.strokeColorHover)
     vg.strokeWidth(1)
     vg.beginPath()
-    vg.horizLine(
-      bounds.x + 6, bounds.y + bounds.h * 0.5, max(0.0, bounds.w - 12)
-    )
+    vg.horizLine(bounds.x + 6, bounds.y + bounds.h * 0.5, max(0.0, bounds.w - 12))
     vg.stroke()
 
   menuItemY += h

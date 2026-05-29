@@ -155,15 +155,14 @@ proc dropDown*[T](
     let (itemListX, itemListY, itemListW, itemListH) =
       snapToGrid(itemListX, itemListY, itemListW, itemListH, s.itemListStrokeWidth)
     let
-      itemListSlot =
-        layoutFollowerSlot(
-          popupListId,
-          rect(itemListX, itemListY, itemListW, itemListH),
-          buttonSlot.nodeId,
-          lfkDropdownPopup,
-          followAlign = s.itemListAlign,
-          windowPad = WindowEdgePad,
-        )
+      itemListSlot = layoutFollowerSlot(
+        popupListId,
+        rect(itemListX, itemListY, itemListW, itemListH),
+        buttonSlot.nodeId,
+        lfkDropdownPopup,
+        followAlign = s.itemListAlign,
+        windowPad = WindowEdgePad,
+      )
       itemListBounds = itemListSlot.previousBounds
     itemListNodeId = itemListSlot.nodeId
 
@@ -171,10 +170,9 @@ proc dropDown*[T](
     let
       insideButton =
         mouseInside(buttonBounds.x, buttonBounds.y, buttonBounds.w, buttonBounds.h)
-      insideItemList =
-        mouseInside(
-          itemListBounds.x, itemListBounds.y, itemListBounds.w, itemListBounds.h
-        )
+      insideItemList = mouseInside(
+        itemListBounds.x, itemListBounds.y, itemListBounds.w, itemListBounds.h
+      )
 
     # Handle scrollwheel
     if scrollBarVisible:
@@ -200,19 +198,13 @@ proc dropDown*[T](
       closeDropDown()
 
     if insideItemList:
-      if not scrollBarVisible or
-          (
-            scrollBarVisible and
-            ui.mx < itemListBounds.x + itemListBounds.w - s.scrollBarWidth
-          ):
+      if not scrollBarVisible or (
+        scrollBarVisible and
+        ui.mx < itemListBounds.x + itemListBounds.w - s.scrollBarWidth
+      ):
         hoverItem = dropDownHoverItem(
-          ui.my,
-          itemListBounds.y,
-          s.itemListPadVert,
-          itemHeight,
-          ds.displayStartItem.Natural,
-          maxDisplayItems.Natural,
-          numItems.Natural,
+          ui.my, itemListBounds.y, s.itemListPadVert, itemHeight,
+          ds.displayStartItem.Natural, maxDisplayItems.Natural, numItems.Natural,
         )
         if hoverItem >= 0:
           ds.keyboardItem = hoverItem
@@ -249,8 +241,7 @@ proc dropDown*[T](
   # Drop-down button
   addLayoutDrawLayer(ui.currentLayer, buttonSlot.nodeId, vg, bounds):
     let sw = s.buttonStrokeWidth
-    let (x, y, w, h) =
-      snapToGrid(bounds.x, bounds.y, bounds.w, bounds.h, sw)
+    let (x, y, w, h) = snapToGrid(bounds.x, bounds.y, bounds.w, bounds.h, sw)
 
     let (fillColor, strokeColor) =
       case state
@@ -364,10 +355,7 @@ proc dropDown*[T](
     let scrollSlot = layoutFollowerSlot(
       scrollBarId,
       rect(
-        itemListX + itemListW - s.scrollBarWidth,
-        itemListY,
-        s.scrollBarWidth,
-        itemListH,
+        itemListX + itemListW - s.scrollBarWidth, itemListY, s.scrollBarWidth, itemListH
       ),
       itemListNodeId,
       lfkVerticalScrollBar,

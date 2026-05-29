@@ -18,9 +18,7 @@ proc groupBoxContentRect(x, y, w, h: float, style: GroupBoxStyle): Rect =
     max(0.0, h - style.titleHeight - style.pad * 2),
   )
 
-proc drawGroupBoxFrame(
-    slot: LayoutSlot, title: string, style: GroupBoxStyle
-) =
+proc drawGroupBoxFrame(slot: LayoutSlot, title: string, style: GroupBoxStyle) =
   alias(ui, g_uiState)
 
   addLayoutDrawLayer(ui.currentLayer, slot.nodeId, vg, bounds):
@@ -105,11 +103,7 @@ proc beginTitledScrollView*(
     contentFallback = groupBoxContentRect(sx, sy, w, h, groupStyle)
   drawGroupBoxFrame(frameSlot, title, groupStyle)
   beginScrollViewWithFollowerSlot(
-    id,
-    contentFallback,
-    frameSlot.nodeId,
-    groupBoxContentInset(groupStyle),
-    scrollStyle,
+    id, contentFallback, frameSlot.nodeId, groupBoxContentInset(groupStyle), scrollStyle
   )
 
 proc endTitledScrollView*(contentW, contentH: float) =

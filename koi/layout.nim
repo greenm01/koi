@@ -1080,16 +1080,12 @@ proc beginSpaceLayout*(height: float) =
   alias(ui, g_uiState)
   alias(a, ui.autoLayoutState)
 
-  let rowSlotOwned =
-    ui.layoutStack.len > 0 and ui.layoutStack[^1].mode == lpmRow
+  let rowSlotOwned = ui.layoutStack.len > 0 and ui.layoutStack[^1].mode == lpmRow
   if rowSlotOwned:
     autoLayoutPre()
 
   let width =
-    if rowSlotOwned or ui.layoutStack.len > 0:
-      a.nextItemWidth
-    else:
-      a.rowWidth
+    if rowSlotOwned or ui.layoutStack.len > 0: a.nextItemWidth else: a.rowWidth
   let
     (x, y) = addDrawOffset(a.x, a.y)
     layoutWidth =

@@ -95,18 +95,21 @@ proc textFieldWithSlot*(
 
   alias(ui, g_uiState)
   alias(tf, ui.textFieldState)
-  let s = if style == nil: borrowDefaultTextFieldStyle() else: style
+  let s =
+    if style == nil:
+      borrowDefaultTextFieldStyle()
+    else:
+      style
   alias(tab, ui.tabActivationState)
 
   let hitBounds = slot.previousBounds
 
-  let (textBoxX, _, textBoxW, _) =
-    snapToGrid(
-      x = hitBounds.x + s.textPadHoriz,
-      y = hitBounds.y,
-      w = hitBounds.w - s.textPadHoriz * 2,
-      h = hitBounds.h,
-    )
+  let (textBoxX, _, textBoxW, _) = snapToGrid(
+    x = hitBounds.x + s.textPadHoriz,
+    y = hitBounds.y,
+    w = hitBounds.w - s.textPadHoriz * 2,
+    h = hitBounds.h,
+  )
 
   var glyphs: array[MaxTextRuneLen, GlyphPosition]
   var tabActivate = false
@@ -343,20 +346,17 @@ proc textFieldWithSlot*(
   addLayoutDrawLayer(ui.currentLayer, slot.nodeId, vg, bounds):
     vg.save()
     let
-      (x, y, w, h) =
-        snapToGrid(bounds.x, bounds.y, bounds.w, bounds.h, s.bgStrokeWidth)
-      (drawTextBoxX, drawTextBoxY, drawTextBoxW, drawTextBoxH) =
-        snapToGrid(
-          x = bounds.x + s.textPadHoriz,
-          y = bounds.y,
-          w = bounds.w - s.textPadHoriz * 2,
-          h = bounds.h,
-        )
-      drawView =
-        TextFieldView(
-          displayStartPos: tf.displayStartPos,
-          displayStartX: drawTextBoxX + (tf.displayStartX - textBoxX),
-        )
+      (x, y, w, h) = snapToGrid(bounds.x, bounds.y, bounds.w, bounds.h, s.bgStrokeWidth)
+      (drawTextBoxX, drawTextBoxY, drawTextBoxW, drawTextBoxH) = snapToGrid(
+        x = bounds.x + s.textPadHoriz,
+        y = bounds.y,
+        w = bounds.w - s.textPadHoriz * 2,
+        h = bounds.h,
+      )
+      drawView = TextFieldView(
+        displayStartPos: tf.displayStartPos,
+        displayStartX: drawTextBoxX + (tf.displayStartX - textBoxX),
+      )
     let state =
       if disabled:
         wsDisabled
@@ -414,10 +414,7 @@ proc textFieldWithSlot*(
             glyphs[drawView.displayStartPos].x
         vg.beginPath()
         vg.rect(
-          x1,
-          drawTextBoxY + s.textPadVert,
-          x2 - x1,
-          drawTextBoxH - s.textPadVert * 2,
+          x1, drawTextBoxY + s.textPadVert, x2 - x1, drawTextBoxH - s.textPadVert * 2
         )
         vg.fillColor(s.selectionColor)
         vg.fill()
@@ -431,9 +428,8 @@ proc textFieldWithSlot*(
     vg.fillColor(textColor)
     discard vg.text(textX, textY, text.runeSubStr(tf.displayStartPos))
     if editing:
-      let cursorX = textFieldCursorX(
-        glyphs, text.runeLen.Natural, tf.cursorPos, drawView
-      )
+      let cursorX =
+        textFieldCursorX(glyphs, text.runeLen.Natural, tf.cursorPos, drawView)
       vg.drawCursor(
         cursorX,
         drawTextBoxY + s.textPadVert,

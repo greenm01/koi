@@ -140,9 +140,7 @@ when isMainModule:
   let (width, height) = win.surfaceSize()
 
   backend.initKoiWgpuBackendWithSurface(
-    win.wgpuSurfaceHandle(),
-    width.uint32,
-    height.uint32,
+    win.wgpuSurfaceHandle(), width.uint32, height.uint32
   )
   vg = backend.createNanoVgContext({nifAntialias})
   init(vg, glfw.getProcAddress)

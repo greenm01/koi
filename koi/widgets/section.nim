@@ -37,14 +37,15 @@ proc sectionHeader(
       ss.openSubHeaders = false
   else:
     if isHit(
-      slot.previousBounds.x, slot.previousBounds.y,
-      max(0.0, slot.previousBounds.w - s.hitRightPad), slot.previousBounds.h,
+      slot.previousBounds.x,
+      slot.previousBounds.y,
+      max(0.0, slot.previousBounds.w - s.hitRightPad),
+      slot.previousBounds.h,
     ):
       captureSimpleWidget(id, disabled = false)
 
       let behavior = simpleWidgetBehavior(id, disabled = false)
       if behavior.clicked:
-
         if not subHeader and ctrlDown():
           expanded_out = true
           ss.openSubHeaders = true

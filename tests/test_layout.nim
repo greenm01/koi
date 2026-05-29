@@ -714,11 +714,7 @@ suite "unified layout solver":
 
     let root = arena.beginLayoutNode(layoutNode(width = fixed(100), height = fixed(60)))
     let scroller = arena.beginLayoutNode(
-      layoutNode(
-        width = fixed(50),
-        height = fixed(20),
-        scrollOffset = size(0, 15),
-      )
+      layoutNode(width = fixed(50), height = fixed(20), scrollOffset = size(0, 15))
     )
     let child = arena.addLayoutNode(
       layoutNode(width = fixed(10), height = fixed(10), placement = manual(0, 40))
@@ -749,31 +745,22 @@ suite "unified layout solver":
     )
     let matchFollower = arena.addLayoutNode(
       layoutNode(
-        width = fixed(1),
-        height = fixed(1),
-        placement = follow(target, lfkMatchTarget),
+        width = fixed(1), height = fixed(1), placement = follow(target, lfkMatchTarget)
       )
     )
     let insetFollower = arena.addLayoutNode(
       layoutNode(
         width = fixed(5),
         height = fixed(10),
-        placement = follow(
-          target,
-          lfkVerticalScrollBar,
-          followInset = padding(0, 0, 3, 4),
-        ),
+        placement =
+          follow(target, lfkVerticalScrollBar, followInset = padding(0, 0, 3, 4)),
       )
     )
     let fixedInsetFollower = arena.addLayoutNode(
       layoutNode(
         width = fixed(8),
         height = fixed(9),
-        placement = follow(
-          target,
-          lfkInsetFixed,
-          followInset = padding(6, 0, 7, 0),
-        ),
+        placement = follow(target, lfkInsetFixed, followInset = padding(6, 0, 7, 0)),
       )
     )
     discard arena.endLayoutNode()

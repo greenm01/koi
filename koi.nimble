@@ -15,12 +15,15 @@ import std/os
 import std/strutils
 
 const
-  CommonFlags = "--mm:orc --deepcopy:on -d:nimPreviewFloatRoundtrip " &
+  CommonFlags =
+    "--mm:orc --deepcopy:on -d:nimPreviewFloatRoundtrip " &
     "-d:nvgGL3 -d:glfwStaticLib -d:glStaticProcs --path:. --hint:Name:off"
-  WgpuBaseFlags = "--mm:orc --deepcopy:on -d:nimPreviewFloatRoundtrip " &
+  WgpuBaseFlags =
+    "--mm:orc --deepcopy:on -d:nimPreviewFloatRoundtrip " &
     "-d:wgpu -d:wgvkWGSL -d:NoGLFW -d:koiWebGpu -d:wayland " &
     "--path:. --passC:-Wno-incompatible-pointer-types --hint:Name:off"
-  WaylandFlags = "--mm:orc --deepcopy:on -d:waylandBackend --path:. --hint:Name:off " &
+  WaylandFlags =
+    "--mm:orc --deepcopy:on -d:waylandBackend --path:. --hint:Name:off " &
     "--passL:\"-Lkoi/wayland/zig-out/lib -lkoi_wayland\" " &
     "--passL:\"-lwayland-client -lxkbcommon\" --passC:-Ikoi/wayland"
 
@@ -53,13 +56,19 @@ proc nimRun(source: string, flags = "", outPath = "", nimcache = "") =
   sh cmd
 
 task test, "build test example":
-  nimCompile("examples/test", CommonFlags & " -d:debug", nimcache = "/tmp/koi_example_test_d")
+  nimCompile(
+    "examples/test", CommonFlags & " -d:debug", nimcache = "/tmp/koi_example_test_d"
+  )
 
 task paneltest, "build panel test example":
-  nimCompile("examples/paneltest", CommonFlags & " -d:debug", nimcache = "/tmp/koi_paneltest_d")
+  nimCompile(
+    "examples/paneltest", CommonFlags & " -d:debug", nimcache = "/tmp/koi_paneltest_d"
+  )
 
 task minimal, "build minimal wgpu example":
-  nimCompile("examples/minimal", wgpuFlags() & " -d:debug", nimcache = "/tmp/koi_minimal_d")
+  nimCompile(
+    "examples/minimal", wgpuFlags() & " -d:debug", nimcache = "/tmp/koi_minimal_d"
+  )
 
 task waylandMinimal, "build native Wayland minimal example":
   buildWaylandBackend()
@@ -112,7 +121,8 @@ task testDrawState, "run headless draw-state tests":
 # Per-widget headless behaviour tests (share tests/widget_test_common.nim).
 
 const WidgetBehaviorTests = [
-  "popup", "dropdown", "menu", "slider", "scrollbar", "colorpicker", "textinput"
+  "popup", "dropdown", "menu", "slider", "scrollbar", "colorpicker", "textinput",
+  "adversarial", "fuzz",
 ]
 
 proc runHeadlessTest(name: string) =
@@ -121,6 +131,18 @@ proc runHeadlessTest(name: string) =
     CommonFlags & " -d:debug",
     outPath = "/tmp/koi_test_" & name,
     nimcache = "/tmp/koi_test_" & name & "_d",
+  )
+
+# Windowed integration tests run against a real (hidden) WebGPU window/context,
+# so they use the wgpu flags and need a GPU/display.
+const WindowTests = ["textinput", "textarea", "slider"]
+
+proc runWindowTest(name: string) =
+  nimRun(
+    "tests/test_window_" & name,
+    wgpuFlags() & " -d:debug",
+    outPath = "/tmp/koi_win_" & name,
+    nimcache = "/tmp/koi_win_" & name & "_d",
   )
 
 task testPopup, "run headless popup tests":
@@ -144,10 +166,27 @@ task testColorPicker, "run headless color picker tests":
 task testTextInput, "run headless text field/area tests":
   runHeadlessTest("textinput")
 
+task testAdversarial, "run adversarial cross-widget tests":
+  runHeadlessTest("adversarial")
+
+task testFuzz, "run invariant-based randomized tests":
+  runHeadlessTest("fuzz")
+
+task testWindowTextInput, "run windowed text field tests (wgpu)":
+  runWindowTest("textinput")
+
+task testWindowTextArea, "run windowed text area tests (wgpu)":
+  runWindowTest("textarea")
+
+task testWindowSlider, "run windowed slider cursor-capture tests (wgpu)":
+  runWindowTest("slider")
+
+task testWindow, "run every windowed (wgpu) integration test":
+  for name in WindowTests:
+    runWindowTest(name)
+
 task tests, "run every headless test suite":
-  for name in [
-    "algorithms", "layout", "draw_state", "widget_behavior",
-  ]:
+  for name in ["algorithms", "layout", "draw_state", "widget_behavior"]:
     nimRun(
       "tests/test_" & name,
       CommonFlags & " -d:debug",
@@ -157,32 +196,44 @@ task tests, "run every headless test suite":
   for name in WidgetBehaviorTests:
     runHeadlessTest(name)
 
+task testAll, "run every headless suite and every windowed (wgpu) test":
+  for name in ["algorithms", "layout", "draw_state", "widget_behavior"]:
+    nimRun(
+      "tests/test_" & name,
+      CommonFlags & " -d:debug",
+      outPath = "/tmp/koi_test_" & name,
+      nimcache = "/tmp/koi_test_" & name & "_d",
+    )
+  for name in WidgetBehaviorTests:
+    runHeadlessTest(name)
+  for name in WindowTests:
+    runWindowTest(name)
+
 task testRelease, "build release test example":
-  nimCompile("examples/test", CommonFlags & " -d:release", nimcache = "/tmp/koi_example_test_r")
+  nimCompile(
+    "examples/test", CommonFlags & " -d:release", nimcache = "/tmp/koi_example_test_r"
+  )
 
 task paneltestRelease, "build release panel test example":
-  nimCompile("examples/paneltest", CommonFlags & " -d:release", nimcache = "/tmp/koi_paneltest_r")
+  nimCompile(
+    "examples/paneltest", CommonFlags & " -d:release", nimcache = "/tmp/koi_paneltest_r"
+  )
 
 task tidy, "format sources and remove generated example binaries":
   for path in walkDirRec("."):
     if path.startsWith("./.git") or path.startsWith("./koi/wayland/.zig-cache"):
       continue
     if path.endsWith(".nim") or path.endsWith(".nims") or path.endsWith(".nimble"):
-      sh "nimpretty " & quoteShell(path)
+      sh "nph " & quoteShell(path)
 
   sh "zig fmt " & quoteShell("koi/wayland/build.zig") & " " &
     quoteShell("koi/wayland/koi_wayland.zig")
 
   var cleanup = "rm -f"
   for path in [
-    "examples/test",
-    "examples/test.exe",
-    "examples/paneltest",
-    "examples/paneltest.exe",
-    "examples/minimal",
-    "examples/minimal.exe",
-    "examples/wayland_minimal",
-    "examples/wayland_minimal.exe",
+    "examples/test", "examples/test.exe", "examples/paneltest",
+    "examples/paneltest.exe", "examples/minimal", "examples/minimal.exe",
+    "examples/wayland_minimal", "examples/wayland_minimal.exe",
   ]:
     cleanup.add " " & quoteShell(path)
   sh cleanup

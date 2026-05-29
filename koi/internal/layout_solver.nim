@@ -357,9 +357,8 @@ func resolvedChildSizes(
             shrinkFloors[pos] = spec.min
           max(spec.min, child.intrinsicMin.axis(horizontal))
     result[pos] = value
-    if child.contributesToLayout and (
-      horizontal != parent.mainIsHorizontal or child.placement.kind == lpkFlow
-    ):
+    if child.contributesToLayout and
+        (horizontal != parent.mainIsHorizontal or child.placement.kind == lpkFlow):
       used += value
     inc(pos)
 

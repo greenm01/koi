@@ -46,10 +46,9 @@ proc horizScrollBarWithSlot*(
 
   # Calculate current thumb position
   let
-    thumbW =
-      scrollBarThumbLength(
-        hitBounds.w, s.thumbPad, s.thumbMinSize, thumbSize, startVal, endVal
-      )
+    thumbW = scrollBarThumbLength(
+      hitBounds.w, s.thumbPad, s.thumbMinSize, thumbSize, startVal, endVal
+    )
     thumbMinX = hitBounds.x + s.thumbPad
     thumbMaxX = hitBounds.x + hitBounds.w - s.thumbPad - thumbW
 
@@ -173,20 +172,17 @@ proc horizScrollBarWithSlot*(
       let state = dragWidgetState(id)
 
       var sw = s.trackStrokeWidth
-      var (x, y, w, h) =
-        snapToGrid(bounds.x, bounds.y, bounds.w, bounds.h, sw)
+      var (x, y, w, h) = snapToGrid(bounds.x, bounds.y, bounds.w, bounds.h, sw)
       let
-        drawThumbW =
-          scrollBarThumbLength(
-            w, s.thumbPad, s.thumbMinSize, thumbSize, startVal, endVal
-          )
+        drawThumbW = scrollBarThumbLength(
+          w, s.thumbPad, s.thumbMinSize, thumbSize, startVal, endVal
+        )
         drawThumbH = h - s.thumbPad * 2
         drawThumbMinX = x + s.thumbPad
         drawThumbMaxX = x + w - s.thumbPad - drawThumbW
-        drawThumbX =
-          scrollBarThumbFromValue(
-            newValue, startVal, endVal, drawThumbMinX, drawThumbMaxX
-          )
+        drawThumbX = scrollBarThumbFromValue(
+          newValue, startVal, endVal, drawThumbMinX, drawThumbMaxX
+        )
 
       let (trackFillColor, trackStrokeColor, thumbFillColor, thumbStrokeColor) =
         case state
@@ -293,10 +289,9 @@ proc vertScrollBarWithSlot*(
 
   # Calculate current thumb position
   let
-    thumbH =
-      scrollBarThumbLength(
-        hitBounds.h, s.thumbPad, s.thumbMinSize, thumbSize, startVal, endVal
-      )
+    thumbH = scrollBarThumbLength(
+      hitBounds.h, s.thumbPad, s.thumbMinSize, thumbSize, startVal, endVal
+    )
     thumbMinY = hitBounds.y + s.thumbPad
     thumbMaxY = hitBounds.y + hitBounds.h - s.thumbPad - thumbH
 
@@ -422,20 +417,17 @@ proc vertScrollBarWithSlot*(
       let state = dragWidgetState(id)
 
       var sw = s.trackStrokeWidth
-      var (x, y, w, h) =
-        snapToGrid(bounds.x, bounds.y, bounds.w, bounds.h, sw)
+      var (x, y, w, h) = snapToGrid(bounds.x, bounds.y, bounds.w, bounds.h, sw)
       let
         drawThumbW = w - s.thumbPad * 2
-        drawThumbH =
-          scrollBarThumbLength(
-            h, s.thumbPad, s.thumbMinSize, thumbSize, startVal, endVal
-          )
+        drawThumbH = scrollBarThumbLength(
+          h, s.thumbPad, s.thumbMinSize, thumbSize, startVal, endVal
+        )
         drawThumbMinY = y + s.thumbPad
         drawThumbMaxY = y + h - s.thumbPad - drawThumbH
-        drawThumbY =
-          scrollBarThumbFromValue(
-            newValue, startVal, endVal, drawThumbMinY, drawThumbMaxY
-          )
+        drawThumbY = scrollBarThumbFromValue(
+          newValue, startVal, endVal, drawThumbMinY, drawThumbMaxY
+        )
 
       let (trackFillColor, trackStrokeColor, thumbFillColor, thumbStrokeColor) =
         case state

@@ -65,18 +65,12 @@ let DefaultCheckBoxDrawProc*: CheckBoxDrawProc = proc(
   elif checked:
     let iconColor =
       case state
-      of wsNormal:
-        s.icon.colorActive
-      of wsHover:
-        s.icon.colorActiveHover
-      of wsDown, wsActiveDown:
-        s.icon.colorDown
-      of wsActive:
-        s.icon.colorActive
-      of wsActiveHover:
-        s.icon.colorActiveHover
-      of wsDisabled:
-        s.icon.colorDisabled
+      of wsNormal: s.icon.colorActive
+      of wsHover: s.icon.colorActiveHover
+      of wsDown, wsActiveDown: s.icon.colorDown
+      of wsActive: s.icon.colorActive
+      of wsActiveHover: s.icon.colorActiveHover
+      of wsDisabled: s.icon.colorDisabled
 
     vg.beginPath()
     vg.moveTo(x + w * 0.25, y + w * 0.54)

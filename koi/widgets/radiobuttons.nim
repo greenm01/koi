@@ -263,8 +263,7 @@ proc radioButtons*[T](
     case layout.kind
     of rblHoriz:
       let bw =
-        (drawGroupW - (s.buttonPadHoriz * (numButtons - 1).float)) /
-        numButtons.float
+        (drawGroupW - (s.buttonPadHoriz * (numButtons - 1).float)) / numButtons.float
       for i, label in labels:
         let
           state = buttonDrawState(i)

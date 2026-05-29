@@ -1,2 +1,4 @@
---path: "."
---hint: "Name:off"
+--path:
+  "."
+--hint:
+  "Name:off"

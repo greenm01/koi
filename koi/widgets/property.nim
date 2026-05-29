@@ -28,10 +28,7 @@ proc propertyState(id: ItemId): PropertyState =
   cast[PropertyState](ui.itemState[id])
 
 proc propertyLayoutSlots(
-    id: ItemId,
-    x, y, w, h: float,
-    labelText: string,
-    style: PropertyStyle,
+    id: ItemId, x, y, w, h: float, labelText: string, style: PropertyStyle
 ): tuple[
   propertySlot: LayoutSlot,
   labelSlot: LayoutSlot,

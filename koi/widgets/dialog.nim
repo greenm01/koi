@@ -11,9 +11,7 @@ import koi/rect
 import koi/defaults
 import koi/utils
 
-proc beginDialogFrame(
-    id: ItemId, x, y, w, h: float, style: DialogStyle
-) =
+proc beginDialogFrame(id: ItemId, x, y, w, h: float, style: DialogStyle) =
   alias(ui, g_uiState)
   alias(ds, ui.dialogState)
 
@@ -23,8 +21,7 @@ proc beginDialogFrame(
 
   let slot = layoutDrawSlot(id, rect(x, y, w, h))
   addLayoutDrawLayer(ui.currentLayer, slot.nodeId, vg, bounds):
-    let (rx, ry, rw, rh) =
-      snapToGrid(bounds.x, bounds.y, bounds.w, bounds.h)
+    let (rx, ry, rw, rh) = snapToGrid(bounds.x, bounds.y, bounds.w, bounds.h)
     drawShadow(vg, rx, ry, rw, rh, style.shadow)
     vg.beginPath()
     vg.fillColor(style.backgroundColor)

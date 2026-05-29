@@ -99,19 +99,14 @@ proc endView*() =
   resetHitClip()
 
 proc prepareScrollViewState(
-    id: ItemId,
-    x, y, w, h: float,
-    style: ScrollViewStyle,
+    id: ItemId, x, y, w, h: float, style: ScrollViewStyle
 ): tuple[scrollX, scrollY: float] =
   alias(ui, g_uiState)
 
-  discard
-    ui.itemState.hasKeyOrPut(
-      id,
-      ScrollViewState(
-        x: x, y: y, w: w, h: h, hitBounds: rect(x, y, w, h), style: style
-      ),
-    )
+  discard ui.itemState.hasKeyOrPut(
+    id,
+    ScrollViewState(x: x, y: y, w: w, h: h, hitBounds: rect(x, y, w, h), style: style),
+  )
 
   var ss = cast[ScrollViewState](ui.itemState[id])
   ss.x = x
@@ -168,8 +163,8 @@ proc beginScrollViewWithFollowerSlot*(
 ) =
   let (scrollX, scrollY) =
     prepareScrollViewState(id, fallback.x, fallback.y, fallback.w, fallback.h, style)
-  let drawBounds = rect(fallback.x - scrollX, fallback.y - scrollY, fallback.w,
-    fallback.h)
+  let drawBounds =
+    rect(fallback.x - scrollX, fallback.y - scrollY, fallback.w, fallback.h)
   let slot = beginLayoutFollowerContainerSlotAt(
     id,
     fallback,
@@ -189,10 +184,7 @@ proc beginScrollView*(
   let (x, y) = addDrawOffset(x, y)
   let (scrollX, scrollY) = prepareScrollViewState(id, x, y, w, h, style)
   let slot = beginLayoutContainerSlotAt(
-    id,
-    rect(x, y, w, h),
-    rect(x - scrollX, y - scrollY, w, h),
-    size(scrollX, scrollY),
+    id, rect(x, y, w, h), rect(x - scrollX, y - scrollY, w, h), size(scrollX, scrollY)
   )
   beginScrollViewWithSlot(id, slot, rect(x - scrollX, y - scrollY, w, h), style)
 
@@ -229,7 +221,11 @@ proc endScrollView*(contentW, contentH: float) =
     visibleWidth = ss.w
     visibleHeight = ss.h
     contentWidth = max(if contentW < 0: previousContent.w else: contentW, ss.w)
-    contentHeight = if autoLayout: max(previousContent.h, a.y) else: height
+    contentHeight =
+      if autoLayout:
+        max(previousContent.h, a.y)
+      else:
+        height
 
   endLayoutContainerSlot()
   let
@@ -285,8 +281,12 @@ proc endScrollView*(contentW, contentH: float) =
     let sbId = hashId(lastIdString() & ":horizScrollBar")
     let sbSlot = layoutFollowerSlot(
       sbId,
-      rect(ss.x, ss.y + ss.h - ss.style.horizScrollBarHeight, visibleWidth,
-        ss.style.horizScrollBarHeight),
+      rect(
+        ss.x,
+        ss.y + ss.h - ss.style.horizScrollBarHeight,
+        visibleWidth,
+        ss.style.horizScrollBarHeight,
+      ),
       viewportNode,
       lfkHorizontalScrollBar,
     )

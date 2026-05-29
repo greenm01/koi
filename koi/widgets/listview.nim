@@ -43,9 +43,7 @@ proc beginListViewWithSlot*(
 
   result = listViewRange(itemCount, rowHeight, slot.bounds.h, scrollY)
   beginScrollViewWithSlot(
-    id,
-    slot,
-    rect(slot.bounds.x, slot.bounds.y - scrollY, slot.bounds.w, slot.bounds.h),
+    id, slot, rect(slot.bounds.x, slot.bounds.y - scrollY, slot.bounds.w, slot.bounds.h)
   )
   let baseOffset = drawOffset()
   pushDrawOffset(DrawOffset(ox: baseOffset.ox, oy: baseOffset.oy + result.startY))

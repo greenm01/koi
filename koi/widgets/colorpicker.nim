@@ -133,10 +133,11 @@ proc drawColorSwatchWithSlot(
 ): bool =
   alias(ui, g_uiState)
 
-  if interactive and isHit(
-      slot.previousBounds.x, slot.previousBounds.y, slot.previousBounds.w,
-      slot.previousBounds.h,
-    ):
+  if interactive and
+      isHit(
+        slot.previousBounds.x, slot.previousBounds.y, slot.previousBounds.w,
+        slot.previousBounds.h,
+      ):
     captureSimpleWidget(id, disabled = false)
 
   if interactive:
@@ -192,7 +193,11 @@ proc colorWheel(x, y, w, h: float, hue, sat, val: var float) =
     arctan2(ui.my - cy, ui.mx - cx)
 
   func hueFromWheelAngle(a: float): float =
-    let aa = if a > 0: a else: 2 * PI + a
+    let aa =
+      if a > 0:
+        a
+      else:
+        2 * PI + a
     (aa / (2 * PI) + 0.5) mod 1.0
 
   proc triangleHalfPlaneDeterminants(): (float, float, float) =
@@ -297,8 +302,9 @@ proc colorWheel(x, y, w, h: float, hue, sat, val: var float) =
     vg.fillPaint(paint)
     vg.fill()
 
-    paint =
-      vg.linearGradient(x1, y1, x3 + (x2 - x3) * 0.5, y3 + (y2 - y3) * 0.5, black(), black(0))
+    paint = vg.linearGradient(
+      x1, y1, x3 + (x2 - x3) * 0.5, y3 + (y2 - y3) * 0.5, black(), black(0)
+    )
     vg.fillPaint(paint)
     vg.fill()
 
@@ -339,8 +345,14 @@ proc colorWheel(x, y, w, h: float, hue, sat, val: var float) =
         ay = cy + sin(a0) * r * 0.5
         bx = cx + cos(a1) * r * 0.5
         by = cy + sin(a1) * r * 0.5
-        paint =
-          vg.linearGradient(ax, ay, bx, by, hsla(0.5 + a0 / (2 * PI), 1.0, 0.50, 1.00), hsla(0.5 + a1 / (2 * PI), 1.0, 0.50, 1.00))
+        paint = vg.linearGradient(
+          ax,
+          ay,
+          bx,
+          by,
+          hsla(0.5 + a0 / (2 * PI), 1.0, 0.50, 1.00),
+          hsla(0.5 + a1 / (2 * PI), 1.0, 0.50, 1.00),
+        )
       vg.fillPaint(paint)
       vg.fill()
 
@@ -370,10 +382,8 @@ proc colorPicker*(id: ItemId, x, y, w, h: float, color: var Color) =
   let swatchSlot = layoutSlot(id, rect(sx, sy, w, h))
 
   if isHit(
-    swatchSlot.previousBounds.x,
-    swatchSlot.previousBounds.y,
-    swatchSlot.previousBounds.w,
-    swatchSlot.previousBounds.h,
+    swatchSlot.previousBounds.x, swatchSlot.previousBounds.y,
+    swatchSlot.previousBounds.w, swatchSlot.previousBounds.h,
   ):
     if hasEvent() and ui.currEvent.kind == ekKey and ui.currEvent.action == kaDown:
       let shortcut = mkKeyShortcut(ui.currEvent.key, ui.currEvent.mods)
@@ -493,13 +503,13 @@ proc colorPicker*(id: ItemId, x, y, w, h: float, color: var Color) =
             style = ColorPickerSliderStyle,
           )
 
-          var (hue, sat, value) = rgba(r / RgbMax, g / RgbMax, b / RgbMax, a / AlphaMax).toHSV
+          var (hue, sat, value) =
+            rgba(r / RgbMax, g / RgbMax, b / RgbMax, a / AlphaMax).toHSV
           if sat < Eps or (r < Eps and g < Eps and b < Eps):
             hue = cs.lastHue
           colorWheel(px, ColorPickerWheelY, pw + 0.5, pw + 0.5, hue, sat, value)
           cs.lastHue = hue
           color = hsva(hue, sat, value, a / AlphaMax)
-
         of ccmHSV:
           if cs.opened or cs.lastColorMode != ccmHSV:
             (cs.h, cs.s, cs.v) = color.toHSV
@@ -568,7 +578,6 @@ proc colorPicker*(id: ItemId, x, y, w, h: float, color: var Color) =
           (cs.h, cs.s, cs.v) = (hue / HueMax, sat / SatMax, value / ValMax)
           colorWheel(px, ColorPickerWheelY, pw + 0.5, pw + 0.5, cs.h, cs.s, cs.v)
           color = hsva(cs.h, cs.s, cs.v, a / AlphaMax)
-
         of ccmHex:
           if cs.opened or cs.lastColorMode != ccmHex:
             cs.hexString = color.toHex
@@ -638,12 +647,7 @@ proc colorCombo*(
     lfkInsetFixed,
     followInset = padding(swatchPad, 0, swatchPad, 0),
   )
-  discard drawColorSwatchWithSlot(
-    previewSlot,
-    previewId,
-    color,
-    interactive = false,
-  )
+  discard drawColorSwatchWithSlot(previewSlot, previewId, color, interactive = false)
 
   let popupId = hashId($id & ":popup")
   if isPopupOpen(id):

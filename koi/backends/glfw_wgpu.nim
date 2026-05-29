@@ -57,18 +57,41 @@ static void* koi_glfw_create_metal_layer(void* ns_window) {
 
 when defined(linux):
   when defined(wayland):
-    proc getWaylandDisplay(): pointer {.cdecl, importc: "glfwGetWaylandDisplay", dynlib: "libglfw.so.3".}
-    proc getWaylandWindow(win: pointer): pointer {.cdecl, importc: "glfwGetWaylandWindow", dynlib: "libglfw.so.3".}
+    proc getWaylandDisplay(): pointer {.
+      cdecl, importc: "glfwGetWaylandDisplay", dynlib: "libglfw.so.3"
+    .}
+
+    proc getWaylandWindow(
+      win: pointer
+    ): pointer {.cdecl, importc: "glfwGetWaylandWindow", dynlib: "libglfw.so.3".}
+
   else:
-    proc getX11Display(): pointer {.cdecl, importc: "glfwGetX11Display", dynlib: "libglfw.so.3".}
-    proc getX11Window(win: pointer): culong {.cdecl, importc: "glfwGetX11Window", dynlib: "libglfw.so.3".}
+    proc getX11Display(): pointer {.
+      cdecl, importc: "glfwGetX11Display", dynlib: "libglfw.so.3"
+    .}
+
+    proc getX11Window(
+      win: pointer
+    ): culong {.cdecl, importc: "glfwGetX11Window", dynlib: "libglfw.so.3".}
+
 elif defined(windows):
-  proc getWin32Window(win: pointer): pointer {.cdecl, importc: "koi_glfw_get_win32_window".}
-  proc getModuleHandle(lpModuleName: cstring): pointer {.importc: "GetModuleHandleW", stdcall, dynlib: "kernel32".}
+  proc getWin32Window(
+    win: pointer
+  ): pointer {.cdecl, importc: "koi_glfw_get_win32_window".}
+
+  proc getModuleHandle(
+    lpModuleName: cstring
+  ): pointer {.importc: "GetModuleHandleW", stdcall, dynlib: "kernel32".}
+
 elif defined(macosx):
   {.passL: "-framework Cocoa -framework Metal -framework QuartzCore -lobjc".}
-  proc getCocoaWindow(win: pointer): pointer {.cdecl, importc: "koi_glfw_get_cocoa_window".}
-  proc createMetalLayer(nsWindow: pointer): pointer {.cdecl, importc: "koi_glfw_create_metal_layer".}
+  proc getCocoaWindow(
+    win: pointer
+  ): pointer {.cdecl, importc: "koi_glfw_get_cocoa_window".}
+
+  proc createMetalLayer(
+    nsWindow: pointer
+  ): pointer {.cdecl, importc: "koi_glfw_create_metal_layer".}
 
 proc defaultWgpuWindowConfig*(
     title = "Koi wgpu", width = 640, height = 480
@@ -83,12 +106,8 @@ var rawWindowTable = initTable[pointer, Window]()
 
 proc modifierKeys(bitfield: int): set[ModifierKey] =
   let mods = [
-    ModifierKey.mkShift,
-    ModifierKey.mkCtrl,
-    ModifierKey.mkAlt,
-    ModifierKey.mkSuper,
-    ModifierKey.mkCapsLock,
-    ModifierKey.mkNumLock,
+    ModifierKey.mkShift, ModifierKey.mkCtrl, ModifierKey.mkAlt, ModifierKey.mkSuper,
+    ModifierKey.mkCapsLock, ModifierKey.mkNumLock,
   ]
   for m in mods:
     if (bitfield and m.int) != 0:
@@ -104,6 +123,7 @@ proc installCallbacks(win: Window) =
       let win = lookup(cast[pointer](handle))
       if not win.isNil and not win.windowPositionCb.isNil:
         win.windowPositionCb(win, (x, y))
+    ,
   )
   discard wrapper.setWindowSizeCallback(
     win.getHandle(),
@@ -111,6 +131,7 @@ proc installCallbacks(win: Window) =
       let win = lookup(cast[pointer](handle))
       if not win.isNil and not win.windowSizeCb.isNil:
         win.windowSizeCb(win, (w, h))
+    ,
   )
   discard wrapper.setWindowCloseCallback(
     win.getHandle(),
@@ -118,6 +139,7 @@ proc installCallbacks(win: Window) =
       let win = lookup(cast[pointer](handle))
       if not win.isNil and not win.windowCloseCb.isNil:
         win.windowCloseCb(win)
+    ,
   )
   discard wrapper.setWindowRefreshCallback(
     win.getHandle(),
@@ -125,6 +147,7 @@ proc installCallbacks(win: Window) =
       let win = lookup(cast[pointer](handle))
       if not win.isNil and not win.windowRefreshCb.isNil:
         win.windowRefreshCb(win)
+    ,
   )
   discard wrapper.setWindowFocusCallback(
     win.getHandle(),
@@ -132,6 +155,7 @@ proc installCallbacks(win: Window) =
       let win = lookup(cast[pointer](handle))
       if not win.isNil and not win.windowFocusCb.isNil:
         win.windowFocusCb(win, focus.bool)
+    ,
   )
   discard wrapper.setWindowMaximizeCallback(
     win.getHandle(),
@@ -139,6 +163,7 @@ proc installCallbacks(win: Window) =
       let win = lookup(cast[pointer](handle))
       if not win.isNil and not win.windowMaximizeCb.isNil:
         win.windowMaximizeCb(win, maximized.bool)
+    ,
   )
   discard wrapper.setWindowIconifyCallback(
     win.getHandle(),
@@ -146,6 +171,7 @@ proc installCallbacks(win: Window) =
       let win = lookup(cast[pointer](handle))
       if not win.isNil and not win.windowIconifyCb.isNil:
         win.windowIconifyCb(win, iconified.bool)
+    ,
   )
   discard wrapper.setWindowContentScaleCallback(
     win.getHandle(),
@@ -153,6 +179,7 @@ proc installCallbacks(win: Window) =
       let win = lookup(cast[pointer](handle))
       if not win.isNil and not win.windowContentScaleCb.isNil:
         win.windowContentScaleCb(win, xscale.float, yscale.float)
+    ,
   )
   discard wrapper.setframebufferSizeCallback(
     win.getHandle(),
@@ -160,6 +187,7 @@ proc installCallbacks(win: Window) =
       let win = lookup(cast[pointer](handle))
       if not win.isNil and not win.framebufferSizeCb.isNil:
         win.framebufferSizeCb(win, (w, h))
+    ,
   )
   discard wrapper.setMouseButtonCallback(
     win.getHandle(),
@@ -167,6 +195,7 @@ proc installCallbacks(win: Window) =
       let win = lookup(cast[pointer](handle))
       if not win.isNil and not win.mouseButtonCb.isNil:
         win.mouseButtonCb(win, MouseButton(button), pressed.bool, modifierKeys(mods))
+    ,
   )
   discard wrapper.setCursorPosCallback(
     win.getHandle(),
@@ -174,6 +203,7 @@ proc installCallbacks(win: Window) =
       let win = lookup(cast[pointer](handle))
       if not win.isNil and not win.cursorPositionCb.isNil:
         win.cursorPositionCb(win, (x.float64, y.float64))
+    ,
   )
   discard wrapper.setCursorEnterCallback(
     win.getHandle(),
@@ -181,6 +211,7 @@ proc installCallbacks(win: Window) =
       let win = lookup(cast[pointer](handle))
       if not win.isNil and not win.cursorEnterCb.isNil:
         win.cursorEnterCb(win, entered.bool)
+    ,
   )
   discard wrapper.setScrollCallback(
     win.getHandle(),
@@ -188,6 +219,7 @@ proc installCallbacks(win: Window) =
       let win = lookup(cast[pointer](handle))
       if not win.isNil and not win.scrollCb.isNil:
         win.scrollCb(win, (x: x.float64, y: y.float64))
+    ,
   )
   discard wrapper.setKeyCallback(
     win.getHandle(),
@@ -195,6 +227,7 @@ proc installCallbacks(win: Window) =
       let win = lookup(cast[pointer](handle))
       if not win.isNil and not win.keyCb.isNil:
         win.keyCb(win, Key(key), scanCode, KeyAction(action), modifierKeys(mods))
+    ,
   )
   discard wrapper.setCharCallback(
     win.getHandle(),
@@ -202,6 +235,7 @@ proc installCallbacks(win: Window) =
       let win = lookup(cast[pointer](handle))
       if not win.isNil and not win.charCb.isNil:
         win.charCb(win, codePoint.Rune)
+    ,
   )
   discard wrapper.setCharModsCallback(
     win.getHandle(),
@@ -209,9 +243,10 @@ proc installCallbacks(win: Window) =
       let win = lookup(cast[pointer](handle))
       if not win.isNil and not win.charModsCb.isNil:
         win.charModsCb(win, codePoint.Rune, modifierKeys(mods))
+    ,
   )
 
-proc newWgpuWindow*(cfg: OpenglWindowConfig; callbacks = true): Window =
+proc newWgpuWindow*(cfg: OpenglWindowConfig, callbacks = true): Window =
   template hint(name, value: untyped) =
     wrapper.windowHint(name.int32, value.int32)
 
@@ -231,13 +266,8 @@ proc newWgpuWindow*(cfg: OpenglWindowConfig; callbacks = true): Window =
   when defined(windows):
     hint(wrapper.hHideFromTaskbar, cfg.hideFromTaskbar)
 
-  let handle = wrapper.createWindow(
-    cfg.size.w,
-    cfg.size.h,
-    cstring(cfg.title),
-    nil,
-    nil,
-  )
+  let handle =
+    wrapper.createWindow(cfg.size.w, cfg.size.h, cstring(cfg.title), nil, nil)
   if handle.isNil:
     raise newException(CatchableError, "Could not create GLFW wgpu window")
   result = glfw.newWindow(handle)
@@ -258,18 +288,15 @@ proc surfaceSize*(win: Window): tuple[width, height: uint32] =
 proc wgpuSurfaceHandle*(win: Window): KoiWgpuSurfaceHandle =
   when defined(linux) and defined(wayland):
     waylandSurfaceHandle(
-      getWaylandDisplay(),
-      getWaylandWindow(cast[pointer](win.getHandle())),
+      getWaylandDisplay(), getWaylandWindow(cast[pointer](win.getHandle()))
     )
   elif defined(linux):
     x11SurfaceHandle(
-      getX11Display(),
-      getX11Window(cast[pointer](win.getHandle())).uint64,
+      getX11Display(), getX11Window(cast[pointer](win.getHandle())).uint64
     )
   elif defined(windows):
     windowsHwndSurfaceHandle(
-      getWin32Window(cast[pointer](win.getHandle())),
-      getModuleHandle(nil),
+      getWin32Window(cast[pointer](win.getHandle())), getModuleHandle(nil)
     )
   elif defined(macosx):
     metalLayerSurfaceHandle(

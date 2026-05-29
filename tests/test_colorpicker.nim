@@ -10,8 +10,7 @@ const
   Bw = 40.0
   Bh = 20.0
 
-let
-  PopupId = hashId($CcId & ":popup")
+let PopupId = hashId($CcId & ":popup")
 
 proc combo(color: var Color): bool =
   colorCombo(CcId, Bx, By, Bw, Bh, color, "Accent")
@@ -33,8 +32,7 @@ const
   Pw = 40.0
   Ph = 20.0
 
-let
-  PickerPopupId = hashId($CpId & ":popup")
+let PickerPopupId = hashId($CpId & ":popup")
 
 proc picker(color: var Color) =
   colorPicker(CpId, Px, Py, Pw, Ph, color)

@@ -152,12 +152,8 @@ suite "popup behavior":
 
     beginFrameLayout()
     let targetSlot = layoutSlot(61, rect(90, 80, 5, 5))
-    let popupSlot = layoutFollowerSlot(
-      62,
-      rect(90, 85, 30, 20),
-      targetSlot.nodeId,
-      lfkDropdownPopup,
-    )
+    let popupSlot =
+      layoutFollowerSlot(62, rect(90, 85, 30, 20), targetSlot.nodeId, lfkDropdownPopup)
     var childSlot = LayoutSlot(nodeId: NullLayoutNodeId)
     if beginPopupWithSlot(60, popupSlot):
       childSlot = layoutDrawSlot(63, rect(92, 88, 4, 4))
@@ -475,7 +471,16 @@ suite "layout-integrated widget behavior":
       drawn = rect(x, y, w, h)
 
     toggleButton(
-      27, 3, 4, 30, 12, active, "Off", "On", "", disabled = false,
+      27,
+      3,
+      4,
+      30,
+      12,
+      active,
+      "Off",
+      "On",
+      "",
+      disabled = false,
       drawProc = drawProc.some,
     )
     g_drawLayers.draw(g_nvgContext)
@@ -715,14 +720,12 @@ suite "layout-integrated widget behavior":
     check not textNode.isNull
     check not incNode.isNull
     check g_uiState.layoutArena.nodes[propertyNode.int].kind == lnkContainer
-    check int32(g_uiState.layoutArena.nodes[labelNode.int].parent) ==
-      int32(propertyNode)
-    check int32(g_uiState.layoutArena.nodes[decNode.int].parent) ==
-      int32(propertyNode)
-    check int32(g_uiState.layoutArena.nodes[textNode.int].parent) ==
-      int32(propertyNode)
-    check int32(g_uiState.layoutArena.nodes[incNode.int].parent) ==
-      int32(propertyNode)
+    check int32(g_uiState.layoutArena.nodes[labelNode.int].parent) == int32(
+      propertyNode
+    )
+    check int32(g_uiState.layoutArena.nodes[decNode.int].parent) == int32(propertyNode)
+    check int32(g_uiState.layoutArena.nodes[textNode.int].parent) == int32(propertyNode)
+    check int32(g_uiState.layoutArena.nodes[incNode.int].parent) == int32(propertyNode)
     check g_uiState.layoutArena.nodes[textNode.int].width.kind == lskGrow
     check g_uiState.layoutArena.nodes[labelNode.int].width.kind == lskFixed
     check g_uiState.layoutArena.nodes[decNode.int].width.kind == lskFixed
@@ -775,8 +778,7 @@ suite "layout-integrated widget behavior":
     check rowChildren == 1
     check not propertyNode.isNull
     check not textNode.isNull
-    check int32(g_uiState.layoutArena.nodes[textNode.int].parent) ==
-      int32(propertyNode)
+    check int32(g_uiState.layoutArena.nodes[textNode.int].parent) == int32(propertyNode)
     check g_uiState.layoutArena.nodes[textNode.int].width.kind == lskGrow
 
   test "property editor buttons hit test against previous child rects":
@@ -859,9 +861,7 @@ suite "layout-integrated widget behavior":
     g_uiState.my = 45
     g_uiState.mbLeftDown = true
 
-    horizScrollBar(
-      36, 0, 0, 20, 10, 0, 100, value, allowFocusCaptured = true
-    )
+    horizScrollBar(36, 0, 0, 20, 10, 0, 100, value, allowFocusCaptured = true)
 
     check isHot(36)
     check isActive(36)
@@ -961,7 +961,8 @@ suite "layout-integrated widget behavior":
     check rowChildren == 1
     check not fieldNode.isNull
     check g_uiState.layoutArena.nodes[fieldNode.int].placement.kind == lpkFollow
-    check g_uiState.layoutArena.nodes[fieldNode.int].placement.followKind == lfkMatchTarget
+    check g_uiState.layoutArena.nodes[fieldNode.int].placement.followKind ==
+      lfkMatchTarget
     checkRect(g_uiState.layoutRects[fieldId], g_uiState.layoutRects[sliderId])
 
   test "text field hover testing uses a previous solved rect":
@@ -1239,8 +1240,13 @@ suite "layout-integrated widget behavior":
 
     beginRowLayout(30, [colDynamic()])
     autoLayoutPre()
-    beginScrollView(86, autoLayoutNextX(), autoLayoutNextY(),
-      autoLayoutNextItemWidth(), autoLayoutNextItemHeight())
+    beginScrollView(
+      86,
+      autoLayoutNextX(),
+      autoLayoutNextY(),
+      autoLayoutNextItemWidth(),
+      autoLayoutNextItemHeight(),
+    )
     endScrollView(100)
     autoLayoutPost()
     endLayout()
@@ -1276,8 +1282,13 @@ suite "layout-integrated widget behavior":
 
     beginRowLayout(30, [colDynamic()])
     autoLayoutPre()
-    beginScrollView(87, autoLayoutNextX(), autoLayoutNextY(),
-      autoLayoutNextItemWidth(), autoLayoutNextItemHeight())
+    beginScrollView(
+      87,
+      autoLayoutNextX(),
+      autoLayoutNextY(),
+      autoLayoutNextItemWidth(),
+      autoLayoutNextItemHeight(),
+    )
     endScrollView(200, 20)
     autoLayoutPost()
     endLayout()
@@ -2070,8 +2081,7 @@ suite "feature widget behavior":
 
   test "table drawing registers layout-backed draw nodes":
     resetUi()
-    let columns =
-      [TableColumn(label: "A", width: 5), TableColumn(label: "B", width: 5)]
+    let columns = [TableColumn(label: "A", width: 5), TableColumn(label: "B", width: 5)]
 
     drawTableHeader(0, 0, 10, columns)
     beginTableRow(0, [5.0, 5.0], 0, 10, 10)
@@ -2144,10 +2154,8 @@ suite "feature widget behavior":
     check not bodyNode.isNull
     check g_uiState.layoutArena.nodes[tableNode.int].kind == lnkContainer
     check g_uiState.layoutArena.nodes[bodyNode.int].kind == lnkContainer
-    check int32(g_uiState.layoutArena.nodes[headerNode.int].parent) ==
-      int32(tableNode)
-    check int32(g_uiState.layoutArena.nodes[bodyNode.int].parent) ==
-      int32(tableNode)
+    check int32(g_uiState.layoutArena.nodes[headerNode.int].parent) == int32(tableNode)
+    check int32(g_uiState.layoutArena.nodes[bodyNode.int].parent) == int32(tableNode)
 
     for node in g_uiState.layoutArena.nodes:
       if int32(node.parent) == int32(bodyNode):
@@ -2158,8 +2166,9 @@ suite "feature widget behavior":
       tableRect = g_uiState.layoutRects[tableId]
       headerRect = g_uiState.layoutRects[headerId]
       bodyRect = g_uiState.layoutRects[bodyId]
-    checkRect(headerRect, rect(tableRect.x, tableRect.y, tableRect.w,
-      style.headerHeight))
+    checkRect(
+      headerRect, rect(tableRect.x, tableRect.y, tableRect.w, style.headerHeight)
+    )
     checkRect(
       bodyRect,
       rect(

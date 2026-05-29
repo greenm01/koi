@@ -17,16 +17,15 @@ const
 
 proc thumbGeom(value: float): tuple[x, w, minX, maxX: float] =
   let st = borrowDefaultScrollBarStyle()
-  let w = scrollBarThumbLength(Bw, st.thumbPad, st.thumbMinSize, ThumbSize,
-      StartVal, EndVal)
+  let w =
+    scrollBarThumbLength(Bw, st.thumbPad, st.thumbMinSize, ThumbSize, StartVal, EndVal)
   let minX = Bx + st.thumbPad
   let maxX = Bx + Bw - st.thumbPad - w
   let x = scrollBarThumbFromValue(value, StartVal, EndVal, minX, maxX)
   (x, w, minX, maxX)
 
 proc bar(value: var float) =
-  horizScrollBar(SbId, Bx, By, Bw, Bh, StartVal, EndVal, value,
-      thumbSize = ThumbSize)
+  horizScrollBar(SbId, Bx, By, Bw, Bh, StartVal, EndVal, value, thumbSize = ThumbSize)
 
 suite "scrollbar thumb drag":
   test "pressing on the thumb begins a normal drag":

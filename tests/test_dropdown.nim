@@ -57,12 +57,10 @@ suite "dropdown opening":
 
     # Release, then press far from both the button and the item list.
     releaseLeft()
-    dropDown(DdId, BtnX, BtnY, BtnW, BtnH, Items, selected, "",
-        disabled = false)
+    dropDown(DdId, BtnX, BtnY, BtnW, BtnH, Items, selected, "", disabled = false)
 
     pressLeftAt(5, 5)
-    dropDown(DdId, BtnX, BtnY, BtnW, BtnH, Items, selected, "",
-        disabled = false)
+    dropDown(DdId, BtnX, BtnY, BtnW, BtnH, Items, selected, "", disabled = false)
 
     check not isPopupOpen(DdId)
     check dropDownStateOf(DdId).state == dsClosed
@@ -77,8 +75,7 @@ suite "dropdown keyboard navigation":
     releaseLeft()
     mouseTo(0, 0) # keep the mouse clear of the list so it doesn't override
     sendKey(keyDown)
-    dropDown(DdId, BtnX, BtnY, BtnW, BtnH, Items, selected, "",
-        disabled = false)
+    dropDown(DdId, BtnX, BtnY, BtnW, BtnH, Items, selected, "", disabled = false)
 
     check dropDownStateOf(DdId).keyboardItem == ord(choiceB)
     check eventHandled()
@@ -93,8 +90,7 @@ suite "dropdown keyboard navigation":
     mouseTo(0, 0)
     for _ in 0 .. 3:
       sendKey(keyDown)
-      dropDown(DdId, BtnX, BtnY, BtnW, BtnH, Items, selected, "",
-          disabled = false)
+      dropDown(DdId, BtnX, BtnY, BtnW, BtnH, Items, selected, "", disabled = false)
 
     check dropDownStateOf(DdId).keyboardItem == ord(choiceC)
 
@@ -106,12 +102,10 @@ suite "dropdown keyboard navigation":
     releaseLeft()
     mouseTo(0, 0)
     sendKey(keyDown)
-    dropDown(DdId, BtnX, BtnY, BtnW, BtnH, Items, selected, "",
-        disabled = false)
+    dropDown(DdId, BtnX, BtnY, BtnW, BtnH, Items, selected, "", disabled = false)
 
     sendKey(keyEnter)
-    dropDown(DdId, BtnX, BtnY, BtnW, BtnH, Items, selected, "",
-        disabled = false)
+    dropDown(DdId, BtnX, BtnY, BtnW, BtnH, Items, selected, "", disabled = false)
 
     check selected == choiceB
     check not isPopupOpen(DdId)
@@ -125,8 +119,7 @@ suite "dropdown keyboard navigation":
     releaseLeft()
     mouseTo(0, 0)
     sendKey(keyEscape)
-    dropDown(DdId, BtnX, BtnY, BtnW, BtnH, Items, selected, "",
-        disabled = false)
+    dropDown(DdId, BtnX, BtnY, BtnW, BtnH, Items, selected, "", disabled = false)
 
     check selected == choiceB
     check not isPopupOpen(DdId)
@@ -147,14 +140,12 @@ suite "dropdown mouse selection":
     # Drag down onto the second item (visible index 1), still holding LMB.
     let itemY = listRect.y + style.itemListPadVert + BtnH * 1.5
     mouseTo(BtnX + 5, itemY)
-    dropDown(DdId, BtnX, BtnY, BtnW, BtnH, Items, selected, "",
-        disabled = false)
+    dropDown(DdId, BtnX, BtnY, BtnW, BtnH, Items, selected, "", disabled = false)
     check dropDownStateOf(DdId).keyboardItem == ord(choiceB)
 
     # Release over the item -> commit + close.
     releaseLeft()
-    dropDown(DdId, BtnX, BtnY, BtnW, BtnH, Items, selected, "",
-        disabled = false)
+    dropDown(DdId, BtnX, BtnY, BtnW, BtnH, Items, selected, "", disabled = false)
 
     check selected == choiceB
     check not isPopupOpen(DdId)

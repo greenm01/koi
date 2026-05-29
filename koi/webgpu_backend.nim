@@ -200,9 +200,7 @@ func inputVertex(v: NvgVertex): WebGpuInputVertex =
     maskV: v.v.float32,
   )
 
-func invertTransform(
-    xform: array[6, cfloat], inverse: var array[6, float32]
-): bool =
+func invertTransform(xform: array[6, cfloat], inverse: var array[6, float32]): bool =
   let
     a = xform[0].float32
     b = xform[1].float32
@@ -451,7 +449,7 @@ proc createTexture(
         WebGpuTextureRowAlignment
       copyBytes = (paddedRowBytes * height.uint32).int
     var upload = newSeq[uint8](copyBytes)
-    for row in 0..<height:
+    for row in 0 ..< height:
       copyMem(
         upload[row * paddedRowBytes.int].addr,
         cast[pointer](cast[uint](data) + (row.uint * rowBytes.uint)),
@@ -466,13 +464,7 @@ proc createTexture(
     var layout = TexelCopyBufferLayout(
       offset: 0, bytesPerRow: paddedRowBytes, rowsPerImage: height.uint32
     )
-    b.queue.write(
-      dst.addr,
-      upload[0].addr,
-      copyBytes.csize_t,
-      layout.addr,
-      size.addr,
-    )
+    b.queue.write(dst.addr, upload[0].addr, copyBytes.csize_t, layout.addr, size.addr)
 
   var entries = [
     BindGroupEntry(
@@ -553,7 +545,7 @@ proc renderUpdateTexture(
     copyBytes = (paddedRowBytes * h.uint32).int
     dataOffset = ((y.int * tex.width + x.int) * bytesPerPixel.int)
   var upload = newSeq[uint8](copyBytes)
-  for row in 0..<h.int:
+  for row in 0 ..< h.int:
     copyMem(
       upload[row * paddedRowBytes.int].addr,
       cast[pointer](cast[uint](data) + dataOffset.uint + (row.uint * sourceStride.uint)),
@@ -569,13 +561,7 @@ proc renderUpdateTexture(
     offset: 0, bytesPerRow: paddedRowBytes, rowsPerImage: h.uint32
   )
   var size = Extent3D(width: w.uint32, height: h.uint32, depthOrArrayLayers: 1)
-  b.queue.write(
-    dst.addr,
-    upload[0].addr,
-    copyBytes.csize_t,
-    layout.addr,
-    size.addr,
-  )
+  b.queue.write(dst.addr, upload[0].addr, copyBytes.csize_t, layout.addr, size.addr)
   1
 
 proc renderGetTextureSize(
@@ -599,14 +585,13 @@ proc renderViewport(
 
 func nonSrgbEquivalent(format: TextureFormat): TextureFormat =
   case format
-  of TextureFormat.RGBA8UnormSrgb:
-    TextureFormat.RGBA8Unorm
-  of TextureFormat.BGRA8UnormSrgb:
-    TextureFormat.BGRA8Unorm
-  else:
-    format
+  of TextureFormat.RGBA8UnormSrgb: TextureFormat.RGBA8Unorm
+  of TextureFormat.BGRA8UnormSrgb: TextureFormat.BGRA8Unorm
+  else: format
 
-func chooseSurfaceFormat(formats: ptr UncheckedArray[TextureFormat], count: int): TextureFormat =
+func chooseSurfaceFormat(
+    formats: ptr UncheckedArray[TextureFormat], count: int
+): TextureFormat =
   result = formats[0]
   let preferred = [TextureFormat.BGRA8Unorm, TextureFormat.RGBA8Unorm]
 
@@ -1134,9 +1119,7 @@ proc initKoiWgpuBackend*(
     b: var KoiWgpuBackend, display, wlSurface: pointer, width, height: uint32
 ) =
   b.initKoiWgpuBackendWithSurface(
-    waylandSurfaceHandle(display, wlSurface),
-    width,
-    height,
+    waylandSurfaceHandle(display, wlSurface), width, height
   )
 
 proc resizeKoiWgpuBackend*(b: var KoiWgpuBackend, width, height: uint32) =

@@ -46,15 +46,12 @@ proc horizSlider*(
   let hitBounds = slot.previousBounds
 
   # Hit testing
-  if captureDragWidget(
-    id, isHit(hitBounds.x, hitBounds.y, hitBounds.w, hitBounds.h)
-  ):
+  if captureDragWidget(id, isHit(hitBounds.x, hitBounds.y, hitBounds.w, hitBounds.h)):
     sl.state = ssDefault
     sl.oldValue = value
     sl.cursorMoved = false
 
-  var
-    newValue = value
+  var newValue = value
 
   if isActive(id):
     case sl.state
@@ -71,12 +68,9 @@ proc horizSlider*(
             sl.cursorPosY = ui.my
             ui.widgetMouseDrag = true
           else:
-            let t =
-              invLerp(
-                hitBounds.x + s.trackPad,
-                hitBounds.x + hitBounds.w - s.trackPad,
-                ui.mx,
-              )
+            let t = invLerp(
+              hitBounds.x + s.trackPad, hitBounds.x + hitBounds.w - s.trackPad, ui.mx
+            )
             newValue = lerp(startVal, endVal, t).clampToRange(startVal, endVal)
 
         # Transition to edit mode on double click or simple click without move
@@ -94,15 +88,13 @@ proc horizSlider*(
         let d = if altDown(): SliderUltraFineDragDivisor else: SliderFineDragDivisor
         let dx = (ui.dx - ui.x0) / d
         let range = abs(endVal - startVal)
-        newValue =
-          (value + (dx / (hitBounds.w - s.trackPad * 2)) * range).clampToRange(
-            startVal, endVal
-          )
+        newValue = (value + (dx / (hitBounds.w - s.trackPad * 2)) * range).clampToRange(
+          startVal, endVal
+        )
         ui.x0 = ui.dx
-        sl.cursorPosX =
-          (sl.cursorPosX + dx).clamp(
-            hitBounds.x + s.trackPad, hitBounds.x + hitBounds.w - s.trackPad
-          )
+        sl.cursorPosX = (sl.cursorPosX + dx).clamp(
+          hitBounds.x + s.trackPad, hitBounds.x + hitBounds.w - s.trackPad
+        )
       else:
         sl.state = ssDefault
         showCursor()
@@ -119,9 +111,8 @@ proc horizSlider*(
     if sl.textFieldId == 0:
       sl.textFieldId = sliderTextFieldId(id)
     let oldVal = sl.valueText
-    let textSlot = layoutFollowerSlot(
-      sl.textFieldId, rect(x, y, w, h), slot.nodeId, lfkMatchTarget
-    )
+    let textSlot =
+      layoutFollowerSlot(sl.textFieldId, rect(x, y, w, h), slot.nodeId, lfkMatchTarget)
     textFieldWithSlot(
       textSlot,
       sl.textFieldId,
@@ -147,8 +138,7 @@ proc horizSlider*(
       let state = dragWidgetState(id)
 
       var sw = s.trackStrokeWidth
-      var (rx, ry, rw, rh) =
-        snapToGrid(bounds.x, bounds.y, bounds.w, bounds.h, sw)
+      var (rx, ry, rw, rh) = snapToGrid(bounds.x, bounds.y, bounds.w, bounds.h, sw)
 
       let (trackFillColor, trackStrokeColor) =
         case state
@@ -221,9 +211,8 @@ proc vertSlider*(
 
   let posY = calcPosY(value)
 
-  discard captureDragWidget(
-    id, isHit(hitBounds.x, hitBounds.y, hitBounds.w, hitBounds.h)
-  )
+  discard
+    captureDragWidget(id, isHit(hitBounds.x, hitBounds.y, hitBounds.w, hitBounds.h))
 
   var newPosY = posY
 
@@ -266,8 +255,7 @@ proc vertSlider*(
     let state = dragWidgetState(id)
 
     var sw = s.trackStrokeWidth
-    var (rx, ry, rw, rh) =
-      snapToGrid(bounds.x, bounds.y, bounds.w, bounds.h, sw)
+    var (rx, ry, rw, rh) = snapToGrid(bounds.x, bounds.y, bounds.w, bounds.h, sw)
 
     let (trackFillColor, trackStrokeColor, sliderColor) =
       case state

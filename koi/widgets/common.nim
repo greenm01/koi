@@ -57,8 +57,7 @@ proc drawTooltip*(x, y: float, text: string, alpha: float = 1.0) =
       else:
         300.0
     tooltipH = fontSize * lineHeight * measure.lineCount.float + padY * 2
-    (tx, ty) =
-      fitRectWithinWindow(tooltipW, tooltipH, x - 8, y - 8, 30, 30, haLeft)
+    (tx, ty) = fitRectWithinWindow(tooltipW, tooltipH, x - 8, y - 8, 30, 30, haLeft)
     slot = layoutDrawSlot(0, rect(round(tx), round(ty), tooltipW, tooltipH))
 
   addLayoutDrawLayer(layerTooltip, slot.nodeId, vg, bounds):
@@ -79,9 +78,7 @@ proc drawTooltip*(x, y: float, text: string, alpha: float = 1.0) =
     vg.fillColor(white(0.9))
     var curY = bounds.y + padY + fontSize * lineHeight * 0.55
     for row in rows:
-      discard vg.text(
-        bounds.x + padX, curY, text, row.startBytePos, row.endBytePos
-      )
+      discard vg.text(bounds.x + padX, curY, text, row.startBytePos, row.endBytePos)
       curY += fontSize * lineHeight
 
     vg.globalAlpha(1.0)

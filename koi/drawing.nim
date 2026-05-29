@@ -262,7 +262,11 @@ proc fallbackTextBreakLines(text: string, maxWidth: float): seq[types.TextRow] =
         endPos: (stop - 1).Natural,
         endBytePos: byteEnds[stop - 1],
         nextRowPos: if stop < byteStarts.len: stop else: -1,
-        nextRowBytePos: if stop < byteStarts.len: byteStarts[stop] else: -1,
+        nextRowBytePos:
+          if stop < byteStarts.len:
+            byteStarts[stop]
+          else:
+            -1,
         width: (stop - start).float * Advance,
       )
     )

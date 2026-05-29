@@ -139,13 +139,7 @@ proc drawTableHeaderWithSlot*(
           else:
             ""
       vg.drawLabel(
-        cx,
-        bounds.y,
-        cw,
-        bounds.h,
-        column.label & sortMark,
-        wsNormal,
-        style.headerLabel,
+        cx, bounds.y, cw, bounds.h, column.label & sortMark, wsNormal, style.headerLabel
       )
       if i < tableColumns.high:
         vg.beginPath()
@@ -224,17 +218,10 @@ template tableView*(
     headerH = style.headerHeight
     (sx, sy) = addDrawOffset(x, y)
     tableSlot = layoutContainerSlot(
-      id,
-      rect(sx, sy, w, h),
-      direction = ldTopToBottom,
-      alignCross = lcaStretch,
+      id, rect(sx, sy, w, h), direction = ldTopToBottom, alignCross = lcaStretch
     )
     headerSlot = layoutChildSlot(
-      tableSlot.nodeId,
-      headerId,
-      rect(sx, sy, w, headerH),
-      grow(),
-      fixed(headerH),
+      tableSlot.nodeId, headerId, rect(sx, sy, w, headerH), grow(), fixed(headerH)
     )
     bodyH = max(0.0, h - headerH)
     bodyScrollY =
@@ -284,17 +271,10 @@ template tableView*(
   let
     (sx, sy) = addDrawOffset(x, y)
     tableSlot = layoutContainerSlot(
-      tableId,
-      rect(sx, sy, w, h),
-      direction = ldTopToBottom,
-      alignCross = lcaStretch,
+      tableId, rect(sx, sy, w, h), direction = ldTopToBottom, alignCross = lcaStretch
     )
     headerSlot = layoutChildSlot(
-      tableSlot.nodeId,
-      id,
-      rect(sx, sy, w, headerH),
-      grow(),
-      fixed(headerH),
+      tableSlot.nodeId, id, rect(sx, sy, w, headerH), grow(), fixed(headerH)
     )
     bodyH = max(0.0, h - headerH)
     bodyScrollY =

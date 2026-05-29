@@ -56,8 +56,7 @@ import koi/widgets/togglebutton
 
 export options, tables, unicode, unittest
 export glfw, nanovg
-export core, defaults, drawing, input, algorithms, widget_behavior, layout,
-    rect, types
+export core, defaults, drawing, input, algorithms, widget_behavior, layout, rect, types
 export button, chart, checkbox, colorpicker, common, dialog, dropdown, groupbox
 export image, label, listview, menu, popup, progress, property, radiobuttons
 export scrollbar, scrollview, section, selectable, slider, table, textarea
@@ -112,9 +111,7 @@ proc pressRightAt*(x, y: float) =
 proc releaseRight*() =
   g_uiState.mbRightDown = false
 
-proc sendKey*(
-    key: Key, mods: set[ModifierKey] = {}, action: KeyAction = kaDown
-) =
+proc sendKey*(key: Key, mods: set[ModifierKey] = {}, action: KeyAction = kaDown) =
   ## Queue a single key event for the next widget call.
   g_uiState.hasEvent = true
   g_uiState.eventHandled = false
