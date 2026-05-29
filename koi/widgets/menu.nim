@@ -7,6 +7,8 @@ import glfw
 import koi/types
 import koi/core
 import koi/drawing
+import koi/layout
+import koi/rect
 import koi/input
 import koi/defaults
 import koi/widgets/button
@@ -125,10 +127,12 @@ proc beginMenuBar*(x, y, w, h: float, style: MenuStyle = borrowDefaultMenuStyle(
       discard
 
   let (sx, sy) = addDrawOffset(x, y)
-  addDrawLayer(ui.currentLayer, vg):
+  let slot = layoutDrawSlot(0, rect(sx, sy, w, h))
+
+  addLayoutDrawLayer(ui.currentLayer, slot.nodeId, vg, bounds):
     vg.fillColor(style.barFillColor)
     vg.beginPath()
-    vg.rect(sx, sy, w, h)
+    vg.rect(bounds.x, bounds.y, bounds.w, bounds.h)
     vg.fill()
 
 proc endMenuBar*() =
@@ -231,13 +235,16 @@ proc menuSeparator*(style: MenuStyle = activeMenuStyle) =
   let
     h = max(6.0, style.menuItemHeight * 0.35)
     (sx, sy) = addDrawOffset(menuItemX, menuItemY)
+    slot = layoutDrawSlot(0, rect(sx, sy, menuItemW, h))
   menuItemDisabledCurr.add(true)
 
-  addDrawLayer(ui.currentLayer, vg):
+  addLayoutDrawLayer(ui.currentLayer, slot.nodeId, vg, bounds):
     vg.strokeColor(style.item.strokeColorHover)
     vg.strokeWidth(1)
     vg.beginPath()
-    vg.horizLine(sx + 6, sy + h * 0.5, max(0.0, menuItemW - 12))
+    vg.horizLine(
+      bounds.x + 6, bounds.y + bounds.h * 0.5, max(0.0, bounds.w - 12)
+    )
     vg.stroke()
 
   menuItemY += h
@@ -246,11 +253,12 @@ proc menuSeparator*(style: MenuStyle = activeMenuStyle) =
 proc menuLabel*(label: string, style: MenuStyle = activeMenuStyle) =
   alias(ui, g_uiState)
   let (sx, sy) = addDrawOffset(menuItemX, menuItemY)
+  let slot = layoutDrawSlot(0, rect(sx, sy, menuItemW, style.menuItemHeight))
   menuItemDisabledCurr.add(true)
 
-  addDrawLayer(ui.currentLayer, vg):
+  addLayoutDrawLayer(ui.currentLayer, slot.nodeId, vg, bounds):
     vg.drawLabel(
-      sx, sy, menuItemW, style.menuItemHeight, label, wsDisabled, style.item.label
+      bounds.x, bounds.y, bounds.w, bounds.h, label, wsDisabled, style.item.label
     )
 
   menuItemY += style.menuItemHeight

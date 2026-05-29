@@ -7,6 +7,7 @@ import koi/types
 import koi/core
 import koi/drawing
 import koi/layout
+import koi/rect
 import koi/input
 import koi/defaults
 import koi/widgets/common
@@ -55,8 +56,11 @@ proc beginDialog*(
 
   ui.currentLayer = layerDialog
 
-  addDrawLayer(ui.currentLayer, vg):
-    let (rx, ry, rw, rh) = snapToGrid(x, y, w, h)
+  let slot = layoutDrawSlot(0, rect(x, y, w, h))
+
+  addLayoutDrawLayer(ui.currentLayer, slot.nodeId, vg, bounds):
+    let (rx, ry, rw, rh) =
+      snapToGrid(bounds.x, bounds.y, bounds.w, bounds.h)
     drawShadow(vg, rx, ry, rw, rh, style.shadow)
     vg.beginPath()
     vg.fillColor(style.backgroundColor)

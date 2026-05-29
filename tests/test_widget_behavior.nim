@@ -21,6 +21,7 @@ import koi/widgets/dropdown
 import koi/widgets/groupbox
 import koi/widgets/image
 import koi/widgets/label
+import koi/widgets/dialog
 import koi/widgets/menu
 import koi/widgets/popup
 import koi/widgets/progress
@@ -127,6 +128,30 @@ suite "popup behavior":
     check not isPopupOpen(32)
 
 suite "menu behavior":
+  test "menu bar registers a draw-only layout node":
+    resetUi()
+
+    beginMenuBar(0, 0, 80, 10)
+
+    check g_uiState.layoutArena.nodes.len == 1
+    check g_drawLayers.layers[ord(layerDefault)].len == 1
+
+    endMenuBar()
+
+  test "menu labels and separators register draw-only layout nodes":
+    resetUi()
+
+    openPopup(40)
+    g_uiState.mbLeftDown = false
+    check beginContextMenu(40, 0, 0, 30, 30, 100, 80)
+    menuLabel("Section")
+    menuSeparator()
+
+    check g_uiState.layoutArena.nodes.len == 3
+    check g_drawLayers.layers[ord(layerPopup)].len == 3
+
+    endContextMenu()
+
   test "context menu opens from right click inside bounds":
     resetUi()
 
@@ -980,6 +1005,17 @@ suite "scroll view behavior":
     endScrollView(100, 20)
 
 suite "feature widget behavior":
+  test "dialog background registers a layout-backed draw node":
+    resetUi()
+
+    beginDialog(40, 30, "Dialog")
+
+    check currentLayer() == layerDialog
+    check g_uiState.layoutArena.nodes.len == 1
+    check g_drawLayers.layers[ord(layerDialog)].len == 1
+
+    endDialog()
+
   test "color combo opens its popup from button click":
     resetUi()
     var color = rgb(0.2, 0.4, 0.8)
