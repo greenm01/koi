@@ -70,7 +70,7 @@ proc textField*(
     activate: bool = false,
     drawWidget: bool = true,
     constraint: Option[TextFieldConstraint] = TextFieldConstraint.none,
-    style: TextFieldStyle = defaultTextFieldStyle(),
+    style: TextFieldStyle = borrowDefaultTextFieldStyle(),
 ) =
   const MaxTextRuneLen = 1024
 
@@ -405,7 +405,7 @@ template rawTextField*(
     disabled: bool = false,
     activate: bool = false,
     constraint: Option[TextFieldConstraint] = TextFieldConstraint.none,
-    style: TextFieldStyle = defaultTextFieldStyle(),
+    style: TextFieldStyle = borrowDefaultTextFieldStyle(),
 ) =
   let i = instantiationInfo(fullPaths = true)
   let id = nextId(i.filename, i.line)
@@ -432,7 +432,7 @@ template textField*(
     activate: bool = false,
     drawWidget: bool = true,
     constraint: Option[TextFieldConstraint] = TextFieldConstraint.none,
-    style: TextFieldStyle = defaultTextFieldStyle(),
+    style: TextFieldStyle = borrowDefaultTextFieldStyle(),
 ) =
   let i = instantiationInfo(fullPaths = true)
   let id = nextId(i.filename, i.line)
@@ -447,7 +447,7 @@ template textField*(
     activate: bool = false,
     drawWidget: bool = true,
     constraint: Option[TextFieldConstraint] = TextFieldConstraint.none,
-    style: TextFieldStyle = defaultTextFieldStyle(),
+    style: TextFieldStyle = borrowDefaultTextFieldStyle(),
 ) =
   let i = instantiationInfo(fullPaths = true)
   let id = nextId(i.filename, i.line)

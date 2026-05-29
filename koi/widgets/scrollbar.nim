@@ -32,7 +32,7 @@ proc horizScrollBar*(
     tooltip: string = "",
     thumbSize: float = -1.0,
     clickStep: float = -1.0,
-    style: ScrollBarStyle = defaultScrollBarStyle(),
+    style: ScrollBarStyle = borrowDefaultScrollBarStyle(),
     allowFocusCaptured: bool = false,
 ) =
   alias(ui, g_uiState)
@@ -244,7 +244,7 @@ proc vertScrollBar*(
     tooltip: string = "",
     thumbSize: float = -1.0,
     clickStep: float = -1.0,
-    style: ScrollBarStyle = defaultScrollBarStyle(),
+    style: ScrollBarStyle = borrowDefaultScrollBarStyle(),
     allowFocusCaptured: bool = false,
 ) =
   alias(ui, g_uiState)
@@ -463,7 +463,7 @@ template horizScrollBar*(
     tooltip: string = "",
     thumbSize: float = -1.0,
     clickStep: float = -1.0,
-    style: ScrollBarStyle = defaultScrollBarStyle(),
+    style: ScrollBarStyle = borrowDefaultScrollBarStyle(),
     allowFocusCaptured: bool = false,
 ) =
   let i = instantiationInfo(fullPaths = true)
@@ -481,7 +481,7 @@ template vertScrollBar*(
     tooltip: string = "",
     thumbSize: float = -1.0,
     clickStep: float = -1.0,
-    style: ScrollBarStyle = defaultScrollBarStyle(),
+    style: ScrollBarStyle = borrowDefaultScrollBarStyle(),
     allowFocusCaptured: bool = false,
 ) =
   let i = instantiationInfo(fullPaths = true)

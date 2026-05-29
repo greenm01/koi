@@ -63,7 +63,9 @@ proc endView*() =
   resetHitClip()
 
 proc beginScrollView*(
-    id: ItemId, x, y, w, h: float, style: ScrollViewStyle = defaultScrollViewStyle()
+    id: ItemId,
+    x, y, w, h: float,
+    style: ScrollViewStyle = borrowDefaultScrollViewStyle(),
 ) =
   alias(ui, g_uiState)
   let (x, y) = addDrawOffset(x, y)
@@ -89,7 +91,7 @@ proc beginScrollView*(
   ui.itemState[id] = ss
 
 template beginScrollView*(
-    x, y, w, h: float, style: ScrollViewStyle = defaultScrollViewStyle()
+    x, y, w, h: float, style: ScrollViewStyle = borrowDefaultScrollViewStyle()
 ) =
   let i = instantiationInfo(fullPaths = true)
   let id = nextId(i.filename, i.line, "")

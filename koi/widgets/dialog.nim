@@ -17,7 +17,7 @@ proc beginDialog*(
     id: ItemId,
     x, y, w, h: float,
     title: string,
-    style: DialogStyle = defaultDialogStyle(),
+    style: DialogStyle = borrowDefaultDialogStyle(),
 ): bool =
   alias(ui, g_uiState)
   alias(s, style)
@@ -33,7 +33,7 @@ proc beginDialog*(
     title: string,
     x: Option[float] = float.none,
     y: Option[float] = float.none,
-    style: DialogStyle = defaultDialogStyle(),
+    style: DialogStyle = borrowDefaultDialogStyle(),
 ) =
   alias(ui, g_uiState)
   alias(ds, ui.dialogState)

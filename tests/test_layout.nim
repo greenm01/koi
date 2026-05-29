@@ -157,6 +157,38 @@ suite "NEP1 naming aliases":
     setDefaultButtonStyle(original)
     checkClose(defaultButtonStyle().cornerRadius, original.cornerRadius)
 
+  test "borrowed default styles avoid per-call deep copies":
+    let
+      originalButton = defaultButtonStyle()
+      originalTextArea = defaultTextAreaStyle()
+
+    try:
+      var changedButton = defaultButtonStyle()
+      changedButton.cornerRadius = originalButton.cornerRadius + 2
+
+      defaultButtonStyle(changedButton)
+      checkClose(borrowDefaultButtonStyle().cornerRadius, changedButton.cornerRadius)
+
+      var copiedButton = defaultButtonStyle()
+      copiedButton.label.padHoriz = borrowDefaultButtonStyle().label.padHoriz + 10
+      checkClose(
+        borrowDefaultButtonStyle().label.padHoriz, originalButton.label.padHoriz
+      )
+
+      borrowDefaultButtonStyle().label.padHoriz = originalButton.label.padHoriz + 5
+      checkClose(defaultButtonStyle().label.padHoriz, originalButton.label.padHoriz + 5)
+
+      let borrowedTextArea = borrowDefaultTextAreaStyle()
+      borrowedTextArea.scrollBarStyleNormal.thumbPad =
+        originalTextArea.scrollBarStyleNormal.thumbPad + 3
+      checkClose(
+        defaultTextAreaStyle().scrollBarStyleNormal.thumbPad,
+        originalTextArea.scrollBarStyleNormal.thumbPad + 3,
+      )
+    finally:
+      setDefaultButtonStyle(originalButton)
+      setDefaultTextAreaStyle(originalTextArea)
+
   test "state aliases preserve old wrapper behavior":
     g_uiState = UIState.default
 

@@ -76,12 +76,19 @@ work that needs broader design or visual validation.
    - Texture bind coalescing and broader image-based backend validation remain
      deferred.
 
+11. Widget default style arguments deep-copied ref-object styles every call.
+   - Public default style accessors still deep-copy ref-object styles for
+     caller isolation.
+   - Added explicit borrowed default-style accessors that return the current
+     global defaults without deep-copying.
+   - Widgets now use borrowed default styles for omitted style arguments while
+     copy-returning public accessors remain unchanged.
+   - Borrowed defaults are read-only by convention. Mutating borrowed styles
+     mutates the global default.
+
 ## High-Value Follow-Ups
 
-1. Default style copies.
-   - Default style accessors deep-copy ref-object styles on every call.
-   - This is correct for isolation, but expensive if done in hot paths. Cache or
-   borrowing APIs would need an explicit mutability policy.
+No high-value audit items remain in this pass.
 
 ## Deferred Candidates
 

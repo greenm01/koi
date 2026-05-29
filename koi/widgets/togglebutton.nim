@@ -73,7 +73,7 @@ proc toggleButton*(
     tooltip: string,
     disabled: bool = false,
     drawProc: Option[ToggleButtonDrawProc] = ToggleButtonDrawProc.none,
-    style: ToggleButtonStyle = defaultToggleButtonStyle(),
+    style: ToggleButtonStyle = borrowDefaultToggleButtonStyle(),
 ) =
   var active = active_out
 
@@ -109,7 +109,7 @@ template toggleButton*(
     tooltip: string = "",
     disabled: bool = false,
     drawProc: Option[ToggleButtonDrawProc] = ToggleButtonDrawProc.none,
-    style: ToggleButtonStyle = defaultToggleButtonStyle(),
+    style: ToggleButtonStyle = borrowDefaultToggleButtonStyle(),
 ) =
   let i = instantiationInfo(fullPaths = true)
   let id = nextId(i.filename, i.line)
@@ -125,7 +125,7 @@ template toggleButton*(
     tooltip: string = "",
     disabled: bool = false,
     drawProc: Option[ToggleButtonDrawProc] = ToggleButtonDrawProc.none,
-    style: ToggleButtonStyle = defaultToggleButtonStyle(),
+    style: ToggleButtonStyle = borrowDefaultToggleButtonStyle(),
 ) =
   let i = instantiationInfo(fullPaths = true)
   let id = nextId(i.filename, i.line)

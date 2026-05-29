@@ -25,6 +25,9 @@ var DefaultLabelStyle = LabelStyle(
 proc defaultLabelStyle*(): LabelStyle =
   DefaultLabelStyle.deepCopy
 
+proc borrowDefaultLabelStyle*(): LabelStyle =
+  DefaultLabelStyle
+
 proc getDefaultLabelStyle*(): LabelStyle =
   defaultLabelStyle()
 
@@ -49,6 +52,9 @@ var DefaultShadowStyle = ShadowStyle(
 proc defaultShadowStyle*(): ShadowStyle =
   DefaultShadowStyle.deepCopy
 
+proc borrowDefaultShadowStyle*(): ShadowStyle =
+  DefaultShadowStyle
+
 proc getDefaultShadowStyle*(): ShadowStyle =
   defaultShadowStyle()
 
@@ -71,6 +77,9 @@ var DefaultPopupStyle = PopupStyle(
 
 proc defaultPopupStyle*(): PopupStyle =
   DefaultPopupStyle.deepCopy
+
+proc borrowDefaultPopupStyle*(): PopupStyle =
+  DefaultPopupStyle
 
 proc getDefaultPopupStyle*(): PopupStyle =
   defaultPopupStyle()
@@ -106,6 +115,9 @@ with DefaultButtonStyle.label:
 
 proc defaultButtonStyle*(): ButtonStyle =
   DefaultButtonStyle.deepCopy
+
+proc borrowDefaultButtonStyle*(): ButtonStyle =
+  DefaultButtonStyle
 
 proc getDefaultButtonStyle*(): ButtonStyle =
   defaultButtonStyle()
@@ -155,6 +167,9 @@ with DefaultToggleButtonStyle.labelActive:
 proc defaultToggleButtonStyle*(): ToggleButtonStyle =
   DefaultToggleButtonStyle.deepCopy
 
+proc borrowDefaultToggleButtonStyle*(): ToggleButtonStyle =
+  DefaultToggleButtonStyle
+
 proc getDefaultToggleButtonStyle*(): ToggleButtonStyle =
   defaultToggleButtonStyle()
 
@@ -195,6 +210,9 @@ with DefaultCheckBoxStyle.icon:
 
 proc defaultCheckBoxStyle*(): CheckBoxStyle =
   DefaultCheckBoxStyle.deepCopy
+
+proc borrowDefaultCheckBoxStyle*(): CheckBoxStyle =
+  DefaultCheckBoxStyle
 
 proc getDefaultCheckBoxStyle*(): CheckBoxStyle =
   defaultCheckBoxStyle()
@@ -237,6 +255,9 @@ with DefaultRadioButtonsStyle.label:
 proc defaultRadioButtonsStyle*(): RadioButtonsStyle =
   DefaultRadioButtonsStyle.deepCopy
 
+proc borrowDefaultRadioButtonsStyle*(): RadioButtonsStyle =
+  DefaultRadioButtonsStyle
+
 proc getDefaultRadioButtonsStyle*(): RadioButtonsStyle =
   defaultRadioButtonsStyle()
 
@@ -274,6 +295,9 @@ var DefaultScrollBarStyle = ScrollBarStyle(
 
 proc defaultScrollBarStyle*(): ScrollBarStyle =
   DefaultScrollBarStyle.deepCopy
+
+proc borrowDefaultScrollBarStyle*(): ScrollBarStyle =
+  DefaultScrollBarStyle
 
 proc getDefaultScrollBarStyle*(): ScrollBarStyle =
   defaultScrollBarStyle()
@@ -335,6 +359,9 @@ with DefaultDropDownStyle:
 proc defaultDropDownStyle*(): DropDownStyle =
   DefaultDropDownStyle.deepCopy
 
+proc borrowDefaultDropDownStyle*(): DropDownStyle =
+  DefaultDropDownStyle
+
 proc getDefaultDropDownStyle*(): DropDownStyle =
   defaultDropDownStyle()
 
@@ -373,6 +400,9 @@ var DefaultTextFieldStyle = TextFieldStyle(
 
 proc defaultTextFieldStyle*(): TextFieldStyle =
   DefaultTextFieldStyle.deepCopy
+
+proc borrowDefaultTextFieldStyle*(): TextFieldStyle =
+  DefaultTextFieldStyle
 
 proc getDefaultTextFieldStyle*(): TextFieldStyle =
   defaultTextFieldStyle()
@@ -433,6 +463,9 @@ with DefaultTextAreaStyle:
 proc defaultTextAreaStyle*(): TextAreaStyle =
   DefaultTextAreaStyle.deepCopy
 
+proc borrowDefaultTextAreaStyle*(): TextAreaStyle =
+  DefaultTextAreaStyle
+
 proc getDefaultTextAreaStyle*(): TextAreaStyle =
   defaultTextAreaStyle()
 
@@ -480,6 +513,9 @@ with DefaultSliderStyle:
 proc defaultSliderStyle*(): SliderStyle =
   DefaultSliderStyle.deepCopy
 
+proc borrowDefaultSliderStyle*(): SliderStyle =
+  DefaultSliderStyle
+
 proc getDefaultSliderStyle*(): SliderStyle =
   defaultSliderStyle()
 
@@ -508,6 +544,9 @@ with DefaultSectionHeaderStyle.label:
 proc defaultSectionHeaderStyle*(): SectionHeaderStyle =
   DefaultSectionHeaderStyle.deepCopy
 
+proc borrowDefaultSectionHeaderStyle*(): SectionHeaderStyle =
+  DefaultSectionHeaderStyle
+
 proc getDefaultSectionHeaderStyle*(): SectionHeaderStyle =
   defaultSectionHeaderStyle()
 
@@ -535,6 +574,9 @@ with DefaultSubSectionHeaderStyle.label:
 
 proc defaultSubSectionHeaderStyle*(): SectionHeaderStyle =
   DefaultSubSectionHeaderStyle.deepCopy
+
+proc borrowDefaultSubSectionHeaderStyle*(): SectionHeaderStyle =
+  DefaultSubSectionHeaderStyle
 
 proc getDefaultSubSectionHeaderStyle*(): SectionHeaderStyle =
   defaultSubSectionHeaderStyle()
@@ -568,6 +610,9 @@ with DefaultScrollViewStyle.scrollBarStyle:
 
 proc defaultScrollViewStyle*(): ScrollViewStyle =
   DefaultScrollViewStyle.deepCopy
+
+proc borrowDefaultScrollViewStyle*(): ScrollViewStyle =
+  DefaultScrollViewStyle
 
 proc getDefaultScrollViewStyle*(): ScrollViewStyle =
   defaultScrollViewStyle()
@@ -604,6 +649,9 @@ DefaultDialogStyle.shadow = ShadowStyle(
 
 proc defaultDialogStyle*(): DialogStyle =
   DefaultDialogStyle.deepCopy
+
+proc borrowDefaultDialogStyle*(): DialogStyle =
+  DefaultDialogStyle
 
 proc getDefaultDialogStyle*(): DialogStyle =
   defaultDialogStyle()

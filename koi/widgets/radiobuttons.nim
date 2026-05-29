@@ -120,7 +120,7 @@ proc radioButtons*[T](
     allowNoSelection: bool = false,
     layout: RadioButtonsLayout = RadioButtonsLayout(kind: rblHoriz),
     drawProc: Option[RadioButtonsDrawProc] = RadioButtonsDrawProc.none,
-    style: RadioButtonsStyle = defaultRadioButtonsStyle(),
+    style: RadioButtonsStyle = borrowDefaultRadioButtonsStyle(),
 ) =
   if multiselect:
     assert activeButtons_out.len <= labels.len
@@ -334,7 +334,7 @@ template radioButtons*[T](
     tooltips: seq[string] = @[],
     layout: RadioButtonsLayout = RadioButtonsLayout(kind: rblHoriz),
     drawProc: Option[RadioButtonsDrawProc] = RadioButtonsDrawProc.none,
-    style: RadioButtonsStyle = defaultRadioButtonsStyle(),
+    style: RadioButtonsStyle = borrowDefaultRadioButtonsStyle(),
 ) =
   let i = instantiationInfo(fullPaths = true)
   let id = nextId(i.filename, i.line)
@@ -365,7 +365,7 @@ template radioButtons*[T](
     tooltips: seq[string] = @[],
     layout: RadioButtonsLayout = RadioButtonsLayout(kind: rblHoriz),
     drawProc: Option[RadioButtonsDrawProc] = RadioButtonsDrawProc.none,
-    style: RadioButtonsStyle = defaultRadioButtonsStyle(),
+    style: RadioButtonsStyle = borrowDefaultRadioButtonsStyle(),
 ) =
   let i = instantiationInfo(fullPaths = true)
   let id = nextId(i.filename, i.line)
@@ -402,7 +402,7 @@ template radioButtons*[T](
     allowNoSelection: bool = false,
     layout: RadioButtonsLayout = RadioButtonsLayout(kind: rblHoriz),
     drawProc: Option[RadioButtonsDrawProc] = RadioButtonsDrawProc.none,
-    style: RadioButtonsStyle = defaultRadioButtonsStyle(),
+    style: RadioButtonsStyle = borrowDefaultRadioButtonsStyle(),
 ) =
   let i = instantiationInfo(fullPaths = true)
   let id = nextId(i.filename, i.line)
@@ -420,7 +420,7 @@ template radioButtons*[T](
     allowNoSelection: bool = false,
     layout: RadioButtonsLayout = RadioButtonsLayout(kind: rblHoriz),
     drawProc: Option[RadioButtonsDrawProc] = RadioButtonsDrawProc.none,
-    style: RadioButtonsStyle = defaultRadioButtonsStyle(),
+    style: RadioButtonsStyle = borrowDefaultRadioButtonsStyle(),
 ) =
   let i = instantiationInfo(fullPaths = true)
   let id = nextId(i.filename, i.line)
@@ -451,7 +451,7 @@ template radioButtons*[E: enum](
     tooltips: seq[string] = @[],
     layout: RadioButtonsLayout = RadioButtonsLayout(kind: rblHoriz),
     drawProc: Option[RadioButtonsDrawProc] = RadioButtonsDrawProc.none,
-    style: RadioButtonsStyle = defaultRadioButtonsStyle(),
+    style: RadioButtonsStyle = borrowDefaultRadioButtonsStyle(),
 ) =
   let
     i = instantiationInfo(fullPaths = true)
@@ -481,7 +481,7 @@ template radioButtons*[E: enum](
     tooltips: seq[string] = @[],
     layout: RadioButtonsLayout = RadioButtonsLayout(kind: rblHoriz),
     drawProc: Option[RadioButtonsDrawProc] = RadioButtonsDrawProc.none,
-    style: RadioButtonsStyle = defaultRadioButtonsStyle(),
+    style: RadioButtonsStyle = borrowDefaultRadioButtonsStyle(),
 ) =
   let
     i = instantiationInfo(fullPaths = true)
@@ -516,7 +516,7 @@ template multiRadioButtons*[T](
     tooltips: seq[string] = @[],
     layout: RadioButtonsLayout = RadioButtonsLayout(kind: rblHoriz),
     drawProc: Option[RadioButtonsDrawProc] = RadioButtonsDrawProc.none,
-    style: RadioButtonsStyle = defaultRadioButtonsStyle(),
+    style: RadioButtonsStyle = borrowDefaultRadioButtonsStyle(),
 ) =
   let i = instantiationInfo(fullPaths = true)
   let id = nextId(i.filename, i.line)
@@ -543,7 +543,7 @@ template multiRadioButtons*[T](
     tooltips: seq[string] = @[],
     layout: RadioButtonsLayout = RadioButtonsLayout(kind: rblHoriz),
     drawProc: Option[RadioButtonsDrawProc] = RadioButtonsDrawProc.none,
-    style: RadioButtonsStyle = defaultRadioButtonsStyle(),
+    style: RadioButtonsStyle = borrowDefaultRadioButtonsStyle(),
 ) =
   let i = instantiationInfo(fullPaths = true)
   let id = nextId(i.filename, i.line)
@@ -573,7 +573,7 @@ template multiRadioButtons*[E: enum](
     tooltips: seq[string] = @[],
     layout: RadioButtonsLayout = RadioButtonsLayout(kind: rblHoriz),
     drawProc: Option[RadioButtonsDrawProc] = RadioButtonsDrawProc.none,
-    style: RadioButtonsStyle = defaultRadioButtonsStyle(),
+    style: RadioButtonsStyle = borrowDefaultRadioButtonsStyle(),
 ) =
   let
     i = instantiationInfo(fullPaths = true)
@@ -610,7 +610,7 @@ template multiRadioButtons*[E: enum](
     tooltips: seq[string] = @[],
     layout: RadioButtonsLayout = RadioButtonsLayout(kind: rblHoriz),
     drawProc: Option[RadioButtonsDrawProc] = RadioButtonsDrawProc.none,
-    style: RadioButtonsStyle = defaultRadioButtonsStyle(),
+    style: RadioButtonsStyle = borrowDefaultRadioButtonsStyle(),
 ) =
   let
     i = instantiationInfo(fullPaths = true)

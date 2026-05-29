@@ -26,7 +26,7 @@ proc dropDown*[T](
     selectedItem_out: var T,
     tooltip: string,
     disabled: bool,
-    style: DropDownStyle = defaultDropDownStyle(),
+    style: DropDownStyle = borrowDefaultDropDownStyle(),
 ) =
   assert selectedItem_out.ord <= items.high
   var selectedItem = selectedItem_out.clamp(T.low, T.high)
@@ -308,7 +308,7 @@ template dropDown*[T](
     selectedItem: var T,
     tooltip: string = "",
     disabled: bool = false,
-    style: DropDownStyle = defaultDropDownStyle(),
+    style: DropDownStyle = borrowDefaultDropDownStyle(),
 ) =
   let i = instantiationInfo(fullPaths = true)
   let id = nextId(i.filename, i.line)
@@ -320,7 +320,7 @@ template dropDown*[T](
     selectedItem: var T,
     tooltip: string = "",
     disabled: bool = false,
-    style: DropDownStyle = defaultDropDownStyle(),
+    style: DropDownStyle = borrowDefaultDropDownStyle(),
 ) =
   let i = instantiationInfo(fullPaths = true)
   let id = nextId(i.filename, i.line)
@@ -347,7 +347,7 @@ template dropDown*[E: enum](
     selectedItem: var E,
     tooltip: string = "",
     disabled: bool = false,
-    style: DropDownStyle = defaultDropDownStyle(),
+    style: DropDownStyle = borrowDefaultDropDownStyle(),
 ) =
   let
     i = instantiationInfo(fullPaths = true)
@@ -360,7 +360,7 @@ template dropDown*[E: enum](
     selectedItem: var E,
     tooltip: string = "",
     disabled: bool = false,
-    style: DropDownStyle = defaultDropDownStyle(),
+    style: DropDownStyle = borrowDefaultDropDownStyle(),
 ) =
   let
     i = instantiationInfo(fullPaths = true)

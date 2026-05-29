@@ -69,7 +69,7 @@ proc checkBox*(
     tooltip: string,
     disabled: bool = false,
     drawProc: Option[CheckBoxDrawProc] = CheckBoxDrawProc.none,
-    style: CheckBoxStyle = defaultCheckBoxStyle(),
+    style: CheckBoxStyle = borrowDefaultCheckBoxStyle(),
 ) =
   var checked = checked_out
 
@@ -101,7 +101,7 @@ template checkBox*(
     tooltip: string = "",
     disabled: bool = false,
     drawProc: Option[CheckBoxDrawProc] = CheckBoxDrawProc.none,
-    style: CheckBoxStyle = defaultCheckBoxStyle(),
+    style: CheckBoxStyle = borrowDefaultCheckBoxStyle(),
 ) =
   let i = instantiationInfo(fullPaths = true)
   let id = nextId(i.filename, i.line)
@@ -113,7 +113,7 @@ template checkBox*(
     tooltip: string = "",
     disabled: bool = false,
     drawProc: Option[CheckBoxDrawProc] = CheckBoxDrawProc.none,
-    style: CheckBoxStyle = defaultCheckBoxStyle(),
+    style: CheckBoxStyle = borrowDefaultCheckBoxStyle(),
 ) =
   let i = instantiationInfo(fullPaths = true)
   let id = nextId(i.filename, i.line)

@@ -63,7 +63,7 @@ proc button*(
     tooltip: string,
     disabled: bool,
     drawProc: Option[ButtonDrawProc] = ButtonDrawProc.none,
-    style: ButtonStyle = defaultButtonStyle(),
+    style: ButtonStyle = borrowDefaultButtonStyle(),
 ): bool =
   alias(ui, g_uiState)
 
@@ -90,7 +90,7 @@ template button*(
     tooltip: string = "",
     disabled: bool = false,
     drawProc: Option[ButtonDrawProc] = ButtonDrawProc.none,
-    style: ButtonStyle = defaultButtonStyle(),
+    style: ButtonStyle = borrowDefaultButtonStyle(),
 ): bool =
   let i = instantiationInfo(fullPaths = true)
   let id = nextId(i.filename, i.line)
@@ -102,7 +102,7 @@ template button*(
     tooltip: string = "",
     disabled: bool = false,
     drawProc: Option[ButtonDrawProc] = ButtonDrawProc.none,
-    style: ButtonStyle = defaultButtonStyle(),
+    style: ButtonStyle = borrowDefaultButtonStyle(),
 ): bool =
   let i = instantiationInfo(fullPaths = true)
   let id = nextId(i.filename, i.line)

@@ -31,7 +31,7 @@ proc horizSlider*(
     grouping: WidgetGrouping = wgNone,
     label: string = "",
     tooltip: string = "",
-    style: SliderStyle = defaultSliderStyle(),
+    style: SliderStyle = borrowDefaultSliderStyle(),
 ) =
   alias(ui, g_uiState)
   alias(sl, ui.sliderState)
@@ -182,7 +182,7 @@ proc vertSlider*(
     endVal: float,
     value_out: var float,
     tooltip: string = "",
-    style: SliderStyle = defaultSliderStyle(),
+    style: SliderStyle = borrowDefaultSliderStyle(),
 ) =
   alias(ui, g_uiState)
   alias(sl, ui.sliderState)
@@ -296,7 +296,7 @@ template horizSlider*(
     grouping: WidgetGrouping = wgNone,
     label: string = "",
     tooltip: string = "",
-    style: SliderStyle = defaultSliderStyle(),
+    style: SliderStyle = borrowDefaultSliderStyle(),
 ) =
   let i = instantiationInfo(fullPaths = true)
   let id = nextId(i.filename, i.line)
@@ -308,7 +308,7 @@ template horizSlider*(
     grouping: WidgetGrouping = wgNone,
     label: string = "",
     tooltip: string = "",
-    style: SliderStyle = defaultSliderStyle(),
+    style: SliderStyle = borrowDefaultSliderStyle(),
 ) =
   let i = instantiationInfo(fullPaths = true)
   let id = nextId(i.filename, i.line)
@@ -334,7 +334,7 @@ template vertSlider*(
     startVal, endVal: float,
     value: var float,
     tooltip: string = "",
-    style: SliderStyle = defaultSliderStyle(),
+    style: SliderStyle = borrowDefaultSliderStyle(),
 ) =
   let i = instantiationInfo(fullPaths = true)
   let id = nextId(i.filename, i.line)

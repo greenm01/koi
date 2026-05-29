@@ -64,7 +64,7 @@ proc drawTooltip*(x, y: float, text: string, alpha: float = 1.0) =
     ty = round(ty)
 
     vg.globalAlpha(alpha)
-    drawShadow(vg, tx, ty, rw, rh, defaultShadowStyle())
+    drawShadow(vg, tx, ty, rw, rh, borrowDefaultShadowStyle())
 
     vg.beginPath()
     vg.roundedRect(tx, ty, rw, rh, 5)

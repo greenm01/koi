@@ -31,7 +31,7 @@ proc textArea*(
     activate: bool = false,
     drawWidget: bool = true,
     constraint: Option[TextAreaConstraint] = TextAreaConstraint.none,
-    style: TextAreaStyle = defaultTextAreaStyle(),
+    style: TextAreaStyle = borrowDefaultTextAreaStyle(),
 ) =
   alias(ui, g_uiState)
   alias(s, style)
@@ -450,7 +450,7 @@ template textArea*(
     activate: bool = false,
     drawWidget: bool = true,
     constraint: Option[TextAreaConstraint] = TextAreaConstraint.none,
-    style: TextAreaStyle = defaultTextAreaStyle(),
+    style: TextAreaStyle = borrowDefaultTextAreaStyle(),
 ) =
   let i = instantiationInfo(fullPaths = true)
   let id = nextId(i.filename, i.line)
@@ -465,7 +465,7 @@ template textArea*(
     activate: bool = false,
     drawWidget: bool = true,
     constraint: Option[TextAreaConstraint] = TextAreaConstraint.none,
-    style: TextAreaStyle = defaultTextAreaStyle(),
+    style: TextAreaStyle = borrowDefaultTextAreaStyle(),
 ) =
   let i = instantiationInfo(fullPaths = true)
   let id = nextId(i.filename, i.line)

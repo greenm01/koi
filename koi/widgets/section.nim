@@ -89,7 +89,7 @@ template sectionHeader*(
     label: string,
     expanded: var bool,
     tooltip: string = "",
-    style: SectionHeaderStyle = defaultSectionHeaderStyle(),
+    style: SectionHeaderStyle = borrowDefaultSectionHeaderStyle(),
 ): bool =
   let i = instantiationInfo(fullPaths = true)
   let id = nextId(i.filename, i.line, label)
@@ -114,7 +114,7 @@ template subSectionHeader*(
     label: string,
     expanded: var bool,
     tooltip: string = "",
-    style: SectionHeaderStyle = defaultSubSectionHeaderStyle(),
+    style: SectionHeaderStyle = borrowDefaultSubSectionHeaderStyle(),
 ): bool =
   let i = instantiationInfo(fullPaths = true)
   let id = nextId(i.filename, i.line, label)
