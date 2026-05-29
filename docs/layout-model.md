@@ -271,6 +271,15 @@ arena.setLayoutErrorHandler(proc(error: LayoutError) =
 )
 ```
 
+Applications can also configure the active UI arena directly:
+
+```nim
+setLayoutErrorHandler(proc(error: LayoutError) = echo error.message)
+setLayoutMaxNodes(4096)
+let errors = layoutErrors()
+clearLayoutErrors()
+```
+
 The built-in inspector is opt-in and drawn on `layerGlobalOverlay` after the
 frame is solved. It visualizes solved node rectangles and shows the hovered
 node's sizing, intrinsic, placement, and aspect-ratio data.

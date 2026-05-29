@@ -881,6 +881,18 @@ proc layoutInspectorHoveredNode*(): LayoutNodeId =
 proc layoutInspectorSelectedNode*(): LayoutNodeId =
   g_uiState.layoutDebug.selectedNode
 
+proc setLayoutErrorHandler*(handler: LayoutErrorHandler) =
+  g_uiState.layoutArena.setLayoutErrorHandler(handler)
+
+proc clearLayoutErrors*() =
+  g_uiState.layoutArena.clearLayoutErrors()
+
+proc layoutErrors*(): seq[LayoutError] =
+  g_uiState.layoutArena.layoutErrors()
+
+proc setLayoutMaxNodes*(maxNodes: int) =
+  g_uiState.layoutArena.setLayoutMaxNodes(maxNodes)
+
 proc queueLayoutInspectorDraw() =
   alias(ui, g_uiState)
   if not ui.layoutDebug.enabled:

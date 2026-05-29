@@ -929,6 +929,26 @@ suite "unified layout solver":
     check arena.errors.len == 1
     check arena.errors[0].kind == lekExceededMaxNodes
 
+  test "global layout error settings survive frame layout reset":
+    resetLayout()
+    var reported: seq[LayoutErrorKind]
+    setLayoutErrorHandler(
+      proc(error: LayoutError) =
+        reported.add(error.kind)
+    )
+    setLayoutMaxNodes(1)
+
+    beginFrameLayout()
+    discard layoutSlot(71, rect(0, 0, 10, 10))
+    finishFrameLayout()
+
+    check reported == @[lekExceededMaxNodes]
+    check layoutErrors().len == 1
+    check layoutErrors()[0].kind == lekExceededMaxNodes
+
+    clearLayoutErrors()
+    check layoutErrors().len == 0
+
   test "fixed-width text wraps and updates a fit-height parent":
     proc measureText(
         text: string, fontSize: float, fontFace: string, maxWidth: float
