@@ -1088,6 +1088,34 @@ suite "unified layout solver":
 
     check int32(layoutInspectorHoveredNode()) == int32(high.nodeId)
 
+  test "layout inspector detail falls back to selected node when not hovering":
+    resetLayout()
+    g_drawLayers.init()
+    g_uiState.mx = 12
+    g_uiState.my = 12
+    g_uiState.mbLeftDown = true
+    setLayoutInspectorEnabled(true)
+
+    beginFrameLayout()
+    let selected = layoutSlot(311, rect(10, 10, 20, 20))
+    finishFrameLayout()
+
+    check int32(layoutInspectorSelectedNode()) == int32(selected.nodeId)
+    check int32(layoutInspectorDetailNode()) == int32(selected.nodeId)
+
+    g_drawLayers.init()
+    g_uiState.mx = 80
+    g_uiState.my = 80
+    g_uiState.mbLeftDown = false
+
+    beginFrameLayout()
+    let selectedAgain = layoutSlot(311, rect(10, 10, 20, 20))
+    finishFrameLayout()
+
+    check int32(layoutInspectorHoveredNode()) == 0
+    check int32(layoutInspectorSelectedNode()) == int32(selectedAgain.nodeId)
+    check int32(layoutInspectorDetailNode()) == int32(selectedAgain.nodeId)
+
   test "attached slots follow frame-local targets and expose z-index to draws":
     resetLayout()
     g_drawLayers.init()

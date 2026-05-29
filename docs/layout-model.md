@@ -286,11 +286,13 @@ The built-in inspector is opt-in and drawn on `layerGlobalOverlay` after the
 frame is solved. It visualizes solved node rectangles and shows the hovered
 node's sizing, intrinsic, placement, z-index, and aspect-ratio data. When
 rectangles overlap, hover selection follows layout z-index first and insertion
-order second, matching draw-layer ordering.
+order second, matching draw-layer ordering. Clicked selection persists as the
+detail node when the cursor is hovering only the root rectangle.
 
 ```nim
 setLayoutInspectorEnabled(true)
 toggleLayoutInspector()
+let detailNode = layoutInspectorDetailNode()
 ```
 
 ## Execution Model

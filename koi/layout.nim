@@ -881,6 +881,24 @@ proc layoutInspectorHoveredNode*(): LayoutNodeId =
 proc layoutInspectorSelectedNode*(): LayoutNodeId =
   g_uiState.layoutDebug.selectedNode
 
+func layoutInspectorDetailNode(
+    arena: LayoutArena, hovered, selected: LayoutNodeId
+): LayoutNodeId =
+  let selectedValid = int32(selected) >= 0 and int32(selected) < arena.nodes.len.int32
+  if not hovered.isNull and (int32(hovered) != 0 or not selectedValid):
+    hovered
+  elif selectedValid:
+    selected
+  elif int32(hovered) >= 0 and int32(hovered) < arena.nodes.len.int32:
+    hovered
+  else:
+    NullLayoutNodeId
+
+proc layoutInspectorDetailNode*(): LayoutNodeId =
+  g_uiState.layoutArena.layoutInspectorDetailNode(
+    g_uiState.layoutDebug.hoveredNode, g_uiState.layoutDebug.selectedNode
+  )
+
 proc setLayoutErrorHandler*(handler: LayoutErrorHandler) =
   g_uiState.layoutArena.setLayoutErrorHandler(handler)
 
@@ -930,6 +948,8 @@ proc queueLayoutInspectorDraw() =
 
   let capturedHover = ui.layoutDebug.hoveredNode
   let capturedSelected = ui.layoutDebug.selectedNode
+  let capturedDetail =
+    ui.layoutArena.layoutInspectorDetailNode(capturedHover, capturedSelected)
   let capturedPanelWidth =
     if ui.layoutDebug.panelWidth > 0.0: ui.layoutDebug.panelWidth else: 360.0
 
@@ -965,12 +985,12 @@ proc queueLayoutInspectorDraw() =
     discard vg.text(panelX + 12, y, "Layout Inspector")
     y += 22.0
 
-    let hoveredIndex = int32(capturedHover)
+    let detailIndex = int32(capturedDetail)
     let selectedIndex = int32(capturedSelected)
     discard vg.text(panelX + 12, y, &"selected: {selectedIndex}")
     y += 17.0
-    if hoveredIndex >= 0 and hoveredIndex < g_uiState.layoutArena.nodes.len.int32:
-      let node = g_uiState.layoutArena.nodes[hoveredIndex]
+    if detailIndex >= 0 and detailIndex < g_uiState.layoutArena.nodes.len.int32:
+      let node = g_uiState.layoutArena.nodes[detailIndex]
       let lines = [
         &"node: {int32(node.id)} item: {node.itemId}",
         &"parent: {int32(node.parent)} kind: {node.kind}",
@@ -986,7 +1006,7 @@ proc queueLayoutInspectorDraw() =
         discard vg.text(panelX + 12, y, line)
         y += 17.0
     else:
-      discard vg.text(panelX + 12, y, "No node hovered")
+      discard vg.text(panelX + 12, y, "No node selected")
 
 proc finishFrameLayout*() =
   alias(ui, g_uiState)
