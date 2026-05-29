@@ -37,6 +37,20 @@ proc loadData(vg: NVGContext) =
 proc renderUI() =
   koi.beginFrame()
 
+  menuBar(0, 0, koi.winWidth(), 24):
+    menu("File", 160, 70):
+      if menuItem("New"):
+        echo "New selected"
+      if menuItem("Open"):
+        echo "Open selected"
+    menu("Edit", 160, 70):
+      if menuItem("Copy"):
+        echo "Copy selected"
+      if menuItem("Paste"):
+        echo "Paste selected"
+
+  spacer(24)
+
   # Standard auto-layout
   label("Standard Auto-layout:")
   if button("Standard Button"):
@@ -116,6 +130,15 @@ proc renderUI() =
   layoutSpace(130.0):
     listView(0, 0, 300, 120, listSelected.len.Natural, 22.0, i):
       discard selectable(0, i.float * 22.0, 280, 20, "List item " & $i, listSelected[i])
+
+  label("Context Menu Area:")
+  layoutSpace(60.0):
+    label(20, 18, 220, 22, "Right-click this row")
+    contextMenu(20, 10, 240, 38, 160, 70):
+      if menuItem("Context Action"):
+        echo "Context action selected"
+      if menuItem("Disabled Item", disabled = true):
+        echo "disabled"
 
   koi.endFrame()
 

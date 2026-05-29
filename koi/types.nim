@@ -610,6 +610,17 @@ type PropertyStyle* = ref object
   button*: ButtonStyle
   textField*: TextFieldStyle
 
+type MenuStyle* = ref object
+  menuBarHeight*: float
+  menuButtonWidth*: float
+  menuItemHeight*: float
+  popupWidth*: float
+  popupPad*: float
+  barFillColor*: Color
+  button*: ButtonStyle
+  item*: SelectableStyle
+  popup*: PopupStyle
+
 type SectionHeaderStyle* = ref object
   label*: LabelStyle
   labelLeftPad*: float

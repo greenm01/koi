@@ -628,6 +628,53 @@ proc defaultPropertyStyle*(style: PropertyStyle) =
 proc setDefaultPropertyStyle*(style: PropertyStyle) =
   defaultPropertyStyle(style)
 
+# Menu
+var DefaultMenuStyle = MenuStyle(
+  menuBarHeight: 24.0,
+  menuButtonWidth: 86.0,
+  menuItemHeight: 22.0,
+  popupWidth: 180.0,
+  popupPad: 4.0,
+  barFillColor: gray(0.18),
+  button: defaultButtonStyle(),
+  item: defaultSelectableStyle(),
+  popup: defaultPopupStyle(),
+)
+
+with DefaultMenuStyle.button:
+  cornerRadius = 0.0
+  fillColor = gray(0, 0)
+  fillColorHover = gray(0.32)
+  fillColorDown = HighlightLowColor
+  label.color = gray(0.85)
+  label.colorHover = white()
+  label.colorDown = gray(0.25)
+
+with DefaultMenuStyle.item:
+  cornerRadius = 3.0
+  fillColor = gray(0, 0)
+  fillColorHover = HighlightColor
+  fillColorDown = HighlightLowColor
+  label.align = haLeft
+  label.color = gray(0.85)
+  label.colorHover = gray(0.25)
+  label.colorDown = gray(0.25)
+
+proc defaultMenuStyle*(): MenuStyle =
+  DefaultMenuStyle.deepCopy
+
+proc borrowDefaultMenuStyle*(): MenuStyle =
+  DefaultMenuStyle
+
+proc getDefaultMenuStyle*(): MenuStyle =
+  defaultMenuStyle()
+
+proc defaultMenuStyle*(style: MenuStyle) =
+  DefaultMenuStyle = style.deepCopy
+
+proc setDefaultMenuStyle*(style: MenuStyle) =
+  defaultMenuStyle(style)
+
 # SectionHeader
 var DefaultSectionHeaderStyle = SectionHeaderStyle(
   label: defaultLabelStyle(),

@@ -8,6 +8,7 @@ import koi/input
 import koi/internal/widget_behavior
 import koi/rect
 import koi/types
+import koi/widgets/menu
 import koi/widgets/popup
 import koi/widgets/selectable
 
@@ -72,6 +73,55 @@ suite "popup behavior":
 
     check not beginPopup(30, 10, 10, 30, 30)
     check not isPopupOpen(30)
+
+suite "menu behavior":
+  test "context menu opens from right click inside bounds":
+    resetUi()
+
+    g_uiState.mx = 16
+    g_uiState.my = 16
+    g_uiState.mbRightDown = true
+
+    check beginContextMenu(40, 0, 0, 30, 30, 100, 60)
+    check isPopupOpen(40)
+    endContextMenu()
+
+  test "context menu ignores right click outside bounds":
+    resetUi()
+
+    g_uiState.mx = 50
+    g_uiState.my = 50
+    g_uiState.mbRightDown = true
+
+    check not beginContextMenu(40, 0, 0, 30, 30, 100, 60)
+    check not isPopupOpen(40)
+
+  test "menu item click closes popup":
+    resetUi()
+
+    g_uiState.mx = 16
+    g_uiState.my = 16
+    g_uiState.mbRightDown = true
+    check beginContextMenu(40, 0, 0, 30, 30, 100, 60)
+    endContextMenu()
+
+    g_uiState.hotItem = 0
+    g_uiState.mbRightDown = false
+    g_uiState.mbLeftDown = true
+    g_uiState.mx = 22
+    g_uiState.my = 22
+    check beginContextMenu(40, 0, 0, 30, 30, 100, 60)
+    check not menuItem(41, "Action")
+    endContextMenu()
+
+    g_uiState.hotItem = 0
+    g_uiState.mbLeftDown = false
+    g_uiState.mx = 22
+    g_uiState.my = 22
+    check beginContextMenu(40, 0, 0, 30, 30, 100, 60)
+    check menuItem(41, "Action")
+    check not isPopupOpen(40)
+    endContextMenu()
 
 suite "simple widget behavior":
   test "disabled widgets do not become active":

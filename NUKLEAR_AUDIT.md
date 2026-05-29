@@ -97,6 +97,14 @@ The next popup/list pass should be considered addressed when Koi has:
   scrollable lists;
 - focused tests for popup state, drop-down keyboard math, and list range math.
 
+The menu/context pass should be considered addressed when Koi has:
+
+- a menu bar, menu, and menu item API built on top of the popup and selectable
+  primitives;
+- a right-click context menu API that anchors at the original click position;
+- focused tests for context-menu opening and menu item close behavior;
+- demo coverage for menu bars and contextual popups.
+
 ## Non-Goals
 
 - Do not copy Nuklear's C names as primary Koi API.
