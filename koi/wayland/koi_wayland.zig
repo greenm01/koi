@@ -22,7 +22,11 @@ const KoiWaylandDisplay = extern struct {
     wl_display: ?*c.struct_wl_display,
     wl_registry: ?*c.struct_wl_registry,
     wl_compositor: ?*c.struct_wl_compositor,
+    wl_seat: ?*c.struct_wl_seat,
+    wl_pointer: ?*c.struct_wl_pointer,
     xdg_wm_base: ?*c.struct_xdg_wm_base,
+    active_window: ?*KoiWaylandWindow,
+    pointer_window: ?*KoiWaylandWindow,
 };
 
 const KoiWaylandWindow = extern struct {
@@ -54,6 +58,10 @@ fn bindGlobal(
     return @ptrCast(@alignCast(proxy));
 }
 
+fn fixedToDouble(value: c.wl_fixed_t) f64 {
+    return @as(f64, @floatFromInt(value)) / 256.0;
+}
+
 fn registryGlobal(
     data: ?*anyopaque,
     registry: ?*c.struct_wl_registry,
@@ -83,6 +91,17 @@ fn registryGlobal(
         if (display.xdg_wm_base) |wm_base| {
             _ = c.xdg_wm_base_add_listener(wm_base, &xdg_wm_base_listener, display);
         }
+    } else if (cStringEquals(interface, "wl_seat")) {
+        display.wl_seat = bindGlobal(
+            c.struct_wl_seat,
+            reg,
+            name,
+            &c.wl_seat_interface,
+            @min(version, 5),
+        );
+        if (display.wl_seat) |seat| {
+            _ = c.wl_seat_add_listener(seat, &wl_seat_listener, display);
+        }
     }
 }
 
@@ -99,6 +118,231 @@ fn registryGlobalRemove(
 const registry_listener = c.struct_wl_registry_listener{
     .global = registryGlobal,
     .global_remove = registryGlobalRemove,
+};
+
+fn wlSeatCapabilities(
+    data: ?*anyopaque,
+    wl_seat: ?*c.struct_wl_seat,
+    capabilities: u32,
+) callconv(.c) void {
+    const display: *KoiWaylandDisplay = @ptrCast(@alignCast(data orelse return));
+    const seat = wl_seat orelse return;
+    const has_pointer = (capabilities & @as(u32, c.WL_SEAT_CAPABILITY_POINTER)) != 0;
+
+    if (has_pointer and display.wl_pointer == null) {
+        display.wl_pointer = c.wl_seat_get_pointer(seat);
+        if (display.wl_pointer) |pointer| {
+            _ = c.wl_pointer_add_listener(pointer, &wl_pointer_listener, display);
+        }
+    } else if (!has_pointer and display.wl_pointer != null) {
+        c.wl_pointer_destroy(display.wl_pointer.?);
+        display.wl_pointer = null;
+        display.pointer_window = null;
+    }
+}
+
+fn wlSeatName(
+    data: ?*anyopaque,
+    wl_seat: ?*c.struct_wl_seat,
+    name: [*c]const u8,
+) callconv(.c) void {
+    _ = data;
+    _ = wl_seat;
+    _ = name;
+}
+
+const wl_seat_listener = c.struct_wl_seat_listener{
+    .capabilities = wlSeatCapabilities,
+    .name = wlSeatName,
+};
+
+fn pointerWindowForSurface(
+    display: *KoiWaylandDisplay,
+    surface: ?*c.struct_wl_surface,
+) ?*KoiWaylandWindow {
+    const window = display.active_window orelse return null;
+    if (window.wl_surface == surface) {
+        return window;
+    }
+    return null;
+}
+
+fn wlPointerEnter(
+    data: ?*anyopaque,
+    wl_pointer: ?*c.struct_wl_pointer,
+    serial: u32,
+    surface: ?*c.struct_wl_surface,
+    surface_x: c.wl_fixed_t,
+    surface_y: c.wl_fixed_t,
+) callconv(.c) void {
+    _ = wl_pointer;
+    _ = serial;
+    const display: *KoiWaylandDisplay = @ptrCast(@alignCast(data orelse return));
+    const window = pointerWindowForSurface(display, surface) orelse return;
+    display.pointer_window = window;
+    if (window.callbacks.on_mouse_move) |on_mouse_move| {
+        on_mouse_move(
+            fixedToDouble(surface_x),
+            fixedToDouble(surface_y),
+            window.callbacks.userdata,
+        );
+    }
+}
+
+fn wlPointerLeave(
+    data: ?*anyopaque,
+    wl_pointer: ?*c.struct_wl_pointer,
+    serial: u32,
+    surface: ?*c.struct_wl_surface,
+) callconv(.c) void {
+    _ = wl_pointer;
+    _ = serial;
+    const display: *KoiWaylandDisplay = @ptrCast(@alignCast(data orelse return));
+    if (display.pointer_window) |window| {
+        if (window.wl_surface == surface) {
+            display.pointer_window = null;
+        }
+    }
+}
+
+fn wlPointerMotion(
+    data: ?*anyopaque,
+    wl_pointer: ?*c.struct_wl_pointer,
+    time: u32,
+    surface_x: c.wl_fixed_t,
+    surface_y: c.wl_fixed_t,
+) callconv(.c) void {
+    _ = wl_pointer;
+    _ = time;
+    const display: *KoiWaylandDisplay = @ptrCast(@alignCast(data orelse return));
+    const window = display.pointer_window orelse return;
+    if (window.callbacks.on_mouse_move) |on_mouse_move| {
+        on_mouse_move(
+            fixedToDouble(surface_x),
+            fixedToDouble(surface_y),
+            window.callbacks.userdata,
+        );
+    }
+}
+
+fn wlPointerButton(
+    data: ?*anyopaque,
+    wl_pointer: ?*c.struct_wl_pointer,
+    serial: u32,
+    time: u32,
+    button: u32,
+    state: u32,
+) callconv(.c) void {
+    _ = wl_pointer;
+    _ = serial;
+    _ = time;
+    const display: *KoiWaylandDisplay = @ptrCast(@alignCast(data orelse return));
+    const window = display.pointer_window orelse display.active_window orelse return;
+    if (window.callbacks.on_mouse_button) |on_mouse_button| {
+        on_mouse_button(
+            button,
+            state == @as(u32, c.WL_POINTER_BUTTON_STATE_PRESSED),
+            window.callbacks.userdata,
+        );
+    }
+}
+
+fn wlPointerAxis(
+    data: ?*anyopaque,
+    wl_pointer: ?*c.struct_wl_pointer,
+    time: u32,
+    axis: u32,
+    value: c.wl_fixed_t,
+) callconv(.c) void {
+    _ = wl_pointer;
+    _ = time;
+    const display: *KoiWaylandDisplay = @ptrCast(@alignCast(data orelse return));
+    const window = display.pointer_window orelse display.active_window orelse return;
+    if (window.callbacks.on_scroll) |on_scroll| {
+        const amount = fixedToDouble(value);
+        if (axis == @as(u32, c.WL_POINTER_AXIS_HORIZONTAL_SCROLL)) {
+            on_scroll(amount, 0, window.callbacks.userdata);
+        } else if (axis == @as(u32, c.WL_POINTER_AXIS_VERTICAL_SCROLL)) {
+            on_scroll(0, amount, window.callbacks.userdata);
+        }
+    }
+}
+
+fn wlPointerFrame(data: ?*anyopaque, wl_pointer: ?*c.struct_wl_pointer) callconv(.c) void {
+    _ = data;
+    _ = wl_pointer;
+}
+
+fn wlPointerAxisSource(
+    data: ?*anyopaque,
+    wl_pointer: ?*c.struct_wl_pointer,
+    axis_source: u32,
+) callconv(.c) void {
+    _ = data;
+    _ = wl_pointer;
+    _ = axis_source;
+}
+
+fn wlPointerAxisStop(
+    data: ?*anyopaque,
+    wl_pointer: ?*c.struct_wl_pointer,
+    time: u32,
+    axis: u32,
+) callconv(.c) void {
+    _ = data;
+    _ = wl_pointer;
+    _ = time;
+    _ = axis;
+}
+
+fn wlPointerAxisDiscrete(
+    data: ?*anyopaque,
+    wl_pointer: ?*c.struct_wl_pointer,
+    axis: u32,
+    discrete: i32,
+) callconv(.c) void {
+    _ = data;
+    _ = wl_pointer;
+    _ = axis;
+    _ = discrete;
+}
+
+fn wlPointerAxisValue120(
+    data: ?*anyopaque,
+    wl_pointer: ?*c.struct_wl_pointer,
+    axis: u32,
+    value120: i32,
+) callconv(.c) void {
+    _ = data;
+    _ = wl_pointer;
+    _ = axis;
+    _ = value120;
+}
+
+fn wlPointerAxisRelativeDirection(
+    data: ?*anyopaque,
+    wl_pointer: ?*c.struct_wl_pointer,
+    axis: u32,
+    direction: u32,
+) callconv(.c) void {
+    _ = data;
+    _ = wl_pointer;
+    _ = axis;
+    _ = direction;
+}
+
+const wl_pointer_listener = c.struct_wl_pointer_listener{
+    .enter = wlPointerEnter,
+    .leave = wlPointerLeave,
+    .motion = wlPointerMotion,
+    .button = wlPointerButton,
+    .axis = wlPointerAxis,
+    .frame = wlPointerFrame,
+    .axis_source = wlPointerAxisSource,
+    .axis_stop = wlPointerAxisStop,
+    .axis_discrete = wlPointerAxisDiscrete,
+    .axis_value120 = wlPointerAxisValue120,
+    .axis_relative_direction = wlPointerAxisRelativeDirection,
 };
 
 fn xdgWmBasePing(
@@ -194,6 +438,12 @@ const xdg_toplevel_listener = c.struct_xdg_toplevel_listener{
 };
 
 fn destroyDisplayResources(display: *KoiWaylandDisplay) void {
+    if (display.wl_pointer) |pointer| {
+        c.wl_pointer_destroy(pointer);
+    }
+    if (display.wl_seat) |seat| {
+        c.wl_seat_destroy(seat);
+    }
     if (display.xdg_wm_base) |wm_base| {
         c.xdg_wm_base_destroy(wm_base);
     }
@@ -214,7 +464,11 @@ export fn koi_wayland_init() ?*KoiWaylandDisplay {
         .wl_display = c.wl_display_connect(null),
         .wl_registry = null,
         .wl_compositor = null,
+        .wl_seat = null,
+        .wl_pointer = null,
         .xdg_wm_base = null,
+        .active_window = null,
+        .pointer_window = null,
     };
     if (display.wl_display == null) {
         allocator.destroy(display);
@@ -289,6 +543,7 @@ export fn koi_wayland_create_window(
     if (d.wl_display) |wl_display| {
         _ = c.wl_display_flush(wl_display);
     }
+    d.active_window = window;
 
     return window;
 }
@@ -337,6 +592,14 @@ export fn koi_wayland_set_size(window: ?*KoiWaylandWindow, w: u32, h: u32) void 
 
 export fn koi_wayland_destroy_window(window: ?*KoiWaylandWindow) void {
     const win = window orelse return;
+    if (win.display) |display| {
+        if (display.pointer_window == win) {
+            display.pointer_window = null;
+        }
+        if (display.active_window == win) {
+            display.active_window = null;
+        }
+    }
     if (win.xdg_toplevel) |toplevel| {
         c.xdg_toplevel_destroy(toplevel);
     }
