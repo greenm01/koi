@@ -158,6 +158,17 @@ proc runWindowTest(name: string) =
     nimcache = "/tmp/koi_win_" & name & "_d",
   )
 
+proc runAllHeadlessTests() =
+  for name in ["algorithms", "layout", "draw_state", "widget_behavior"]:
+    nimRun(
+      "tests/test_" & name,
+      CommonFlags & " -d:debug",
+      outPath = "/tmp/koi_test_" & name,
+      nimcache = "/tmp/koi_test_" & name & "_d",
+    )
+  for name in WidgetBehaviorTests:
+    runHeadlessTest(name)
+
 task testPopup, "run headless popup tests":
   runHeadlessTest("popup")
 
@@ -204,27 +215,11 @@ task testWindow, "run every windowed (wgpu) integration test":
   for name in WindowTests:
     runWindowTest(name)
 
-task tests, "run every headless test suite":
-  for name in ["algorithms", "layout", "draw_state", "widget_behavior"]:
-    nimRun(
-      "tests/test_" & name,
-      CommonFlags & " -d:debug",
-      outPath = "/tmp/koi_test_" & name,
-      nimcache = "/tmp/koi_test_" & name & "_d",
-    )
-  for name in WidgetBehaviorTests:
-    runHeadlessTest(name)
+task testHeadless, "run every headless test suite":
+  runAllHeadlessTests()
 
 task testAll, "run every headless suite and every windowed (wgpu) test":
-  for name in ["algorithms", "layout", "draw_state", "widget_behavior"]:
-    nimRun(
-      "tests/test_" & name,
-      CommonFlags & " -d:debug",
-      outPath = "/tmp/koi_test_" & name,
-      nimcache = "/tmp/koi_test_" & name & "_d",
-    )
-  for name in WidgetBehaviorTests:
-    runHeadlessTest(name)
+  runAllHeadlessTests()
   for name in WindowTests:
     runWindowTest(name)
 
