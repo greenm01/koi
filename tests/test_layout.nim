@@ -195,6 +195,9 @@ suite "layout space":
     checkRect(layoutSpaceRectToLocal(rect(21, 32, 3, 4)), rect(1, 2, 3, 4))
 
     endLayout()
+    let (outerX, outerY) = layoutSpaceToScreen(1, 2)
+    checkClose(outerX, 21)
+    checkClose(outerY, 32)
     checkClose(g_uiState.autoLayoutState.y, 132)
 
 suite "NEP1 naming aliases":
@@ -208,6 +211,31 @@ suite "NEP1 naming aliases":
 
     setDefaultButtonStyle(original)
     checkClose(defaultButtonStyle().cornerRadius, original.cornerRadius)
+
+  test "menu style aliases preserve copy and borrow behavior":
+    let original = defaultMenuStyle()
+
+    try:
+      var changed = defaultMenuStyle()
+      changed.menuBarHeight = original.menuBarHeight + 3
+      changed.button.cornerRadius = original.button.cornerRadius + 2
+
+      defaultMenuStyle(changed)
+      checkClose(getDefaultMenuStyle().menuBarHeight, changed.menuBarHeight)
+      checkClose(
+        borrowDefaultMenuStyle().button.cornerRadius, changed.button.cornerRadius
+      )
+
+      var copied = defaultMenuStyle()
+      copied.button.cornerRadius = changed.button.cornerRadius + 10
+      checkClose(
+        borrowDefaultMenuStyle().button.cornerRadius, changed.button.cornerRadius
+      )
+
+      borrowDefaultMenuStyle().menuItemHeight = original.menuItemHeight + 4
+      checkClose(defaultMenuStyle().menuItemHeight, original.menuItemHeight + 4)
+    finally:
+      setDefaultMenuStyle(original)
 
   test "borrowed default styles avoid per-call deep copies":
     let
