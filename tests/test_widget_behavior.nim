@@ -1,3 +1,4 @@
+import std/options
 import std/tables
 import std/unittest
 
@@ -13,15 +14,19 @@ import koi/layout
 import koi/rect
 import koi/types
 import koi/widgets/button
+import koi/widgets/checkbox
 import koi/widgets/colorpicker
 import koi/widgets/groupbox
 import koi/widgets/label
 import koi/widgets/menu
 import koi/widgets/popup
 import koi/widgets/progress
+import koi/widgets/radiobuttons
+import koi/widgets/section
 import koi/widgets/selectable
 import koi/widgets/scrollview
 import koi/widgets/table
+import koi/widgets/togglebutton
 
 template checkRect(actual, expected: Rect) =
   check actual.x == expected.x
@@ -236,6 +241,138 @@ suite "layout-integrated widget behavior":
 
     check isHot(22)
     check g_drawLayers.layers[ord(layerDefault)].len == 1
+
+  test "checkbox hit testing uses a previous solved rect":
+    resetUi()
+    var checked = false
+    g_uiState.layoutRects[26] = rect(40, 40, 20, 20)
+    g_uiState.mx = 45
+    g_uiState.my = 45
+    g_uiState.mbLeftDown = true
+
+    checkBox(26, 0, 0, 10, checked, "", disabled = false)
+
+    check isHot(26)
+    check isActive(26)
+    check g_drawLayers.layers[ord(layerDefault)].len == 1
+
+  test "toggle button queues drawing with the current layout rect":
+    resetUi()
+    var active = false
+    var drawn = rect(0, 0, 0, 0)
+    let drawProc: ToggleButtonDrawProc = proc(
+        vg: NVGContext,
+        id: ItemId,
+        x, y, w, h: float,
+        label: string,
+        state: WidgetState,
+        style: ToggleButtonStyle,
+    ) =
+      drawn = rect(x, y, w, h)
+
+    toggleButton(
+      27, 3, 4, 30, 12, active, "Off", "On", "", disabled = false,
+      drawProc = drawProc.some,
+    )
+    g_drawLayers.draw(g_nvgContext)
+
+    checkRect(drawn, rect(3, 4, 30, 12))
+
+  test "selectable hit testing uses a previous solved rect":
+    resetUi()
+    var selected = false
+    g_uiState.layoutRects[28] = rect(40, 40, 20, 20)
+    g_uiState.mx = 45
+    g_uiState.my = 45
+    g_uiState.mbLeftDown = true
+
+    discard selectable(28, 0, 0, 10, 10, "Item", selected)
+
+    check isHot(28)
+    check isActive(28)
+
+  test "radio grid registers one bounding layout slot":
+    resetUi()
+    type Choice = enum
+      c0
+      c1
+      c2
+
+    var activeButtons = @[c0]
+    radioButtons(
+      29,
+      0,
+      0,
+      10,
+      5,
+      @["A", "B", "C"],
+      activeButtons,
+      multiselect = false,
+      allowNoSelection = false,
+      layout = RadioButtonsLayout(kind: rblGridHoriz, itemsPerRow: 2),
+    )
+
+    check g_uiState.layoutArena.nodes.len == 1
+    checkRect(g_uiState.layoutArena.nodes[0].rect, rect(0, 0, 20, 10))
+
+  test "radio grid hit testing uses the previous bounding slot":
+    resetUi()
+    type Choice = enum
+      c0
+      c1
+      c2
+
+    var activeButtons = @[c0]
+    g_uiState.layoutRects[30] = rect(40, 40, 20, 10)
+    g_uiState.mx = 45
+    g_uiState.my = 47
+    g_uiState.mbLeftDown = true
+
+    radioButtons(
+      30,
+      0,
+      0,
+      10,
+      5,
+      @["A", "B", "C"],
+      activeButtons,
+      multiselect = false,
+      allowNoSelection = false,
+      layout = RadioButtonsLayout(kind: rblGridHoriz, itemsPerRow: 2),
+    )
+
+    check isHot(30)
+    check isActive(30)
+    check g_uiState.radioButtonState.activeItem == 2
+
+  test "section header hit testing uses a previous solved rect":
+    resetUi()
+    var expanded = false
+    initAutoLayout(DefaultAutoLayoutParams)
+    let id = hashId("section-header")
+    g_uiState.layoutRects[id] = rect(40, 40, 30, 20)
+    g_uiState.mx = 45
+    g_uiState.my = 45
+    g_uiState.mbLeftDown = true
+
+    useNextId("section-header")
+    check sectionHeader("Header", expanded)
+
+    check isHot(id)
+    check isActive(id)
+
+  test "color swatch hit testing uses a previous solved rect":
+    resetUi()
+    var c = rgb(0.2, 0.4, 0.6)
+    g_uiState.layoutRects[31] = rect(40, 40, 20, 20)
+    g_uiState.mx = 45
+    g_uiState.my = 45
+    g_uiState.mbLeftDown = true
+
+    color(31, 0, 0, 10, 10, c)
+
+    check isHot(31)
+    check isActive(31)
 
   test "auto-layout label registers a fit-height text node under the active row":
     resetUi()

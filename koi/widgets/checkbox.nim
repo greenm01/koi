@@ -6,6 +6,7 @@ import koi/types
 import koi/core
 import koi/drawing
 import koi/layout
+import koi/rect
 import koi/input
 import koi/defaults
 import koi/internal/widget_behavior
@@ -76,9 +77,13 @@ proc checkBox*(
   alias(ui, g_uiState)
 
   let (x, y) = addDrawOffset(x, y)
+  let slot = layoutSlot(id, rect(x, y, w, w))
 
   # Hit testing
-  if isHit(x, y, w, w):
+  if isHit(
+    slot.previousBounds.x, slot.previousBounds.y, slot.previousBounds.w,
+    slot.previousBounds.h,
+  ):
     captureSimpleWidget(id, disabled)
 
   let behavior = selectableWidgetBehavior(id, disabled, checked)
@@ -87,10 +92,10 @@ proc checkBox*(
 
   checked_out = checked
 
-  addDrawLayer(ui.currentLayer, vg):
+  addLayoutDrawLayer(ui.currentLayer, slot.nodeId, vg, bounds):
     let drawProc = if drawProc.isSome: drawProc.get else: DefaultCheckBoxDrawProc
 
-    drawProc(vg, id, x, y, w, checked, behavior.state, style)
+    drawProc(vg, id, bounds.x, bounds.y, bounds.w, checked, behavior.state, style)
 
   if isHot(id):
     handleTooltip(id, tooltip)

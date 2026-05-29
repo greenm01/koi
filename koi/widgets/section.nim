@@ -6,6 +6,7 @@ import koi/types
 import koi/core
 import koi/drawing
 import koi/layout
+import koi/rect
 import koi/input
 import koi/defaults
 import koi/widgets/common
@@ -26,6 +27,7 @@ proc sectionHeader(
 
   let (x, y) = addDrawOffset(x, y)
   let h = s.height
+  let slot = layoutSlot(id, rect(x, y, w, h))
 
   if ss.openSubHeaders:
     if subHeader:
@@ -33,7 +35,10 @@ proc sectionHeader(
     else:
       ss.openSubHeaders = false
   else:
-    if isHit(x, y, w - s.hitRightPad, h):
+    if isHit(
+      slot.previousBounds.x, slot.previousBounds.y,
+      max(0.0, slot.previousBounds.w - s.hitRightPad), slot.previousBounds.h,
+    ):
       markHot(id)
       if ui.mbLeftDown and hasNoActiveItem():
         markActive(id)
@@ -46,8 +51,8 @@ proc sectionHeader(
 
   let expanded = expanded_out
 
-  addDrawLayer(ui.currentLayer, vg):
-    var (rx, ry, rw, rh) = snapToGrid(x, y, w, h)
+  addLayoutDrawLayer(ui.currentLayer, slot.nodeId, vg, bounds):
+    var (rx, ry, rw, rh) = snapToGrid(bounds.x, bounds.y, bounds.w, bounds.h)
 
     vg.fillColor(s.backgroundColor)
     vg.beginPath()

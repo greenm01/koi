@@ -6,6 +6,7 @@ import koi/types
 import koi/core
 import koi/drawing
 import koi/layout
+import koi/rect
 import koi/input
 import koi/defaults
 import koi/internal/widget_behavior
@@ -80,9 +81,13 @@ proc toggleButton*(
   alias(ui, g_uiState)
 
   let (x, y) = addDrawOffset(x, y)
+  let slot = layoutSlot(id, rect(x, y, w, h))
 
   # Hit testing
-  if isHit(x, y, w, h):
+  if isHit(
+    slot.previousBounds.x, slot.previousBounds.y, slot.previousBounds.w,
+    slot.previousBounds.h,
+  ):
     captureSimpleWidget(id, disabled)
 
   let behavior = selectableWidgetBehavior(id, disabled, active)
@@ -91,12 +96,15 @@ proc toggleButton*(
 
   active_out = active
 
-  addDrawLayer(ui.currentLayer, vg):
+  addLayoutDrawLayer(ui.currentLayer, slot.nodeId, vg, bounds):
     let drawProc = if drawProc.isSome: drawProc.get else: DefaultToggleButtonDrawProc
 
     let displayLabel = if active and labelActive != "": labelActive else: label
 
-    drawProc(vg, id, x, y, w, h, displayLabel, behavior.state, style)
+    drawProc(
+      vg, id, bounds.x, bounds.y, bounds.w, bounds.h, displayLabel, behavior.state,
+      style,
+    )
 
   if isHot(id):
     handleTooltip(id, tooltip)

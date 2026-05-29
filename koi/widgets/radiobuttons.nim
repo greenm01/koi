@@ -8,6 +8,7 @@ import koi/types
 import koi/core
 import koi/drawing
 import koi/layout
+import koi/rect
 import koi/input
 import koi/defaults
 import koi/internal/widget_behavior
@@ -142,6 +143,23 @@ proc radioButtons*[T](
   let (x, y, w, h) = snapToGrid(xo, yo, w, h, s.buttonStrokeWidth)
 
   let numButtons = labels.len
+  let
+    fallbackBounds =
+      case layout.kind
+      of rblHoriz:
+        rect(x, y, w, h)
+      of rblGridHoriz:
+        let
+          itemsPerRow = max(layout.itemsPerRow, 1)
+          numRows = ceil(numButtons.float / itemsPerRow.float).Natural
+        rect(x, y, itemsPerRow.float * w, numRows.float * h)
+      of rblGridVert:
+        let
+          itemsPerColumn = max(layout.itemsPerColumn, 1)
+          numCols = ceil(numButtons.float / itemsPerColumn.float).Natural
+        rect(x, y, numCols.float * w, itemsPerColumn.float * h)
+    slot = layoutSlot(id, fallbackBounds)
+    hitBounds = slot.previousBounds
 
   # Hit testing
   var hotButton = -1
@@ -159,43 +177,45 @@ proc radioButtons*[T](
     if x < 0 or x > w:
       -1
     else:
-      let bw = w / numButtons
+      let bw = w / numButtons.float
       min(floor(x / bw).int, numButtons - 1)
 
   case layout.kind
   of rblHoriz:
-    let button = calcHorizButtonIdx(x = ui.mx - x, w, numButtons)
+    let button = calcHorizButtonIdx(x = ui.mx - hitBounds.x, hitBounds.w, numButtons)
     markHotButton(button)
 
-    if isHit(x, y, w, h) and hotButton > -1:
+    if isHit(hitBounds.x, hitBounds.y, hitBounds.w, hitBounds.h) and hotButton > -1:
       markHotAndActive()
   of rblGridHoriz:
     let
-      bbWidth = layout.itemsPerRow.float * w
-      numRows = ceil(numButtons.float / layout.itemsPerRow.float).Natural
-      bbHeight = numRows.float * h
-      row = ((ui.my - y) / h).int
-      col = ((ui.mx - x) / w).int
-      button = row * layout.itemsPerRow + col
+      itemsPerRow = max(layout.itemsPerRow, 1)
+      numRows = max(ceil(numButtons.float / itemsPerRow.float).Natural, 1)
+      buttonW = hitBounds.w / itemsPerRow.float
+      buttonH = hitBounds.h / numRows.float
+      row = ((ui.my - hitBounds.y) / buttonH).int
+      col = ((ui.mx - hitBounds.x) / buttonW).int
+      button = row * itemsPerRow + col
 
     if row >= 0 and col >= 0 and button < numButtons:
       markHotButton(button)
 
-    if isHit(x, y, bbWidth, bbHeight) and hotButton > -1:
+    if isHit(hitBounds.x, hitBounds.y, hitBounds.w, hitBounds.h) and hotButton > -1:
       markHotAndActive()
   of rblGridVert:
     let
-      bbHeight = layout.itemsPerColumn.float * h
-      numCols = ceil(numButtons.float / layout.itemsPerColumn.float).Natural
-      bbWidth = numCols.float * w
-      row = ((ui.my - y) / h).int
-      col = ((ui.mx - x) / w).int
-      button = col * layout.itemsPerColumn + row
+      itemsPerColumn = max(layout.itemsPerColumn, 1)
+      numCols = max(ceil(numButtons.float / itemsPerColumn.float).Natural, 1)
+      buttonW = hitBounds.w / numCols.float
+      buttonH = hitBounds.h / itemsPerColumn.float
+      row = ((ui.my - hitBounds.y) / buttonH).int
+      col = ((ui.mx - hitBounds.x) / buttonW).int
+      button = col * itemsPerColumn + row
 
     if row >= 0 and col >= 0 and button < numButtons:
       markHotButton(button)
 
-    if isHit(x, y, bbWidth, bbHeight) and hotButton > -1:
+    if isHit(hitBounds.x, hitBounds.y, hitBounds.w, hitBounds.h) and hotButton > -1:
       markHotAndActive()
 
   # LMB released over active widget means it was clicked
@@ -225,9 +245,12 @@ proc radioButtons*[T](
       i.int,
     )
 
-  addDrawLayer(ui.currentLayer, vg):
-    var x = x
-    var y = y
+  addLayoutDrawLayer(ui.currentLayer, slot.nodeId, vg, bounds):
+    var x = bounds.x
+    var y = bounds.y
+    let
+      drawGroupW = bounds.w
+      drawGroupH = bounds.h
 
     let drawProc =
       if drawProc.isSome:
@@ -239,7 +262,9 @@ proc radioButtons*[T](
 
     case layout.kind
     of rblHoriz:
-      let bw = (w - (s.buttonPadHoriz * (numButtons - 1).float)) / numButtons.float
+      let bw =
+        (drawGroupW - (s.buttonPadHoriz * (numButtons - 1).float)) /
+        numButtons.float
       for i, label in labels:
         let
           state = buttonDrawState(i)
@@ -252,7 +277,7 @@ proc radioButtons*[T](
           round(x),
           y,
           w,
-          h,
+          drawGroupH,
           buttonIdx = i,
           numButtons = labels.len,
           label,
@@ -265,6 +290,11 @@ proc radioButtons*[T](
           x += s.buttonPadHoriz
     of rblGridHoriz:
       let startX = x
+      let
+        itemsPerRow = max(layout.itemsPerRow, 1)
+        numRows = max(ceil(numButtons.float / itemsPerRow.float).Natural, 1)
+        buttonW = drawGroupW / itemsPerRow.float
+        buttonH = drawGroupH / numRows.float
       var itemsInRow = 0
       for i, label in labels:
         let state = buttonDrawState(i)
@@ -273,8 +303,8 @@ proc radioButtons*[T](
           id,
           x,
           y,
-          w,
-          h,
+          buttonW,
+          buttonH,
           buttonIdx = i,
           numButtons = labels.len,
           label,
@@ -283,14 +313,19 @@ proc radioButtons*[T](
         )
 
         inc(itemsInRow)
-        if itemsInRow == layout.itemsPerRow:
-          y += h
+        if itemsInRow == itemsPerRow:
+          y += buttonH
           x = startX
           itemsInRow = 0
         else:
-          x += w
+          x += buttonW
     of rblGridVert:
       let startY = y
+      let
+        itemsPerColumn = max(layout.itemsPerColumn, 1)
+        numCols = max(ceil(numButtons.float / itemsPerColumn.float).Natural, 1)
+        buttonW = drawGroupW / numCols.float
+        buttonH = drawGroupH / itemsPerColumn.float
       var itemsInColumn = 0
       for i, label in labels:
         let state = buttonDrawState(i)
@@ -299,8 +334,8 @@ proc radioButtons*[T](
           id,
           x,
           y,
-          w,
-          h,
+          buttonW,
+          buttonH,
           buttonIdx = i,
           numButtons = labels.len,
           label,
@@ -309,12 +344,12 @@ proc radioButtons*[T](
         )
 
         inc(itemsInColumn)
-        if itemsInColumn == layout.itemsPerColumn:
-          x += w
+        if itemsInColumn == itemsPerColumn:
+          x += buttonW
           y = startY
           itemsInColumn = 0
         else:
-          y += h
+          y += buttonH
 
   if isHot(id):
     let tt =

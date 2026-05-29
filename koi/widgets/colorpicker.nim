@@ -4,6 +4,7 @@ import koi/types
 import koi/core
 import koi/drawing
 import koi/layout
+import koi/rect
 import koi/input
 import koi/defaults
 import koi/internal/widget_behavior
@@ -14,17 +15,21 @@ import koi/utils
 proc drawColorSwatch(id: ItemId, x, y, w, h: float, color: Color): bool =
   alias(ui, g_uiState)
   let (x, y) = addDrawOffset(x, y)
+  let slot = layoutSlot(id, rect(x, y, w, h))
 
-  if isHit(x, y, w, h):
+  if isHit(
+    slot.previousBounds.x, slot.previousBounds.y, slot.previousBounds.w,
+    slot.previousBounds.h,
+  ):
     captureSimpleWidget(id, disabled = false)
 
   let behavior = simpleWidgetBehavior(id, disabled = false)
   result = behavior.clicked
 
-  addDrawLayer(ui.currentLayer, vg):
+  addLayoutDrawLayer(ui.currentLayer, slot.nodeId, vg, bounds):
     let
       sw = 1.0
-      (rx, ry, rw, rh) = snapToGrid(x, y, w, h, sw)
+      (rx, ry, rw, rh) = snapToGrid(bounds.x, bounds.y, bounds.w, bounds.h, sw)
       cr = 5.0
       colorWidth = rw * 0.5
 
