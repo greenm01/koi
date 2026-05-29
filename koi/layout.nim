@@ -171,6 +171,12 @@ proc layoutSlotWithSizing(
   )
   node.intrinsicMin = size(fallback.w, fallback.h)
   node.intrinsicPref = size(fallback.w, fallback.h)
+  if width.kind == lskGrow:
+    node.intrinsicMin.w = width.min
+    node.intrinsicPref.w = width.min
+  if height.kind == lskGrow:
+    node.intrinsicMin.h = height.min
+    node.intrinsicPref.h = height.min
   node.rect = fallback
 
   let nodeId =
@@ -192,8 +198,7 @@ proc layoutSlot*(id: ItemId, fallback: Rect): LayoutSlot =
   alias(ui, g_uiState)
   let parent = ui.activeAutoSlotParent()
   var width = fixed(fallback.w)
-  if parent.isNull and ui.layoutStack.len > 0 and ui.layoutStack[^1].mode == lpmRow and
-      ui.layoutStack[^1].columns.len > 0:
+  if parent.isNull and ui.layoutStack.len > 0 and ui.layoutStack[^1].mode == lpmRow:
     width = ui.layoutStack[^1].currentRowLayoutSize(ui.autoLayoutParams)
   layoutSlotWithSizing(id, fallback, width, fixed(fallback.h), parent)
 
@@ -249,8 +254,7 @@ proc textLayoutSlot*(
   alias(ui, g_uiState)
   let parent = ui.activeAutoSlotParent()
   var width = fixed(fallback.w)
-  if parent.isNull and ui.layoutStack.len > 0 and ui.layoutStack[^1].mode == lpmRow and
-      ui.layoutStack[^1].columns.len > 0:
+  if parent.isNull and ui.layoutStack.len > 0 and ui.layoutStack[^1].mode == lpmRow:
     width = ui.layoutStack[^1].currentRowLayoutSize(ui.autoLayoutParams)
   textLayoutSlotWithSizing(
     id,
@@ -466,7 +470,7 @@ proc currentRowLayoutSize(node: LayoutPresetFrame, ap: AutoLayoutParams): Layout
     let i = min(node.colIndex, node.resolvedSizes.high)
     result = node.resolvedSizes[i]
   else:
-    result = fixed(node.currentRowWidth(ap))
+    result = node.currentRowColumn().rowColumnLayoutSize()
 
 proc applyNextItemOverrides(a: var AutoLayoutStateVars) =
   if a.nextItemWidthOverride.isSome:
@@ -704,11 +708,7 @@ proc beginRowLayout*(height: float, columns: openArray[LayoutColumn] = []) =
   let availableW = if ui.layoutStack.len > 0: a.nextItemWidth else: a.rowWidth
   let itemSpacing = 0.0
   let rowColumns = @columns
-  let rowSolverW =
-    if rowColumns.len > 0:
-      max(0.0, availableW - ap.leftPad - ap.rightPad)
-    else:
-      availableW
+  let rowSolverW = max(0.0, availableW - ap.leftPad - ap.rightPad)
 
   ui.layoutStack.add(
     LayoutPresetFrame(

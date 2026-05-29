@@ -282,6 +282,89 @@ suite "layout frame integration":
     checkRect(g_uiState.layoutRects[15], rect(151.625, 5, 75.75, 21))
     checkRect(g_uiState.layoutRects[16], rect(227.375, 5, 88.625, 21))
 
+  test "imperative row columns register solver-native sizes":
+    resetLayout()
+    beginFrameLayout()
+
+    beginRowLayout(30)
+
+    beginColumn(cmStatic, 150)
+    autoLayoutPre()
+    let fixedSlot = layoutSlot(19, autoLayoutNextBounds())
+    autoLayoutPost()
+    endColumn()
+
+    beginColumn(cmDynamic)
+    autoLayoutPre()
+    let dynamicSlot = layoutSlot(20, autoLayoutNextBounds())
+    autoLayoutPost()
+    endColumn()
+
+    endLayout()
+    finishFrameLayout()
+
+    check g_uiState.layoutArena.nodes[fixedSlot.nodeId.int].width.kind == lskFixed
+    check g_uiState.layoutArena.nodes[dynamicSlot.nodeId.int].width.kind == lskGrow
+    checkRect(fixedSlot.bounds, rect(13, 5, 150, 21))
+    checkRect(dynamicSlot.bounds, rect(163, 5, 166, 21))
+    checkRect(g_uiState.layoutRects[19], rect(13, 5, 150, 21))
+    checkRect(g_uiState.layoutRects[20], rect(163, 5, 153, 21))
+
+  test "imperative ratio and variable columns use solver sizing":
+    resetLayout()
+    beginFrameLayout()
+
+    beginRowLayout(30)
+
+    beginColumn(cmRatio, 0.25)
+    autoLayoutPre()
+    let ratioSlot = layoutSlot(21, autoLayoutNextBounds())
+    autoLayoutPost()
+    endColumn()
+
+    beginColumn(cmVariable, 80)
+    autoLayoutPre()
+    let variableSlot = layoutSlot(22, autoLayoutNextBounds())
+    autoLayoutPost()
+    endColumn()
+
+    beginColumn(cmDynamic)
+    autoLayoutPre()
+    let dynamicSlot = layoutSlot(23, autoLayoutNextBounds())
+    autoLayoutPost()
+    endColumn()
+
+    endLayout()
+    finishFrameLayout()
+
+    check g_uiState.layoutArena.nodes[ratioSlot.nodeId.int].width.kind == lskPercent
+    check g_uiState.layoutArena.nodes[variableSlot.nodeId.int].width.kind == lskGrow
+    check g_uiState.layoutArena.nodes[dynamicSlot.nodeId.int].width.kind == lskGrow
+    checkRect(g_uiState.layoutRects[21], rect(13, 5, 75.75, 21))
+    checkRect(g_uiState.layoutRects[22], rect(88.75, 5, 153.625, 21))
+    checkRect(g_uiState.layoutRects[23], rect(242.375, 5, 73.625, 21))
+
+  test "imperative skipped columns preserve solved flow":
+    resetLayout()
+    beginFrameLayout()
+
+    beginRowLayout(30)
+
+    beginColumn(cmStatic, 40)
+    spacer()
+    endColumn()
+
+    beginColumn(cmStatic, 80)
+    autoLayoutPre()
+    discard layoutSlot(24, autoLayoutNextBounds())
+    autoLayoutPost()
+    endColumn()
+
+    endLayout()
+    finishFrameLayout()
+
+    checkRect(g_uiState.layoutRects[24], rect(53, 5, 80, 21))
+
   test "row spacer preserves skipped column in solved layout":
     resetLayout()
     beginFrameLayout()
