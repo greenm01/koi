@@ -7,6 +7,7 @@ import koi/types
 import koi/core
 import koi/drawing
 import koi/layout
+import koi/rect
 import koi/input
 import koi/defaults
 import koi/widgets/scrollbar
@@ -14,6 +15,7 @@ import koi/utils
 
 type ScrollViewState = ref object of RootObj
   x, y, w, h: float
+  hitBounds: Rect
   viewStartX: float
   viewStartY: float
   contentWidth: float
@@ -63,12 +65,16 @@ proc getScrollViewStartY*(id: ItemId): float =
 proc beginView*(id: ItemId, x, y, w, h: float) =
   alias(ui, g_uiState)
   let (x, y) = addDrawOffset(x, y)
+  let slot = layoutSlot(id, rect(x, y, w, h))
 
-  addDrawLayer(ui.currentLayer, vg):
+  addLayoutDrawLayer(ui.currentLayer, slot.nodeId, vg, bounds):
     vg.save()
-    vg.intersectScissor(x, y, w, h)
+    vg.intersectScissor(bounds.x, bounds.y, bounds.w, bounds.h)
 
-  hitClip(x, y, w, h)
+  hitClip(
+    slot.previousBounds.x, slot.previousBounds.y, slot.previousBounds.w,
+    slot.previousBounds.h,
+  )
   pushDrawOffset(DrawOffset(ox: x, oy: y))
 
 template beginView*(x, y, w, h: float) =
@@ -91,25 +97,30 @@ proc beginScrollView*(
 ) =
   alias(ui, g_uiState)
   let (x, y) = addDrawOffset(x, y)
+  let slot = layoutSlot(id, rect(x, y, w, h))
+  let hitBounds = slot.previousBounds
 
-  addDrawLayer(ui.currentLayer, vg):
+  addLayoutDrawLayer(ui.currentLayer, slot.nodeId, vg, bounds):
     vg.save()
-    vg.intersectScissor(x, y, w, h)
+    vg.intersectScissor(bounds.x, bounds.y, bounds.w, bounds.h)
 
   ui.scrollViewState.activeItem = id
-  hitClip(x, y, w, h)
+  hitClip(hitBounds.x, hitBounds.y, hitBounds.w, hitBounds.h)
 
   discard
-    ui.itemState.hasKeyOrPut(id, ScrollViewState(x: x, y: y, w: w, h: h, style: style))
+    ui.itemState.hasKeyOrPut(
+      id,
+      ScrollViewState(x: x, y: y, w: w, h: h, hitBounds: hitBounds, style: style),
+    )
 
   var ss = cast[ScrollViewState](ui.itemState[id])
-  pushDrawOffset(DrawOffset(ox: x - ss.clampedStartX(), oy: y - ss.clampedStartY()))
-
   ss.x = x
   ss.y = y
   ss.w = w
   ss.h = h
+  ss.hitBounds = hitBounds
   ss.style = style
+  pushDrawOffset(DrawOffset(ox: x - ss.clampedStartX(), oy: y - ss.clampedStartY()))
   ui.itemState[id] = ss
 
 template beginScrollView*(
@@ -149,7 +160,7 @@ proc endScrollView*(contentW, contentH: float) =
       thumbSize = visibleHeight * ((contentHeight - visibleHeight) / contentHeight)
       endVal = contentHeight - visibleHeight
 
-    if isHit(ss.x, ss.y, ss.w, ss.h):
+    if isHit(ss.hitBounds.x, ss.hitBounds.y, ss.hitBounds.w, ss.hitBounds.h):
       if hasEvent() and ui.currEvent.kind == ekScroll:
         viewStartY -= ui.currEvent.oy * ss.style.scrollWheelSensitivity
         markEventHandled()

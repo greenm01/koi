@@ -565,6 +565,82 @@ suite "layout-integrated widget behavior":
     check int32(g_uiState.layoutArena.nodes[3].parent) == int32(fieldRow)
     check int32(g_uiState.layoutArena.nodes[5].parent) == int32(areaRow)
 
+  test "view hit clipping uses a previous solved rect":
+    resetUi()
+    g_uiState.layoutRects[43] = rect(40, 40, 20, 10)
+
+    beginView(43, 0, 0, 10, 10)
+
+    checkRect(g_uiState.hitClipRect, rect(40, 40, 20, 10))
+    check g_uiState.layoutArena.nodes.len == 1
+    check g_drawLayers.layers[ord(layerDefault)].len == 1
+
+    endView()
+
+  test "scroll view wheel hit testing uses a previous solved rect":
+    resetUi()
+    g_uiState.layoutRects[44] = rect(40, 40, 20, 10)
+    g_uiState.mx = 45
+    g_uiState.my = 45
+    g_uiState.hasEvent = true
+    g_uiState.currEvent = Event(kind: ekScroll, ox: 0, oy: -1, mods: {})
+
+    beginScrollView(44, 0, 0, 10, 10)
+    endScrollView(100)
+
+    check eventHandled()
+    check scrollViewStartY(44) > 0
+    check g_uiState.layoutArena.nodes.len == 2
+
+  test "auto-layout views register under active rows":
+    resetUi()
+    var params = DefaultAutoLayoutParams
+    params.itemsPerRow = 1
+    params.rowWidth = 20
+    params.leftPad = 0
+    params.rightPad = 0
+    params.rowPad = 0
+    params.sectionPad = 0
+    params.defaultRowHeight = 10
+    params.defaultItemHeight = 10
+    initAutoLayout(params)
+    beginFrameLayout()
+
+    autoLayoutPre()
+    let viewRow = g_uiState.autoLayoutState.autoRow
+    beginView(
+      45,
+      g_uiState.autoLayoutState.x,
+      autoLayoutNextY(),
+      autoLayoutNextItemWidth(),
+      autoLayoutNextItemHeight(),
+    )
+    endView()
+    autoLayoutPost()
+
+    autoLayoutPre()
+    let scrollRow = g_uiState.autoLayoutState.autoRow
+    beginScrollView(
+      46,
+      g_uiState.autoLayoutState.x,
+      autoLayoutNextY(),
+      autoLayoutNextItemWidth(),
+      autoLayoutNextItemHeight(),
+    )
+    endScrollView(10)
+    autoLayoutPost()
+
+    var viewParent = NullLayoutNodeId
+    var scrollParent = NullLayoutNodeId
+    for node in g_uiState.layoutArena.nodes:
+      if node.itemId == 45:
+        viewParent = node.parent
+      elif node.itemId == 46:
+        scrollParent = node.parent
+
+    check int32(viewParent) == int32(viewRow)
+    check int32(scrollParent) == int32(scrollRow)
+
   test "auto-layout label registers a fit-height text node under the active row":
     resetUi()
     var params = DefaultAutoLayoutParams
