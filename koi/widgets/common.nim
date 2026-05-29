@@ -26,21 +26,21 @@ proc handleTooltip*(id: ItemId, tooltip: string) =
     if tt.state == tsShowDelay:
       let cursorMoved = ui.mx != ui.lastmx or ui.my != ui.lastmy
       if cursorMoved:
-        tt.t0 = getTime()
-      setFramesLeft()
+        tt.t0 = currentTime()
+      requestFrames()
 
     if (isActive(id) and ui.mbLeftDown) or
         (isHot(id) and ui.eventHandled and ui.currEvent.kind == ekScroll):
       tt.state = tsOff
     elif tt.state == tsOff and not ui.mbLeftDown and tt.lastHotItem != id:
       tt.state = tsShowDelay
-      tt.t0 = getTime()
-      setFramesLeft()
+      tt.t0 = currentTime()
+      requestFrames()
     elif tt.state >= tsShow:
       tt.state = tsShow
-      tt.t0 = getTime()
+      tt.t0 = currentTime()
       tt.text = tooltip
-      setFramesLeft()
+      requestFrames()
 
 proc drawTooltip*(x, y: float, text: string, alpha: float = 1.0) =
   addDrawLayer(layerTooltip, vg):
@@ -50,7 +50,7 @@ proc drawTooltip*(x, y: float, text: string, alpha: float = 1.0) =
     let padX = 10.0
     let padY = 10.0
 
-    vg.setFont(fontSize, "sans-bold")
+    vg.useFont(fontSize, "sans-bold")
 
     var rows = textBreakLines(text, w - padX * 2)
     var h = fontSize * lineHeight * rows.len.float + padY * 2
@@ -64,7 +64,7 @@ proc drawTooltip*(x, y: float, text: string, alpha: float = 1.0) =
     ty = round(ty)
 
     vg.globalAlpha(alpha)
-    drawShadow(vg, tx, ty, rw, rh, getDefaultShadowStyle())
+    drawShadow(vg, tx, ty, rw, rh, defaultShadowStyle())
 
     vg.beginPath()
     vg.roundedRect(tx, ty, rw, rh, 5)
@@ -90,17 +90,17 @@ proc tooltipPost*() =
   of tsOff:
     discard
   of tsShowDelay:
-    if getTime() - tt.t0 > TooltipShowDelay:
+    if currentTime() - tt.t0 > TooltipShowDelay:
       tt.state = tsShow
   of tsShow:
     drawToolTip(ttx, tty, tt.text)
   of tsFadeOutDelay:
     drawToolTip(ttx, tty, tt.text)
-    if getTime() - tt.t0 > TooltipFadeOutDelay:
+    if currentTime() - tt.t0 > TooltipFadeOutDelay:
       tt.state = tsFadeOut
-      tt.t0 = getTime()
+      tt.t0 = currentTime()
   of tsFadeOut:
-    let t = getTime() - tt.t0
+    let t = currentTime() - tt.t0
     if t > TooltipFadeOutDuration:
       tt.state = tsOff
     else:
@@ -112,9 +112,9 @@ proc tooltipPost*() =
     tt.state = tsOff
   elif tt.state == tsShow:
     tt.state = tsFadeOutDelay
-    tt.t0 = getTime()
+    tt.t0 = currentTime()
 
   if tt.state > tsOff:
-    setFramesLeft()
+    requestFrames()
 
   tt.lastHotItem = ui.hotItem

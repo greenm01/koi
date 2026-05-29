@@ -13,7 +13,7 @@ proc label*(
     x, y, w, h: float,
     labelText: string,
     state: WidgetState = wsNormal,
-    style: LabelStyle = getDefaultLabelStyle(),
+    style: LabelStyle = defaultLabelStyle(),
 ) =
   alias(ui, g_uiState)
 
@@ -25,7 +25,7 @@ proc label*(
 proc label*(
     labelText: string,
     state: WidgetState = wsNormal,
-    style: LabelStyle = getDefaultLabelStyle(),
+    style: LabelStyle = defaultLabelStyle(),
 ) =
   alias(ui, g_uiState)
 

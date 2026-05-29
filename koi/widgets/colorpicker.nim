@@ -14,9 +14,9 @@ proc color*(id: ItemId, x, y, w, h: float, color_out: var Color) =
   let (x, y) = addDrawOffset(x, y)
 
   if isHit(x, y, w, h):
-    setHot(id)
+    markHot(id)
     if ui.mbLeftDown and hasNoActiveItem():
-      setActive(id)
+      markActive(id)
 
   let color = color_out
   addDrawLayer(ui.currentLayer, vg):
@@ -47,12 +47,12 @@ proc colorPicker*(id: ItemId, x, y, w, h: float, color: var Color) =
 
 template color*(x, y, w, h: float, color: var Color) =
   let i = instantiationInfo(fullPaths = true)
-  let id = getNextId(i.filename, i.line)
+  let id = nextId(i.filename, i.line)
   color(id, x, y, w, h, color)
 
 template color*(col: var Color) =
   let i = instantiationInfo(fullPaths = true)
-  let id = getNextId(i.filename, i.line)
+  let id = nextId(i.filename, i.line)
   autoLayoutPre()
   color(
     id,
@@ -66,12 +66,12 @@ template color*(col: var Color) =
 
 template colorPicker*(x, y, w, h: float, color: var Color) =
   let i = instantiationInfo(fullPaths = true)
-  let id = getNextId(i.filename, i.line)
+  let id = nextId(i.filename, i.line)
   colorPicker(id, x, y, w, h, color)
 
 template colorPicker*(color: var Color) =
   let i = instantiationInfo(fullPaths = true)
-  let id = getNextId(i.filename, i.line)
+  let id = nextId(i.filename, i.line)
   autoLayoutPre()
   colorPicker(
     id,

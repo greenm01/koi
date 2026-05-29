@@ -22,11 +22,17 @@ var DefaultLabelStyle = LabelStyle(
   colorDisabled: gray(0.7, 0.5),
 )
 
-proc getDefaultLabelStyle*(): LabelStyle =
+proc defaultLabelStyle*(): LabelStyle =
   DefaultLabelStyle.deepCopy
 
-proc setDefaultLabelStyle*(style: LabelStyle) =
+proc getDefaultLabelStyle*(): LabelStyle =
+  defaultLabelStyle()
+
+proc defaultLabelStyle*(style: LabelStyle) =
   DefaultLabelStyle = style.deepCopy
+
+proc setDefaultLabelStyle*(style: LabelStyle) =
+  defaultLabelStyle(style)
 
 # Shadow
 var DefaultShadowStyle = ShadowStyle(
@@ -40,11 +46,17 @@ var DefaultShadowStyle = ShadowStyle(
   color: black(0.4),
 )
 
-proc getDefaultShadowStyle*(): ShadowStyle =
+proc defaultShadowStyle*(): ShadowStyle =
   DefaultShadowStyle.deepCopy
 
-proc setDefaultShadowStyle*(style: ShadowStyle) =
+proc getDefaultShadowStyle*(): ShadowStyle =
+  defaultShadowStyle()
+
+proc defaultShadowStyle*(style: ShadowStyle) =
   DefaultShadowStyle = style.deepCopy
+
+proc setDefaultShadowStyle*(style: ShadowStyle) =
+  defaultShadowStyle(style)
 
 # Popup
 var DefaultPopupStyle = PopupStyle(
@@ -54,14 +66,20 @@ var DefaultPopupStyle = PopupStyle(
   backgroundStrokeWidth: 0,
   backgroundStrokeColor: black(),
   backgroundFillColor: gray(0.1),
-  shadow: getDefaultShadowStyle(),
+  shadow: defaultShadowStyle(),
 )
 
-proc getDefaultPopupStyle*(): PopupStyle =
+proc defaultPopupStyle*(): PopupStyle =
   DefaultPopupStyle.deepCopy
 
-proc setDefaultPopupStyle*(style: PopupStyle) =
+proc getDefaultPopupStyle*(): PopupStyle =
+  defaultPopupStyle()
+
+proc defaultPopupStyle*(style: PopupStyle) =
   DefaultPopupStyle = style.deepCopy
+
+proc setDefaultPopupStyle*(style: PopupStyle) =
+  defaultPopupStyle(style)
 
 # Button
 var DefaultButtonStyle = ButtonStyle(
@@ -75,7 +93,7 @@ var DefaultButtonStyle = ButtonStyle(
   fillColorHover: gray(0.7),
   fillColorDown: HighlightColor,
   fillColorDisabled: gray(0.6).withAlpha(0.5),
-  label: getDefaultLabelStyle(),
+  label: defaultLabelStyle(),
 )
 
 with DefaultButtonStyle.label:
@@ -86,11 +104,17 @@ with DefaultButtonStyle.label:
   colorDown = gray(0.25)
   colorDisabled = gray(0.25).withAlpha(0.7)
 
-proc getDefaultButtonStyle*(): ButtonStyle =
+proc defaultButtonStyle*(): ButtonStyle =
   DefaultButtonStyle.deepCopy
 
-proc setDefaultButtonStyle*(style: ButtonStyle) =
+proc getDefaultButtonStyle*(): ButtonStyle =
+  defaultButtonStyle()
+
+proc defaultButtonStyle*(style: ButtonStyle) =
   DefaultButtonStyle = style.deepCopy
+
+proc setDefaultButtonStyle*(style: ButtonStyle) =
+  defaultButtonStyle(style)
 
 # ToggleButton
 var DefaultToggleButtonStyle = ToggleButtonStyle(
@@ -108,8 +132,8 @@ var DefaultToggleButtonStyle = ToggleButtonStyle(
   fillColorActive: gray(0.25),
   fillColorActiveHover: gray(0.27),
   fillColorDisabled: gray(0.6).withAlpha(0.5),
-  label: getDefaultLabelStyle(),
-  labelActive: getDefaultLabelStyle(),
+  label: defaultLabelStyle(),
+  labelActive: defaultLabelStyle(),
 )
 
 with DefaultToggleButtonStyle.label:
@@ -128,11 +152,17 @@ with DefaultToggleButtonStyle.labelActive:
   colorDown = gray(1.00)
   colorDisabled = gray(1.00).withAlpha(0.7)
 
-proc getDefaultToggleButtonStyle*(): ToggleButtonStyle =
+proc defaultToggleButtonStyle*(): ToggleButtonStyle =
   DefaultToggleButtonStyle.deepCopy
 
-proc setDefaultToggleButtonStyle*(style: ToggleButtonStyle) =
+proc getDefaultToggleButtonStyle*(): ToggleButtonStyle =
+  defaultToggleButtonStyle()
+
+proc defaultToggleButtonStyle*(style: ToggleButtonStyle) =
   DefaultToggleButtonStyle = style.deepCopy
+
+proc setDefaultToggleButtonStyle*(style: ToggleButtonStyle) =
+  defaultToggleButtonStyle(style)
 
 # CheckBox
 var DefaultCheckBoxStyle = CheckBoxStyle(
@@ -150,7 +180,7 @@ var DefaultCheckBoxStyle = CheckBoxStyle(
   fillColorActive: gray(0.6),
   fillColorActiveHover: gray(0.7),
   fillColorDisabled: gray(0.23),
-  icon: getDefaultLabelStyle(),
+  icon: defaultLabelStyle(),
   iconActive: "",
   iconInactive: "",
 )
@@ -163,11 +193,17 @@ with DefaultCheckBoxStyle.icon:
   colorActive = gray(0.25)
   colorActiveHover = gray(0.25)
 
-proc getDefaultCheckBoxStyle*(): CheckBoxStyle =
+proc defaultCheckBoxStyle*(): CheckBoxStyle =
   DefaultCheckBoxStyle.deepCopy
 
-proc setDefaultCheckBoxStyle*(style: CheckBoxStyle) =
+proc getDefaultCheckBoxStyle*(): CheckBoxStyle =
+  defaultCheckBoxStyle()
+
+proc defaultCheckBoxStyle*(style: CheckBoxStyle) =
   DefaultCheckBoxStyle = style.deepCopy
+
+proc setDefaultCheckBoxStyle*(style: CheckBoxStyle) =
+  defaultCheckBoxStyle(style)
 
 # RadioButtons
 var DefaultRadioButtonsStyle = RadioButtonsStyle(
@@ -185,7 +221,7 @@ var DefaultRadioButtonsStyle = RadioButtonsStyle(
   buttonFillColorDown: HighlightLowColor,
   buttonFillColorActive: HighlightColor,
   buttonFillColorActiveHover: HighlightColor,
-  label: getDefaultLabelStyle(),
+  label: defaultLabelStyle(),
 )
 
 with DefaultRadioButtonsStyle.label:
@@ -198,11 +234,17 @@ with DefaultRadioButtonsStyle.label:
   colorActiveHover = gray(0.25)
   colorDisabled = gray(0.7)
 
-proc getDefaultRadioButtonsStyle*(): RadioButtonsStyle =
+proc defaultRadioButtonsStyle*(): RadioButtonsStyle =
   DefaultRadioButtonsStyle.deepCopy
 
-proc setDefaultRadioButtonsStyle*(style: RadioButtonsStyle) =
+proc getDefaultRadioButtonsStyle*(): RadioButtonsStyle =
+  defaultRadioButtonsStyle()
+
+proc defaultRadioButtonsStyle*(style: RadioButtonsStyle) =
   DefaultRadioButtonsStyle = style.deepCopy
+
+proc setDefaultRadioButtonsStyle*(style: RadioButtonsStyle) =
+  defaultRadioButtonsStyle(style)
 
 # ScrollBar
 var DefaultScrollBarStyle = ScrollBarStyle(
@@ -230,11 +272,17 @@ var DefaultScrollBarStyle = ScrollBarStyle(
   autoFadeDistance: 60.0,
 )
 
-proc getDefaultScrollBarStyle*(): ScrollBarStyle =
+proc defaultScrollBarStyle*(): ScrollBarStyle =
   DefaultScrollBarStyle.deepCopy
 
-proc setDefaultScrollBarStyle*(style: ScrollBarStyle) =
+proc getDefaultScrollBarStyle*(): ScrollBarStyle =
+  defaultScrollBarStyle()
+
+proc defaultScrollBarStyle*(style: ScrollBarStyle) =
   DefaultScrollBarStyle = style.deepCopy
+
+proc setDefaultScrollBarStyle*(style: ScrollBarStyle) =
+  defaultScrollBarStyle(style)
 
 # DropDown
 var DefaultDropDownStyle = DropDownStyle(
@@ -248,7 +296,7 @@ var DefaultDropDownStyle = DropDownStyle(
   buttonFillColorHover: gray(0.7),
   buttonFillColorDown: gray(0.6),
   buttonFillColorDisabled: gray(0.23),
-  label: getDefaultLabelStyle(),
+  label: defaultLabelStyle(),
   itemListAlign: haCenter,
   itemListPadHoriz: 7.0,
   itemListPadVert: 7.0,
@@ -256,14 +304,14 @@ var DefaultDropDownStyle = DropDownStyle(
   itemListStrokeWidth: 0.0,
   itemListStrokeColor: black(),
   itemListFillColor: gray(0.25),
-  item: getDefaultLabelStyle(),
+  item: defaultLabelStyle(),
   itemBackgroundColorHover: HighlightColor,
-  shadow: getDefaultShadowStyle(),
+  shadow: defaultShadowStyle(),
   scrollBarWidth: 12.0,
 )
 
 with DefaultDropDownStyle:
-  scrollBarStyle = getDefaultScrollBarStyle()
+  scrollBarStyle = defaultScrollBarStyle()
   with scrollBarStyle:
     trackCornerRadius = 3.0
     trackFillColor = black().withAlpha(0)
@@ -284,11 +332,17 @@ with DefaultDropDownStyle:
   item.color = gray(0.7)
   item.colorHover = gray(0.25)
 
-proc getDefaultDropDownStyle*(): DropDownStyle =
+proc defaultDropDownStyle*(): DropDownStyle =
   DefaultDropDownStyle.deepCopy
 
-proc setDefaultDropDownStyle*(style: DropDownStyle) =
+proc getDefaultDropDownStyle*(): DropDownStyle =
+  defaultDropDownStyle()
+
+proc defaultDropDownStyle*(style: DropDownStyle) =
   DefaultDropDownStyle = style.deepCopy
+
+proc setDefaultDropDownStyle*(style: DropDownStyle) =
+  defaultDropDownStyle(style)
 
 # TextField
 var DefaultTextFieldStyle = TextFieldStyle(
@@ -317,11 +371,17 @@ var DefaultTextFieldStyle = TextFieldStyle(
   selectionColor: rgba(200, 130, 0, 100),
 )
 
-proc getDefaultTextFieldStyle*(): TextFieldStyle =
+proc defaultTextFieldStyle*(): TextFieldStyle =
   DefaultTextFieldStyle.deepCopy
 
-proc setDefaultTextFieldStyle*(style: TextFieldStyle) =
+proc getDefaultTextFieldStyle*(): TextFieldStyle =
+  defaultTextFieldStyle()
+
+proc defaultTextFieldStyle*(style: TextFieldStyle) =
   DefaultTextFieldStyle = style.deepCopy
+
+proc setDefaultTextFieldStyle*(style: TextFieldStyle) =
+  defaultTextFieldStyle(style)
 
 # TextArea
 var DefaultTextAreaStyle = TextAreaStyle(
@@ -353,7 +413,7 @@ var DefaultTextAreaStyle = TextAreaStyle(
 )
 
 with DefaultTextAreaStyle:
-  scrollBarStyleNormal = getDefaultScrollBarStyle()
+  scrollBarStyleNormal = defaultScrollBarStyle()
   with scrollBarStyleNormal:
     trackCornerRadius = 3.0
     trackFillColor = gray(0, 0)
@@ -370,11 +430,17 @@ with DefaultTextAreaStyle:
     thumbFillColorHover = white().withAlpha(0.43)
     thumbFillColorDown = white().withAlpha(0.35)
 
-proc getDefaultTextAreaStyle*(): TextAreaStyle =
+proc defaultTextAreaStyle*(): TextAreaStyle =
   DefaultTextAreaStyle.deepCopy
 
-proc setDefaultTextAreaStyle*(style: TextAreaStyle) =
+proc getDefaultTextAreaStyle*(): TextAreaStyle =
+  defaultTextAreaStyle()
+
+proc defaultTextAreaStyle*(style: TextAreaStyle) =
   DefaultTextAreaStyle = style.deepCopy
+
+proc setDefaultTextAreaStyle*(style: TextAreaStyle) =
+  defaultTextAreaStyle(style)
 
 # Slider
 var DefaultSliderStyle = SliderStyle(
@@ -393,8 +459,8 @@ var DefaultSliderStyle = SliderStyle(
   sliderColor: gray(0.25),
   sliderColorHover: gray(0.25),
   sliderColorDown: gray(0.25),
-  label: getDefaultLabelStyle(),
-  value: getDefaultLabelStyle(),
+  label: defaultLabelStyle(),
+  value: defaultLabelStyle(),
   cursorFollowsValue: true,
 )
 
@@ -411,15 +477,21 @@ with DefaultSliderStyle:
   value.colorHover = white()
   value.colorDown = white()
 
-proc getDefaultSliderStyle*(): SliderStyle =
+proc defaultSliderStyle*(): SliderStyle =
   DefaultSliderStyle.deepCopy
 
-proc setDefaultSliderStyle*(style: SliderStyle) =
+proc getDefaultSliderStyle*(): SliderStyle =
+  defaultSliderStyle()
+
+proc defaultSliderStyle*(style: SliderStyle) =
   DefaultSliderStyle = style.deepCopy
+
+proc setDefaultSliderStyle*(style: SliderStyle) =
+  defaultSliderStyle(style)
 
 # SectionHeader
 var DefaultSectionHeaderStyle = SectionHeaderStyle(
-  label: getDefaultLabelStyle(),
+  label: defaultLabelStyle(),
   labelLeftPad: 28.0,
   height: 32.0,
   hitRightPad: 13.0,
@@ -433,15 +505,21 @@ var DefaultSectionHeaderStyle = SectionHeaderStyle(
 with DefaultSectionHeaderStyle.label:
   color = gray(0.8)
 
-proc getDefaultSectionHeaderStyle*(): SectionHeaderStyle =
+proc defaultSectionHeaderStyle*(): SectionHeaderStyle =
   DefaultSectionHeaderStyle.deepCopy
 
-proc setDefaultSectionHeaderStyle*(style: SectionHeaderStyle) =
+proc getDefaultSectionHeaderStyle*(): SectionHeaderStyle =
+  defaultSectionHeaderStyle()
+
+proc defaultSectionHeaderStyle*(style: SectionHeaderStyle) =
   DefaultSectionHeaderStyle = style.deepCopy
+
+proc setDefaultSectionHeaderStyle*(style: SectionHeaderStyle) =
+  defaultSectionHeaderStyle(style)
 
 # SubSectionHeader
 var DefaultSubSectionHeaderStyle = SectionHeaderStyle(
-  label: getDefaultLabelStyle(),
+  label: defaultLabelStyle(),
   labelLeftPad: 38.0,
   height: 25.0,
   hitRightPad: 13.0,
@@ -455,18 +533,24 @@ var DefaultSubSectionHeaderStyle = SectionHeaderStyle(
 with DefaultSubSectionHeaderStyle.label:
   color = gray(0.9)
 
-proc getDefaultSubSectionHeaderStyle*(): SectionHeaderStyle =
+proc defaultSubSectionHeaderStyle*(): SectionHeaderStyle =
   DefaultSubSectionHeaderStyle.deepCopy
 
-proc setDefaultSubSectionHeaderStyle*(style: SectionHeaderStyle) =
+proc getDefaultSubSectionHeaderStyle*(): SectionHeaderStyle =
+  defaultSubSectionHeaderStyle()
+
+proc defaultSubSectionHeaderStyle*(style: SectionHeaderStyle) =
   DefaultSubSectionHeaderStyle = style.deepCopy
+
+proc setDefaultSubSectionHeaderStyle*(style: SectionHeaderStyle) =
+  defaultSubSectionHeaderStyle(style)
 
 # ScrollView
 var DefaultScrollViewStyle = ScrollViewStyle(
   vertScrollBarWidth: 12.0, scrollWheelSensitivity: if defined(macosx): 10.0 else: 40.0
 )
 
-DefaultScrollViewStyle.scrollBarStyle = getDefaultScrollBarStyle()
+DefaultScrollViewStyle.scrollBarStyle = defaultScrollBarStyle()
 
 with DefaultScrollViewStyle.scrollBarStyle:
   trackCornerRadius = 6.0
@@ -482,11 +566,17 @@ with DefaultScrollViewStyle.scrollBarStyle:
   autoFadeEndAlpha = 1.0
   autoFadeDistance = 60.0
 
-proc getDefaultScrollViewStyle*(): ScrollViewStyle =
+proc defaultScrollViewStyle*(): ScrollViewStyle =
   DefaultScrollViewStyle.deepCopy
 
-proc setDefaultScrollViewStyle*(style: ScrollViewStyle) =
+proc getDefaultScrollViewStyle*(): ScrollViewStyle =
+  defaultScrollViewStyle()
+
+proc defaultScrollViewStyle*(style: ScrollViewStyle) =
   DefaultScrollViewStyle = style.deepCopy
+
+proc setDefaultScrollViewStyle*(style: ScrollViewStyle) =
+  defaultScrollViewStyle(style)
 
 # Dialog
 var DefaultDialogStyle = DialogStyle(
@@ -512,11 +602,17 @@ DefaultDialogStyle.shadow = ShadowStyle(
   color: black(0.4),
 )
 
-proc getDefaultDialogStyle*(): DialogStyle =
+proc defaultDialogStyle*(): DialogStyle =
   DefaultDialogStyle.deepCopy
 
-proc setDefaultDialogStyle*(style: DialogStyle) =
+proc getDefaultDialogStyle*(): DialogStyle =
+  defaultDialogStyle()
+
+proc defaultDialogStyle*(style: DialogStyle) =
   DefaultDialogStyle = style.deepCopy
+
+proc setDefaultDialogStyle*(style: DialogStyle) =
+  defaultDialogStyle(style)
 
 # AutoLayout
 const DefaultAutoLayoutParams* = AutoLayoutParams(

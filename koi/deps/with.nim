@@ -7,12 +7,12 @@
 
 import macros
 
-proc getAllIdentDefs(x: NimNode): seq[NimNode] =
+proc allIdentDefs(x: NimNode): seq[NimNode] =
   for n in x:
     if n.kind == nnkIdentDefs:
       result &= n
     elif n.kind in {nnkRecCase, nnkRecList, nnkOfBranch, nnkElse}:
-      result &= getAllIdentDefs(n)
+      result &= allIdentDefs(n)
 
 proc createInner(x: NimNode): NimNode =
   result = newStmtList()
@@ -23,7 +23,7 @@ proc createInner(x: NimNode): NimNode =
     t.kind in {nnkObjectTy, nnkTupleTy},
     "`with` must be called with " & "either objects or tuples.",
   )
-  for field in getAllIdentDefs(
+  for field in allIdentDefs(
     if t.kind == nnkObjectTy:
       t[2]
     else:

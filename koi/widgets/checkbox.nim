@@ -68,7 +68,7 @@ proc checkBox*(
     tooltip: string,
     disabled: bool = false,
     drawProc: Option[CheckBoxDrawProc] = CheckBoxDrawProc.none,
-    style: CheckBoxStyle = getDefaultCheckBoxStyle(),
+    style: CheckBoxStyle = defaultCheckBoxStyle(),
 ) =
   var checked = checked_out
 
@@ -78,9 +78,9 @@ proc checkBox*(
 
   # Hit testing
   if isHit(x, y, w, w):
-    setHot(id)
+    markHot(id)
     if not disabled and ui.mbLeftDown and hasNoActiveItem():
-      setActive(id)
+      markActive(id)
 
   # LMB released over active widget means it was clicked
   checked =
@@ -115,10 +115,10 @@ template checkBox*(
     tooltip: string = "",
     disabled: bool = false,
     drawProc: Option[CheckBoxDrawProc] = CheckBoxDrawProc.none,
-    style: CheckBoxStyle = getDefaultCheckBoxStyle(),
+    style: CheckBoxStyle = defaultCheckBoxStyle(),
 ) =
   let i = instantiationInfo(fullPaths = true)
-  let id = getNextId(i.filename, i.line)
+  let id = nextId(i.filename, i.line)
 
   checkbox(id, x, y, w, active, tooltip, disabled, drawProc, style)
 
@@ -127,10 +127,10 @@ template checkBox*(
     tooltip: string = "",
     disabled: bool = false,
     drawProc: Option[CheckBoxDrawProc] = CheckBoxDrawProc.none,
-    style: CheckBoxStyle = getDefaultCheckBoxStyle(),
+    style: CheckBoxStyle = defaultCheckBoxStyle(),
 ) =
   let i = instantiationInfo(fullPaths = true)
-  let id = getNextId(i.filename, i.line)
+  let id = nextId(i.filename, i.line)
 
   autoLayoutPre()
 

@@ -152,8 +152,11 @@ let
   HighlightColor* = rgb(1.0, 0.65, 0.0)
   HighlightLowColor* = rgb(0.9, 0.55, 0.0)
 
-proc getTime*(): float =
+proc currentTime*(): float =
   times.epochTime()
+
+proc getTime*(): float =
+  currentTime()
 
 proc winWidth*(): float =
   g_uiState.winWidth
@@ -167,20 +170,32 @@ proc isDialogOpen*(): bool =
 proc focusCaptured*(): bool =
   g_uiState.focusCaptured
 
-proc setFocusCaptured*(c: bool) =
+proc focusCaptured*(c: bool) =
   g_uiState.focusCaptured = c
 
-proc setFramesLeft*(n: Natural = 5) =
+proc setFocusCaptured*(c: bool) =
+  focusCaptured(c)
+
+proc requestFrames*(n: Natural = 5) =
   g_uiState.framesLeft = n
+
+proc setFramesLeft*(n: Natural = 5) =
+  requestFrames(n)
 
 proc shouldRenderNextFrame*(): bool =
   g_uiState.framesLeft > 0
 
-proc setScale*(s: float) =
+proc scale*(s: float) =
   g_uiState.scale = s
 
-proc getScale*(): float =
+proc setScale*(s: float) =
+  scale(s)
+
+proc scale*(): float =
   g_uiState.scale
+
+proc getScale*(): float =
+  scale()
 
 proc initCore*(vg: NVGContext, glfwGetProcAddress: proc) =
   when not defined(koiWebGpu):
@@ -200,8 +215,8 @@ proc initCore*(vg: NVGContext, glfwGetProcAddress: proc) =
   g_cursorResizeAll = createStandardCursor(csResizeAll)
 
   g_eventBuf = initRingBuffer[Event](64)
-  setScale(1.0)
-  setFramesLeft()
+  scale(1.0)
+  requestFrames()
 
 proc deinitCore*() =
   destroyCursor(g_cursorArrow)

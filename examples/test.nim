@@ -122,7 +122,7 @@ proc renderUI() =
     x = 100.0
     y = 70.0
 
-  var labelStyle = getDefaultLabelStyle()
+  var labelStyle = defaultLabelStyle()
   labelStyle.fontSize = 15.0
   labelStyle.color = gray(0.8)
 
@@ -400,7 +400,7 @@ proc renderUI() =
     vg.fill()
 
     vg.fillColor(black(0.7))
-    vg.setFont(14.0, horizAlign = haCenter)
+    vg.useFont(14.0, horizAlign = haCenter)
     discard vg.text(x + (w - Pad) * 0.5, y + h * 0.5, label)
 
     if state in {wsActive, wsActiveHover, wsActiveDown}:
@@ -577,7 +577,7 @@ proc init(): Window =
 
   koi.init(vg, getProcAddress)
 
-  #  koi.setScale(1.2)
+  #  koi.scale(1.2)
   win.windowPositionCb = windowPosCb
   win.framebufferSizeCb = framebufSizeCb
 

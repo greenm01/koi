@@ -17,7 +17,7 @@ proc beginDialog*(
     id: ItemId,
     x, y, w, h: float,
     title: string,
-    style: DialogStyle = getDefaultDialogStyle(),
+    style: DialogStyle = defaultDialogStyle(),
 ): bool =
   alias(ui, g_uiState)
   alias(s, style)
@@ -33,7 +33,7 @@ proc beginDialog*(
     title: string,
     x: Option[float] = float.none,
     y: Option[float] = float.none,
-    style: DialogStyle = getDefaultDialogStyle(),
+    style: DialogStyle = defaultDialogStyle(),
 ) =
   alias(ui, g_uiState)
   alias(ds, ui.dialogState)
@@ -81,7 +81,7 @@ proc closeDialog*() =
 
 template dialog*(x, y, w, h: float, title: string, body: untyped) =
   let i = instantiationInfo(fullPaths = true)
-  let id = getNextId(i.filename, i.line)
+  let id = nextId(i.filename, i.line)
   if beginDialog(id, x, y, w, h, title):
     try:
       body

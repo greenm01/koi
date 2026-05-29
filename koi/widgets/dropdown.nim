@@ -25,7 +25,7 @@ proc dropDown*[T](
     selectedItem_out: var T,
     tooltip: string,
     disabled: bool,
-    style: DropDownStyle = getDefaultDropDownStyle(),
+    style: DropDownStyle = defaultDropDownStyle(),
 ) =
   assert selectedItem_out.ord <= items.high
   var selectedItem = selectedItem_out.clamp(T.low, T.high)
@@ -55,9 +55,9 @@ proc dropDown*[T](
 
   if ds.state == dsClosed:
     if isHit(x, y, w, h):
-      setHot(id)
+      markHot(id)
       if not disabled and ui.mbLeftDown and hasNoActiveItem():
-        setActive(id)
+        markActive(id)
         ds.state = dsOpenLMBPressed
         ds.activeItem = id
         ui.focusCaptured = true
@@ -69,13 +69,13 @@ proc dropDown*[T](
     if ui.hasEvent and (not ui.eventHandled) and ui.currEvent.kind == ekKey and
         ui.currEvent.action in {kaDown}:
       if ui.currEvent.key == keyEscape:
-        setEventHandled()
+        markEventHandled()
         closeDropDown()
 
     # Calculate the position of the box around the drop-down items
     var maxItemWidth = 0.0
 
-    g_nvgContext.setFont(s.item.fontSize)
+    g_nvgContext.useFont(s.item.fontSize)
 
     for i in items:
       let tw = g_nvgContext.textWidth(i)
@@ -133,7 +133,7 @@ proc dropDown*[T](
       if ui.hasEvent and ui.currEvent.kind == ekScroll:
         ds.displayStartItem =
           (ds.displayStartItem - ui.currEvent.oy).clamp(0, scrollBarEndVal)
-        setEventHandled()
+        markEventHandled()
     else:
       ds.displayStartItem = 0
 
@@ -143,8 +143,8 @@ proc dropDown*[T](
       insideItemList = mouseInside(itemListX, itemListY, itemListW, itemListH)
 
     if insideButton or insideItemList:
-      setHot(id)
-      setActive(id)
+      markHot(id)
+      markActive(id)
     else:
       closeDropDown()
 
@@ -307,10 +307,10 @@ template dropDown*[T](
     selectedItem: var T,
     tooltip: string = "",
     disabled: bool = false,
-    style: DropDownStyle = getDefaultDropDownStyle(),
+    style: DropDownStyle = defaultDropDownStyle(),
 ) =
   let i = instantiationInfo(fullPaths = true)
-  let id = getNextId(i.filename, i.line)
+  let id = nextId(i.filename, i.line)
 
   dropDown(id, x, y, w, h, items, selectedItem, tooltip, disabled, style)
 
@@ -319,10 +319,10 @@ template dropDown*[T](
     selectedItem: var T,
     tooltip: string = "",
     disabled: bool = false,
-    style: DropDownStyle = getDefaultDropDownStyle(),
+    style: DropDownStyle = defaultDropDownStyle(),
 ) =
   let i = instantiationInfo(fullPaths = true)
-  let id = getNextId(i.filename, i.line)
+  let id = nextId(i.filename, i.line)
 
   autoLayoutPre()
 
@@ -346,11 +346,11 @@ template dropDown*[E: enum](
     selectedItem: var E,
     tooltip: string = "",
     disabled: bool = false,
-    style: DropDownStyle = getDefaultDropDownStyle(),
+    style: DropDownStyle = defaultDropDownStyle(),
 ) =
   let
     i = instantiationInfo(fullPaths = true)
-    id = getNextId(i.filename, i.line)
+    id = nextId(i.filename, i.line)
     items = enumToSeq[E]()
 
   dropDown(id, x, y, w, h, items, selectedItem, tooltip, disabled, style)
@@ -359,11 +359,11 @@ template dropDown*[E: enum](
     selectedItem: var E,
     tooltip: string = "",
     disabled: bool = false,
-    style: DropDownStyle = getDefaultDropDownStyle(),
+    style: DropDownStyle = defaultDropDownStyle(),
 ) =
   let
     i = instantiationInfo(fullPaths = true)
-    id = getNextId(i.filename, i.line)
+    id = nextId(i.filename, i.line)
     items = enumToSeq[E]()
 
   autoLayoutPre()

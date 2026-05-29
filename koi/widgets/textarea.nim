@@ -28,7 +28,7 @@ proc textArea*(
     activate: bool = false,
     drawWidget: bool = true,
     constraint: Option[TextAreaConstraint] = TextAreaConstraint.none,
-    style: TextAreaStyle = getDefaultTextAreaStyle(),
+    style: TextAreaStyle = defaultTextAreaStyle(),
 ) =
   alias(ui, g_uiState)
   alias(s, style)
@@ -53,10 +53,10 @@ proc textArea*(
     tabActivate = handleTabActivation(id)
 
     if isHit(x, y, w, h) or activate or tabActivate:
-      setHot(id)
+      markHot(id)
       if not disabled and
           ((ui.mbLeftDown and hasNoActiveItem()) or activate or tabActivate):
-        setActive(id)
+        markActive(id)
         clearCharBuf()
         clearEventBuf()
         ta.state = tasEditLMBPressed
@@ -76,10 +76,10 @@ proc textArea*(
     ta.displayStartRow = 0
     ta.originalText = ""
     ui.focusCaptured = false
-    setCursorShape(csArrow)
+    cursorShape(csArrow)
 
-  proc setFont() =
-    g_nvgContext.setFont(s.textFontSize, name = s.textFontFace)
+  proc useTextFont() =
+    g_nvgContext.useFont(s.textFontSize, name = s.textFontFace)
 
   var text = text_out
   var rows = text.textBreakLines(textBoxW)
@@ -87,9 +87,9 @@ proc textArea*(
 
   # Hit testing
   if ta.activeItem == id:
-    setHot(id)
-    setActive(id)
-    setCursorShape(csIBeam)
+    markHot(id)
+    markActive(id)
+    cursorShape(csIBeam)
 
     if ta.state == tasEditLMBPressed:
       if not ui.mbLeftDown:
@@ -104,7 +104,7 @@ proc textArea*(
         ui.currEvent.action in {kaDown, kaRepeat}:
       alias(shortcuts, g_textFieldEditShortcuts)
       let sc = mkKeyShortcut(ui.currEvent.key, ui.currEvent.mods)
-      setEventHandled()
+      markEventHandled()
 
       let res =
         handleCommonTextEditingShortcuts(sc, text, ta.cursorPos, ta.selection, maxLen)
@@ -134,7 +134,7 @@ proc textArea*(
       ta.cursorPos = res.cursorPos
       ta.selection = res.selection
       rows = text.textBreakLines(textBoxW)
-      setEventHandled()
+      markEventHandled()
 
   text_out = text
 
@@ -155,7 +155,7 @@ proc textArea*(
     let rowHeight = s.textFontSize * s.textLineHeight
     var ty = textBoxY + rowHeight * TextVertAlignFactor - ta.displayStartRow * rowHeight
 
-    setFont()
+    useTextFont()
     vg.fillColor(if editing: s.textColorActive else: s.textColor)
 
     for row in rows:
@@ -179,10 +179,10 @@ template textArea*(
     activate: bool = false,
     drawWidget: bool = true,
     constraint: Option[TextAreaConstraint] = TextAreaConstraint.none,
-    style: TextAreaStyle = getDefaultTextAreaStyle(),
+    style: TextAreaStyle = defaultTextAreaStyle(),
 ) =
   let i = instantiationInfo(fullPaths = true)
-  let id = getNextId(i.filename, i.line)
+  let id = nextId(i.filename, i.line)
   textArea(
     id, x, y, w, h, text, tooltip, disabled, activate, drawWidget, constraint, style
   )
@@ -194,10 +194,10 @@ template textArea*(
     activate: bool = false,
     drawWidget: bool = true,
     constraint: Option[TextAreaConstraint] = TextAreaConstraint.none,
-    style: TextAreaStyle = getDefaultTextAreaStyle(),
+    style: TextAreaStyle = defaultTextAreaStyle(),
 ) =
   let i = instantiationInfo(fullPaths = true)
-  let id = getNextId(i.filename, i.line)
+  let id = nextId(i.filename, i.line)
   autoLayoutPre()
   textArea(
     id,

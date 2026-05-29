@@ -72,7 +72,7 @@ proc toggleButton*(
     tooltip: string,
     disabled: bool = false,
     drawProc: Option[ToggleButtonDrawProc] = ToggleButtonDrawProc.none,
-    style: ToggleButtonStyle = getDefaultToggleButtonStyle(),
+    style: ToggleButtonStyle = defaultToggleButtonStyle(),
 ) =
   var active = active_out
 
@@ -82,9 +82,9 @@ proc toggleButton*(
 
   # Hit testing
   if isHit(x, y, w, h):
-    setHot(id)
+    markHot(id)
     if not disabled and ui.mbLeftDown and hasNoActiveItem():
-      setActive(id)
+      markActive(id)
 
   # LMB released over active widget means it was clicked
   active =
@@ -123,10 +123,10 @@ template toggleButton*(
     tooltip: string = "",
     disabled: bool = false,
     drawProc: Option[ToggleButtonDrawProc] = ToggleButtonDrawProc.none,
-    style: ToggleButtonStyle = getDefaultToggleButtonStyle(),
+    style: ToggleButtonStyle = defaultToggleButtonStyle(),
 ) =
   let i = instantiationInfo(fullPaths = true)
-  let id = getNextId(i.filename, i.line)
+  let id = nextId(i.filename, i.line)
 
   toggleButton(
     id, x, y, w, h, active_out, label, labelActive, tooltip, disabled, drawProc, style
@@ -139,10 +139,10 @@ template toggleButton*(
     tooltip: string = "",
     disabled: bool = false,
     drawProc: Option[ToggleButtonDrawProc] = ToggleButtonDrawProc.none,
-    style: ToggleButtonStyle = getDefaultToggleButtonStyle(),
+    style: ToggleButtonStyle = defaultToggleButtonStyle(),
 ) =
   let i = instantiationInfo(fullPaths = true)
-  let id = getNextId(i.filename, i.line)
+  let id = nextId(i.filename, i.line)
 
   autoLayoutPre()
 

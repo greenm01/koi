@@ -25,7 +25,7 @@ proc textFieldEnterEditMode(id: ItemId, text: string, startX: float) =
   alias(ui, g_uiState)
   alias(tf, ui.textFieldState)
 
-  setActive(id)
+  markActive(id)
   clearCharBuf()
   clearEventBuf()
 
@@ -57,7 +57,7 @@ proc textFieldExitEditMode*(id: ItemId = 0, startX: float = 0) =
   tf.originalText = ""
 
   ui.focusCaptured = false
-  setCursorShape(csArrow)
+  cursorShape(csArrow)
 
 # textField()
 proc textField*(
@@ -69,7 +69,7 @@ proc textField*(
     activate: bool = false,
     drawWidget: bool = true,
     constraint: Option[TextFieldConstraint] = TextFieldConstraint.none,
-    style: TextFieldStyle = getDefaultTextFieldStyle(),
+    style: TextFieldStyle = defaultTextFieldStyle(),
 ) =
   const MaxTextRuneLen = 1024
 
@@ -97,7 +97,7 @@ proc textField*(
     tabActivate = handleTabActivation(id)
 
     if isHit(x, y, w, h) or activate or tabActivate:
-      setHot(id)
+      markHot(id)
       if not disabled and
           ((ui.mbLeftDown and hasNoActiveItem()) or activate or tabActivate):
         textFieldEnterEditMode(id, text, textBoxX)
@@ -106,11 +106,11 @@ proc textField*(
   proc exitEditMode() =
     textFieldExitEditMode(id, textBoxX)
 
-  proc setFont() =
-    g_nvgContext.setFont(s.textFontSize, name = s.textFontFace)
+  proc useTextFont() =
+    g_nvgContext.useFont(s.textFontSize, name = s.textFontFace)
 
   proc calcGlyphPos() =
-    setFont()
+    useTextFont()
     discard g_nvgContext.textGlyphPositions(0, 0, text, glyphs)
 
   func enforceConstraint(text, originalText: string): string =
@@ -134,14 +134,14 @@ proc textField*(
         except ValueError:
           result = originalText
 
-  proc getCursorPosAt(x: float): Natural =
+  proc cursorPosAt(x: float): Natural =
     for p in tf.displayStartPos .. max(text.runeLen - 1, 0):
       let midX = glyphs[p].minX + (glyphs[p].maxX - glyphs[p].minX) * 0.5
       if x < tf.displayStartX + midX - glyphs[tf.displayStartPos].x:
         return p.Natural
     result = text.runeLen.Natural
 
-  proc getCursorXPos(): float =
+  proc cursorXPos(): float =
     if tf.cursorPos == 0:
       textBoxX
     elif tf.cursorPos == text.runeLen:
@@ -154,24 +154,24 @@ proc textField*(
   if tf.activeItem == id and tf.state >= tfsEditLMBPressed:
     calcGlyphPos()
 
-    setHot(id)
-    setActive(id)
-    setCursorShape(csIBeam)
+    markHot(id)
+    markActive(id)
+    cursorShape(csIBeam)
 
     if tf.state == tfsEditLMBPressed:
       if not ui.mbLeftDown:
         tf.state = tfsEdit
     elif tf.state == tfsDragStart:
-      let cursorX = getCursorXPos()
+      let cursorX = cursorXPos()
       if ui.mbLeftDown:
         if (ui.mx < textBoxX and cursorX < textBoxX + 10) or (
           ui.mx > textBoxX + textBoxW - ScrollRightOffset and
           cursorX > textBoxX + textBoxW - ScrollRightOffset - 10
         ):
-          ui.t0 = core.getTime()
+          ui.t0 = core.currentTime()
           tf.state = tfsDragDelay
         else:
-          let mouseCursorPos = getCursorPosAt(ui.mx)
+          let mouseCursorPos = cursorPosAt(ui.mx)
           tf.selection =
             updateSelection(tf.selection, tf.cursorPos, newCursorPos = mouseCursorPos)
           tf.cursorPos = mouseCursorPos
@@ -183,7 +183,7 @@ proc textField*(
         if dx > 0:
           dx = (textBoxX + textBoxW - ScrollRightOffset) - ui.mx
         if dx < 0:
-          if core.getTime() - ui.t0 > TextFieldScrollDelay / (-dx / 10):
+          if core.currentTime() - ui.t0 > TextFieldScrollDelay / (-dx / 10):
             tf.state = tfsDragScroll
         else:
           tf.state = tfsDragStart
@@ -200,7 +200,7 @@ proc textField*(
             tf.cursorPos
         tf.selection = updateSelection(tf.selection, tf.cursorPos, newCursorPos.Natural)
         tf.cursorPos = newCursorPos.Natural
-        ui.t0 = core.getTime()
+        ui.t0 = core.currentTime()
         tf.state = tfsDragDelay
       else:
         tf.state = tfsEdit
@@ -211,7 +211,7 @@ proc textField*(
       if ui.mbLeftDown:
         if mouseInside(x, y, w, h):
           tf.selection = NoSelection
-          tf.cursorPos = getCursorPosAt(ui.mx)
+          tf.cursorPos = cursorPosAt(ui.mx)
           if isDoubleClick():
             tf.selection.startPos = findPrevWordStart(text, tf.cursorPos).int
             tf.selection.endPos = findNextWordEnd(text, tf.cursorPos).Natural
@@ -232,7 +232,7 @@ proc textField*(
         ui.currEvent.action in {kaDown, kaRepeat}:
       alias(shortcuts, g_textFieldEditShortcuts)
       let sc = mkKeyShortcut(ui.currEvent.key, ui.currEvent.mods)
-      setEventHandled()
+      markEventHandled()
       let res = handleCommonTextEditingShortcuts(
         sc, text, tf.cursorPos, tf.selection, maxLenOpt
       )
@@ -291,7 +291,7 @@ proc textField*(
       text = res.text
       tf.cursorPos = res.cursorPos
       tf.selection = res.selection
-      setEventHandled()
+      markEventHandled()
 
     let textLen = text.runeLen
     if textLen == 0:
@@ -391,11 +391,11 @@ proc textField*(
       of wsHover: s.textColorHover
       of wsActive, wsActiveHover, wsActiveDown, wsDown: s.textColorActive
       of wsDisabled: s.textColorDisabled
-    vg.setFont(s.textFontSize, name = s.textFontFace)
+    vg.useFont(s.textFontSize, name = s.textFontFace)
     vg.fillColor(textColor)
     discard vg.text(textX, textY, text.runeSubStr(tf.displayStartPos))
     if editing:
-      let cursorX = getCursorXPos()
+      let cursorX = cursorXPos()
       vg.drawCursor(
         cursorX,
         textBoxY + s.textPadVert,
@@ -416,10 +416,10 @@ template rawTextField*(
     disabled: bool = false,
     activate: bool = false,
     constraint: Option[TextFieldConstraint] = TextFieldConstraint.none,
-    style: TextFieldStyle = getDefaultTextFieldStyle(),
+    style: TextFieldStyle = defaultTextFieldStyle(),
 ) =
   let i = instantiationInfo(fullPaths = true)
-  let id = getNextId(i.filename, i.line)
+  let id = nextId(i.filename, i.line)
   textField(
     id,
     x,
@@ -443,10 +443,10 @@ template textField*(
     activate: bool = false,
     drawWidget: bool = true,
     constraint: Option[TextFieldConstraint] = TextFieldConstraint.none,
-    style: TextFieldStyle = getDefaultTextFieldStyle(),
+    style: TextFieldStyle = defaultTextFieldStyle(),
 ) =
   let i = instantiationInfo(fullPaths = true)
-  let id = getNextId(i.filename, i.line)
+  let id = nextId(i.filename, i.line)
   textField(
     id, x, y, w, h, text, tooltip, disabled, activate, drawWidget, constraint, style
   )
@@ -458,10 +458,10 @@ template textField*(
     activate: bool = false,
     drawWidget: bool = true,
     constraint: Option[TextFieldConstraint] = TextFieldConstraint.none,
-    style: TextFieldStyle = getDefaultTextFieldStyle(),
+    style: TextFieldStyle = defaultTextFieldStyle(),
 ) =
   let i = instantiationInfo(fullPaths = true)
-  let id = getNextId(i.filename, i.line)
+  let id = nextId(i.filename, i.line)
   autoLayoutPre()
   textField(
     id,

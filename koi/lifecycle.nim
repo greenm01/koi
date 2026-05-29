@@ -54,7 +54,7 @@ proc beginFrame*() =
     ui.hasEvent = true
     let ev = ui.currEvent
 
-    setFramesLeft()
+    requestFrames()
 
     # Update current mouse button state
     if ev.kind == ekMouseButton:
@@ -64,7 +64,7 @@ proc beginFrame*() =
         ui.lastMbLeftDownX = ui.mbLeftDownX
         ui.lastMbLeftDownY = ui.mbLeftDownY
         ui.lastMbLeftDownT = ui.mbLeftDownT
-        ui.mbLeftDownT = core.getTime()
+        ui.mbLeftDownT = core.currentTime()
         ui.mbLeftDownX = ui.mx
         ui.mbLeftDownY = ui.my
       of mbRight:
@@ -97,7 +97,7 @@ proc beginFrame*() =
 
     glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT or GL_STENCIL_BUFFER_BIT)
 
-  vg.beginFrame(ui.winWidth, ui.winHeight, getPxRatio())
+  vg.beginFrame(ui.winWidth, ui.winHeight, pxRatio())
 
 proc endFrame*() =
   alias(ui, g_uiState)
@@ -106,7 +106,7 @@ proc endFrame*() =
   # Post-frame processing
   tooltipPost()
 
-  setCursorMode(ui.cursorShape)
+  applyCursorShape(ui.cursorShape)
 
   g_drawLayers.draw(g_nvgContext)
 

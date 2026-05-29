@@ -34,18 +34,24 @@ proc generateId*(filename: string, line: int, id: string = ""): ItemId =
   g_lastIdString = idString
   hashId(idString)
 
-proc getNextId*(filename: string, line: int, id: string = ""): ItemId =
+proc nextId*(filename: string, line: int, id: string = ""): ItemId =
   if g_nextIdString == "":
     result = generateId(filename, line, id)
   else:
     result = hashId(g_nextIdString)
     g_nextIdString = ""
 
+proc getNextId*(filename: string, line: int, id: string = ""): ItemId =
+  nextId(filename, line, id)
+
 proc lastIdString*(): string =
   g_lastIdString
 
-proc setNextId*(id: string) =
+proc useNextId*(id: string) =
   g_nextIdString = id
+
+proc setNextId*(id: string) =
+  useNextId(id)
 
 proc mouseInside*(x, y, w, h: float): bool =
   alias(ui, g_uiState)
@@ -54,15 +60,21 @@ proc mouseInside*(x, y, w, h: float): bool =
 proc isHot*(id: ItemId): bool =
   g_uiState.hotItem == id
 
-proc setHot*(id: ItemId) =
+proc markHot*(id: ItemId) =
   alias(ui, g_uiState)
   ui.hotItem = id
+
+proc setHot*(id: ItemId) =
+  markHot(id)
 
 proc isActive*(id: ItemId): bool =
   g_uiState.activeItem == id
 
-proc setActive*(id: ItemId) =
+proc markActive*(id: ItemId) =
   g_uiState.activeItem = id
+
+proc setActive*(id: ItemId) =
+  markActive(id)
 
 proc hasHotItem*(): bool =
   g_uiState.hotItem > 0
@@ -73,9 +85,12 @@ proc hasNoActiveItem*(): bool =
 proc hasActiveItem*(): bool =
   g_uiState.activeItem > 0
 
-proc setHitClip*(x, y, w, h: float) =
+proc hitClip*(x, y, w, h: float) =
   alias(ui, g_uiState)
   ui.hitClipRect = rect(x, y, w, h)
+
+proc setHitClip*(x, y, w, h: float) =
+  hitClip(x, y, w, h)
 
 proc resetHitClip*() =
   alias(ui, g_uiState)
@@ -112,8 +127,11 @@ proc currEvent*(): Event =
 proc eventHandled*(): bool =
   g_uiState.eventHandled
 
-proc setEventHandled*() =
+proc markEventHandled*() =
   g_uiState.eventHandled = true
+
+proc setEventHandled*() =
+  markEventHandled()
 
 proc mbLeftDown*(): bool =
   g_uiState.mbLeftDown
@@ -124,8 +142,11 @@ proc mbRightDown*(): bool =
 proc mbMiddleDown*(): bool =
   g_uiState.mbMiddleDown
 
-proc setWindow*(win: Window) =
+proc useWindow*(win: Window) =
   g_window = win
+
+proc setWindow*(win: Window) =
+  useWindow(win)
 
 proc activeWindow*(): Window =
   if not g_window.isNil:
@@ -609,10 +630,13 @@ proc hideCursor*() =
 proc disableCursor*() =
   activeWindow().cursorMode = cmDisabled
 
-proc setCursorShape*(cs: CursorShape) =
+proc cursorShape*(cs: CursorShape) =
   g_uiState.cursorShape = cs
 
-proc setCursorMode*(cs: CursorShape) =
+proc setCursorShape*(cs: CursorShape) =
+  cursorShape(cs)
+
+proc applyCursorShape*(cs: CursorShape) =
   let win = activeWindow()
 
   var c: Cursor
@@ -637,15 +661,24 @@ proc setCursorMode*(cs: CursorShape) =
 
   win.cursor = c
 
-proc setCursorPosX*(x: float) =
+proc setCursorMode*(cs: CursorShape) =
+  applyCursorShape(cs)
+
+proc cursorPosX*(x: float) =
   let win = activeWindow()
   let (_, currY) = win.cursorPos()
   win.cursorPos = (x * g_uiState.scale, currY)
 
-proc setCursorPosY*(y: float) =
+proc setCursorPosX*(x: float) =
+  cursorPosX(x)
+
+proc cursorPosY*(y: float) =
   let win = activeWindow()
   let (currX, _) = win.cursorPos()
   win.cursorPos = (currX, y * g_uiState.scale)
+
+proc setCursorPosY*(y: float) =
+  cursorPosY(y)
 
 const
   DoubleClickMaxDelay = 0.4
@@ -655,11 +688,11 @@ const
 proc isDoubleClick*(): bool =
   alias(ui, g_uiState)
 
-  ui.mbLeftDown and core.getTime() - ui.lastMbLeftDownT <= DoubleClickMaxDelay and
+  ui.mbLeftDown and core.currentTime() - ui.lastMbLeftDownT <= DoubleClickMaxDelay and
     abs(ui.lastMbLeftDownX - ui.mx) <= DoubleClickMaxXOffs and
     abs(ui.lastMbLeftDownY - ui.my) <= DoubleClickMaxYOffs
 
-proc setShortcuts*(sm: ShortcutMode) =
+proc useShortcuts*(sm: ShortcutMode) =
   alias(shortcuts, g_textFieldEditShortcuts)
   shortcuts = initTable[TextEditShortcuts, seq[KeyShortcut]]()
   for e in TextEditShortcuts:
@@ -671,6 +704,9 @@ proc setShortcuts*(sm: ShortcutMode) =
   of smMac:
     for k, v in g_textFieldEditShortcuts_Mac:
       shortcuts[k] = v
+
+proc setShortcuts*(sm: ShortcutMode) =
+  useShortcuts(sm)
 
 proc toClipboard*(s: string) =
   activeWindow().clipboardString = s
@@ -687,7 +723,7 @@ proc init*(vg: NVGContext, glfwGetProcAddress: proc) =
   win.mouseButtonCb = mouseButtonCb
   win.scrollCb = scrollCb
 
-  setShortcuts(smLinux)
+  useShortcuts(smLinux)
 
   when not defined(koiWebGpu):
     glfw.swapInterval(1)

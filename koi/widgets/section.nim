@@ -34,9 +34,9 @@ proc sectionHeader(
       ss.openSubHeaders = false
   else:
     if isHit(x, y, w - s.hitRightPad, h):
-      setHot(id)
+      markHot(id)
       if ui.mbLeftDown and hasNoActiveItem():
-        setActive(id)
+        markActive(id)
 
         if not subHeader and ctrlDown():
           expanded_out = true
@@ -89,10 +89,10 @@ template sectionHeader*(
     label: string,
     expanded: var bool,
     tooltip: string = "",
-    style: SectionHeaderStyle = getDefaultSectionHeaderStyle(),
+    style: SectionHeaderStyle = defaultSectionHeaderStyle(),
 ): bool =
   let i = instantiationInfo(fullPaths = true)
-  let id = getNextId(i.filename, i.line, label)
+  let id = nextId(i.filename, i.line, label)
 
   nextRowHeight(style.height)
   autoLayoutPre(section = true)
@@ -114,10 +114,10 @@ template subSectionHeader*(
     label: string,
     expanded: var bool,
     tooltip: string = "",
-    style: SectionHeaderStyle = getDefaultSubSectionHeaderStyle(),
+    style: SectionHeaderStyle = defaultSubSectionHeaderStyle(),
 ): bool =
   let i = instantiationInfo(fullPaths = true)
-  let id = getNextId(i.filename, i.line, label)
+  let id = nextId(i.filename, i.line, label)
 
   nextRowHeight(style.height)
   autoLayoutPre(section = true)

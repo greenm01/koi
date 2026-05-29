@@ -18,19 +18,25 @@ type ScrollViewState = ref object of RootObj
   contentHeight: float
   style: ScrollViewStyle
 
-proc getClampedStartY(ss: ScrollViewState): float =
+proc clampedStartY(ss: ScrollViewState): float =
   ss.viewStartY.clamp(0, max(ss.contentHeight - ss.h, 0))
 
-proc setScrollViewStartY*(id: ItemId, startY: float) =
+proc scrollViewStartY*(id: ItemId, startY: float) =
   alias(ui, g_uiState)
   var ss = cast[ScrollViewState](ui.itemState[id])
   ss.viewStartY = startY
   ui.itemState[id] = ss
 
-proc getScrollViewStartY*(id: ItemId): float =
+proc setScrollViewStartY*(id: ItemId, startY: float) =
+  scrollViewStartY(id, startY)
+
+proc scrollViewStartY*(id: ItemId): float =
   alias(ui, g_uiState)
   var ss = cast[ScrollViewState](ui.itemState[id])
-  result = ss.getClampedStartY()
+  result = ss.clampedStartY()
+
+proc getScrollViewStartY*(id: ItemId): float =
+  scrollViewStartY(id)
 
 proc beginView*(id: ItemId, x, y, w, h: float) =
   alias(ui, g_uiState)
@@ -40,12 +46,12 @@ proc beginView*(id: ItemId, x, y, w, h: float) =
     vg.save()
     vg.intersectScissor(x, y, w, h)
 
-  setHitClip(x, y, w, h)
+  hitClip(x, y, w, h)
   pushDrawOffset(DrawOffset(ox: x, oy: y))
 
 template beginView*(x, y, w, h: float) =
   let i = instantiationInfo(fullPaths = true)
-  let id = getNextId(i.filename, i.line)
+  let id = nextId(i.filename, i.line)
   beginView(id, x, y, w, h)
 
 proc endView*() =
@@ -57,7 +63,7 @@ proc endView*() =
   resetHitClip()
 
 proc beginScrollView*(
-    id: ItemId, x, y, w, h: float, style: ScrollViewStyle = getDefaultScrollViewStyle()
+    id: ItemId, x, y, w, h: float, style: ScrollViewStyle = defaultScrollViewStyle()
 ) =
   alias(ui, g_uiState)
   let (x, y) = addDrawOffset(x, y)
@@ -67,13 +73,13 @@ proc beginScrollView*(
     vg.intersectScissor(x, y, w, h)
 
   ui.scrollViewState.activeItem = id
-  setHitClip(x, y, w, h)
+  hitClip(x, y, w, h)
 
   discard
     ui.itemState.hasKeyOrPut(id, ScrollViewState(x: x, y: y, w: w, h: h, style: style))
 
   var ss = cast[ScrollViewState](ui.itemState[id])
-  pushDrawOffset(DrawOffset(ox: x, oy: y - ss.getClampedStartY()))
+  pushDrawOffset(DrawOffset(ox: x, oy: y - ss.clampedStartY()))
 
   ss.x = x
   ss.y = y
@@ -83,10 +89,10 @@ proc beginScrollView*(
   ui.itemState[id] = ss
 
 template beginScrollView*(
-    x, y, w, h: float, style: ScrollViewStyle = getDefaultScrollViewStyle()
+    x, y, w, h: float, style: ScrollViewStyle = defaultScrollViewStyle()
 ) =
   let i = instantiationInfo(fullPaths = true)
-  let id = getNextId(i.filename, i.line, "")
+  let id = nextId(i.filename, i.line, "")
   beginScrollView(id, x, y, w, h, style)
 
 proc endScrollView*(height: float = -1.0) =
@@ -105,7 +111,7 @@ proc endScrollView*(height: float = -1.0) =
   let id = ui.scrollViewState.activeItem
   var ss = cast[ScrollViewState](ui.itemState[id])
 
-  var viewStartY = ss.getClampedStartY()
+  var viewStartY = ss.clampedStartY()
   let
     visibleHeight = ss.h
     contentHeight = if autoLayout: a.y else: height
@@ -118,7 +124,7 @@ proc endScrollView*(height: float = -1.0) =
     if isHit(ss.x, ss.y, ss.w, ss.h):
       if hasEvent() and ui.currEvent.kind == ekScroll:
         viewStartY -= ui.currEvent.oy * ss.style.scrollWheelSensitivity
-        setEventHandled()
+        markEventHandled()
 
     viewStartY = viewStartY.clamp(0, endVal)
 
@@ -149,7 +155,7 @@ proc endScrollView*(height: float = -1.0) =
 
 template scrollView*(x, y, w, h: float, contentH: float, body: untyped) =
   let i = instantiationInfo(fullPaths = true)
-  let id = getNextId(i.filename, i.line)
+  let id = nextId(i.filename, i.line)
   beginScrollView(id, x, y, w, h)
   try:
     body

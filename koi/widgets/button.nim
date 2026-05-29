@@ -62,7 +62,7 @@ proc button*(
     tooltip: string,
     disabled: bool,
     drawProc: Option[ButtonDrawProc] = ButtonDrawProc.none,
-    style: ButtonStyle = getDefaultButtonStyle(),
+    style: ButtonStyle = defaultButtonStyle(),
 ): bool =
   alias(ui, g_uiState)
 
@@ -70,9 +70,9 @@ proc button*(
 
   # Hit testing
   if isHit(x, y, w, h):
-    setHot(id)
+    markHot(id)
     if not disabled and ui.mbLeftDown and hasNoActiveItem():
-      setActive(id)
+      markActive(id)
 
   # LMB released over active widget means it was clicked
   if not ui.mbLeftDown and isHot(id) and isActive(id):
@@ -102,10 +102,10 @@ template button*(
     tooltip: string = "",
     disabled: bool = false,
     drawProc: Option[ButtonDrawProc] = ButtonDrawProc.none,
-    style: ButtonStyle = getDefaultButtonStyle(),
+    style: ButtonStyle = defaultButtonStyle(),
 ): bool =
   let i = instantiationInfo(fullPaths = true)
-  let id = getNextId(i.filename, i.line)
+  let id = nextId(i.filename, i.line)
 
   button(id, x, y, w, h, label, tooltip, disabled, drawProc, style)
 
@@ -114,10 +114,10 @@ template button*(
     tooltip: string = "",
     disabled: bool = false,
     drawProc: Option[ButtonDrawProc] = ButtonDrawProc.none,
-    style: ButtonStyle = getDefaultButtonStyle(),
+    style: ButtonStyle = defaultButtonStyle(),
 ): bool =
   let i = instantiationInfo(fullPaths = true)
-  let id = getNextId(i.filename, i.line)
+  let id = nextId(i.filename, i.line)
 
   autoLayoutPre()
 

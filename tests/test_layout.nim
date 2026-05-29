@@ -3,6 +3,8 @@ import std/unittest
 
 import koi/core
 import koi/defaults
+import koi/drawing
+import koi/input
 import koi/layout
 import koi/rect
 import koi/types
@@ -142,3 +144,64 @@ suite "layout space":
 
     endLayout()
     checkClose(g_uiState.autoLayoutState.y, 132)
+
+suite "NEP1 naming aliases":
+  test "style aliases and compatibility wrappers refer to the same defaults":
+    let original = defaultButtonStyle()
+    var changed = defaultButtonStyle()
+    changed.cornerRadius = original.cornerRadius + 1
+
+    defaultButtonStyle(changed)
+    checkClose(getDefaultButtonStyle().cornerRadius, changed.cornerRadius)
+
+    setDefaultButtonStyle(original)
+    checkClose(defaultButtonStyle().cornerRadius, original.cornerRadius)
+
+  test "state aliases preserve old wrapper behavior":
+    g_uiState = UIState.default
+
+    scale(1.5)
+    checkClose(getScale(), 1.5)
+    setScale(2.0)
+    checkClose(scale(), 2.0)
+
+    focusCaptured(true)
+    check focusCaptured()
+    setFocusCaptured(false)
+    check not focusCaptured()
+
+    requestFrames(3)
+    check g_uiState.framesLeft == 3
+    setFramesLeft(4)
+    check g_uiState.framesLeft == 4
+
+    currentLayer(layerPopup)
+    check currentLayer() == layerPopup
+    setCurrentLayer(layerDialog)
+    check currentLayer() == layerDialog
+
+    markHot(12)
+    check isHot(12)
+    setHot(13)
+    check isHot(13)
+
+    markActive(21)
+    check isActive(21)
+    setActive(22)
+    check isActive(22)
+
+    hitClip(1, 2, 3, 4)
+    checkRect(g_uiState.hitClipRect, rect(1, 2, 3, 4))
+    setHitClip(5, 6, 7, 8)
+    checkRect(g_uiState.hitClipRect, rect(5, 6, 7, 8))
+
+    markEventHandled()
+    check eventHandled()
+    g_uiState.eventHandled = false
+    setEventHandled()
+    check eventHandled()
+
+    useNextId("preferred")
+    check nextId("ignored.nim", 1) == hashId("preferred")
+    setNextId("compat")
+    check getNextId("ignored.nim", 1) == hashId("compat")

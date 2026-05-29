@@ -30,7 +30,7 @@ proc horizScrollBar*(
     tooltip: string = "",
     thumbSize: float = -1.0,
     clickStep: float = -1.0,
-    style: ScrollBarStyle = getDefaultScrollBarStyle(),
+    style: ScrollBarStyle = defaultScrollBarStyle(),
 ) =
   alias(ui, g_uiState)
   alias(sb, ui.scrollBarState)
@@ -63,9 +63,9 @@ proc horizScrollBar*(
 
   # Hit testing
   if isHit(x, y, w, h):
-    setHot(id)
+    markHot(id)
     if ui.mbLeftDown and hasNoActiveItem():
-      setActive(id)
+      markActive(id)
 
   let insideThumb = mouseInside(thumbX, y, thumbW, h)
 
@@ -110,7 +110,7 @@ proc horizScrollBar*(
         else:
           sb.clickDir = 1 * s
         sb.state = sbsTrackClickFirst
-        ui.t0 = core.getTime()
+        ui.t0 = core.currentTime()
     of sbsDragNormal:
       if shiftDown():
         disableCursor()
@@ -137,7 +137,7 @@ proc horizScrollBar*(
       else:
         sb.state = sbsDragNormal
         showCursor()
-        setCursorPosX(ui.dragX)
+        cursorPosX(ui.dragX)
         ui.dx = ui.dragX
         ui.x0 = ui.dragX
     of sbsTrackClickFirst:
@@ -145,15 +145,15 @@ proc horizScrollBar*(
       newThumbX = calcThumbX(newValue)
 
       sb.state = sbsTrackClickDelay
-      ui.t0 = core.getTime()
-      setFramesLeft()
+      ui.t0 = core.currentTime()
+      requestFrames()
     of sbsTrackClickDelay:
-      if core.getTime() - ui.t0 > ScrollBarTrackClickRepeatDelay:
+      if core.currentTime() - ui.t0 > ScrollBarTrackClickRepeatDelay:
         sb.state = sbsTrackClickRepeat
-      setFramesLeft()
+      requestFrames()
     of sbsTrackClickRepeat:
       if isHot(id):
-        if core.getTime() - ui.t0 > ScrollBarTrackClickRepeatTimeout:
+        if core.currentTime() - ui.t0 > ScrollBarTrackClickRepeatTimeout:
           newValue = calcNewValueTrackClick(newValue)
           newThumbX = calcThumbX(newValue)
 
@@ -166,10 +166,10 @@ proc horizScrollBar*(
               newThumbX = thumbX
               newValue = value
 
-          ui.t0 = core.getTime()
+          ui.t0 = core.currentTime()
       else:
-        ui.t0 = core.getTime()
-      setFramesLeft()
+        ui.t0 = core.currentTime()
+      requestFrames()
 
   value_out = newValue
 
@@ -258,7 +258,7 @@ proc vertScrollBar*(
     tooltip: string = "",
     thumbSize: float = -1.0,
     clickStep: float = -1.0,
-    style: ScrollBarStyle = getDefaultScrollBarStyle(),
+    style: ScrollBarStyle = defaultScrollBarStyle(),
 ) =
   alias(ui, g_uiState)
   alias(sb, ui.scrollBarState)
@@ -292,9 +292,9 @@ proc vertScrollBar*(
 
   # Hit testing
   if isHit(x, y, w, h):
-    setHot(id)
+    markHot(id)
     if ui.mbLeftDown and hasNoActiveItem():
-      setActive(id)
+      markActive(id)
 
   let insideThumb = mouseInside(x, thumbY, w, thumbH)
 
@@ -339,7 +339,7 @@ proc vertScrollBar*(
         else:
           sb.clickDir = 1 * s
         sb.state = sbsTrackClickFirst
-        ui.t0 = core.getTime()
+        ui.t0 = core.currentTime()
     of sbsDragNormal:
       if shiftDown():
         disableCursor()
@@ -352,7 +352,7 @@ proc vertScrollBar*(
 
         ui.y0 = clamp(ui.dy, thumbMinY, thumbMaxY + thumbH)
     of sbsDragHidden:
-      setHot(id)
+      markHot(id)
 
       if shiftDown():
         let d =
@@ -368,7 +368,7 @@ proc vertScrollBar*(
       else:
         sb.state = sbsDragNormal
         showCursor()
-        setCursorPosY(ui.dragY)
+        cursorPosY(ui.dragY)
         ui.dy = ui.dragY
         ui.y0 = ui.dragY
     of sbsTrackClickFirst:
@@ -376,15 +376,15 @@ proc vertScrollBar*(
       newThumbY = calcThumbY(newValue)
 
       sb.state = sbsTrackClickDelay
-      ui.t0 = core.getTime()
-      setFramesLeft()
+      ui.t0 = core.currentTime()
+      requestFrames()
     of sbsTrackClickDelay:
-      if core.getTime() - ui.t0 > ScrollBarTrackClickRepeatDelay:
+      if core.currentTime() - ui.t0 > ScrollBarTrackClickRepeatDelay:
         sb.state = sbsTrackClickRepeat
-      setFramesLeft()
+      requestFrames()
     of sbsTrackClickRepeat:
       if isHot(id):
-        if core.getTime() - ui.t0 > ScrollBarTrackClickRepeatTimeout:
+        if core.currentTime() - ui.t0 > ScrollBarTrackClickRepeatTimeout:
           newValue = calcNewValueTrackClick()
           newThumbY = calcThumbY(newValue)
 
@@ -397,10 +397,10 @@ proc vertScrollBar*(
               newThumbY = thumbY
               newValue = value
 
-          ui.t0 = core.getTime()
+          ui.t0 = core.currentTime()
       else:
-        ui.t0 = core.getTime()
-      setFramesLeft()
+        ui.t0 = core.currentTime()
+      requestFrames()
 
   value_out = newValue
 
@@ -494,10 +494,10 @@ template horizScrollBar*(
     tooltip: string = "",
     thumbSize: float = -1.0,
     clickStep: float = -1.0,
-    style: ScrollBarStyle = getDefaultScrollBarStyle(),
+    style: ScrollBarStyle = defaultScrollBarStyle(),
 ) =
   let i = instantiationInfo(fullPaths = true)
-  let id = getNextId(i.filename, i.line)
+  let id = nextId(i.filename, i.line)
 
   horizScrollBar(
     id, x, y, w, h, startVal, endVal, value, tooltip, thumbSize, clickStep, style
@@ -510,10 +510,10 @@ template vertScrollBar*(
     tooltip: string = "",
     thumbSize: float = -1.0,
     clickStep: float = -1.0,
-    style: ScrollBarStyle = getDefaultScrollBarStyle(),
+    style: ScrollBarStyle = defaultScrollBarStyle(),
 ) =
   let i = instantiationInfo(fullPaths = true)
-  let id = getNextId(i.filename, i.line)
+  let id = nextId(i.filename, i.line)
 
   vertScrollBar(
     id, x, y, w, h, startVal, endVal, value, tooltip, thumbSize, clickStep, style

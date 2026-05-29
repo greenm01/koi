@@ -224,7 +224,7 @@ proc loadData(vg: NVGContext) =
   if boldFont == NoFont:
     quit "Could not add font italic.\n"
 
-var propsSliderStyle = getDefaultSliderStyle()
+var propsSliderStyle = defaultSliderStyle()
 propsSliderStyle.trackCornerRadius = 8.0
 propsSliderStyle.valueCornerRadius = 6.0
 
@@ -678,7 +678,7 @@ proc init(): Window =
 
   koi.init(vg, getProcAddress)
 
-  #  koi.setScale(1.5)
+  #  koi.scale(1.5)
   win.windowPositionCb = windowPosCb
   win.framebufferSizeCb = framebufSizeCb
 

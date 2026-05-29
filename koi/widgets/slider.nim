@@ -30,7 +30,7 @@ proc horizSlider*(
     grouping: WidgetGrouping = wgNone,
     label: string = "",
     tooltip: string = "",
-    style: SliderStyle = getDefaultSliderStyle(),
+    style: SliderStyle = defaultSliderStyle(),
 ) =
   alias(ui, g_uiState)
   alias(sl, ui.sliderState)
@@ -42,9 +42,9 @@ proc horizSlider*(
 
   # Hit testing
   if isHit(x, y, w, h):
-    setHot(id)
+    markHot(id)
     if ui.mbLeftDown and hasNoActiveItem():
-      setActive(id)
+      markActive(id)
       sl.state = ssDefault
       sl.oldValue = value
       sl.cursorMoved = false
@@ -93,7 +93,7 @@ proc horizSlider*(
       else:
         sl.state = ssDefault
         showCursor()
-        setCursorPosX(sl.cursorPosX)
+        cursorPosX(sl.cursorPosX)
         ui.dx = sl.cursorPosX
         ui.x0 = sl.cursorPosX
     of ssEditValue:
@@ -190,7 +190,7 @@ proc vertSlider*(
     endVal: float,
     value_out: var float,
     tooltip: string = "",
-    style: SliderStyle = getDefaultSliderStyle(),
+    style: SliderStyle = defaultSliderStyle(),
 ) =
   alias(ui, g_uiState)
   alias(sl, ui.sliderState)
@@ -210,9 +210,9 @@ proc vertSlider*(
   let posY = calcPosY(value)
 
   if isHit(x, y, w, h):
-    setHot(id)
+    markHot(id)
     if ui.mbLeftDown and hasNoActiveItem():
-      setActive(id)
+      markActive(id)
 
   var newPosY = posY
 
@@ -227,7 +227,7 @@ proc vertSlider*(
       disableCursor()
       sl.state = ssDragHidden
     of ssDragHidden:
-      setHot(id)
+      markHot(id)
 
       let d =
         if shiftDown():
@@ -313,10 +313,10 @@ template horizSlider*(
     grouping: WidgetGrouping = wgNone,
     label: string = "",
     tooltip: string = "",
-    style: SliderStyle = getDefaultSliderStyle(),
+    style: SliderStyle = defaultSliderStyle(),
 ) =
   let i = instantiationInfo(fullPaths = true)
-  let id = getNextId(i.filename, i.line)
+  let id = nextId(i.filename, i.line)
   horizSlider(id, x, y, w, h, startVal, endVal, value, grouping, label, tooltip, style)
 
 template horizSlider*(
@@ -325,10 +325,10 @@ template horizSlider*(
     grouping: WidgetGrouping = wgNone,
     label: string = "",
     tooltip: string = "",
-    style: SliderStyle = getDefaultSliderStyle(),
+    style: SliderStyle = defaultSliderStyle(),
 ) =
   let i = instantiationInfo(fullPaths = true)
-  let id = getNextId(i.filename, i.line)
+  let id = nextId(i.filename, i.line)
   autoLayoutPre()
   horizSlider(
     id,
@@ -351,8 +351,8 @@ template vertSlider*(
     startVal, endVal: float,
     value: var float,
     tooltip: string = "",
-    style: SliderStyle = getDefaultSliderStyle(),
+    style: SliderStyle = defaultSliderStyle(),
 ) =
   let i = instantiationInfo(fullPaths = true)
-  let id = getNextId(i.filename, i.line)
+  let id = nextId(i.filename, i.line)
   vertSlider(id, x, y, w, h, startVal, endVal, value, tooltip, style)

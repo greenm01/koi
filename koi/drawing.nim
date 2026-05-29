@@ -23,7 +23,7 @@ type
     layers*: array[0 .. ord(DrawLayer.high), seq[DrawProc]]
     lastUsedLayer*: Natural
 
-proc getPxRatio*(): float =
+proc pxRatio*(): float =
   let win = activeWindow()
   let (winWidth, _) = win.size
   let (fbWidth, _) = win.framebufferSize
@@ -31,6 +31,9 @@ proc getPxRatio*(): float =
   when defined(koiWebGpu):
     let (xscale, _) = win.contentScale
     result = max(result, xscale)
+
+proc getPxRatio*(): float =
+  pxRatio()
 
 var
   g_drawLayers*: DrawLayers
@@ -70,14 +73,11 @@ template renderToImage*(
 proc createCheckeredImage*(vg: NVGContext) =
   const a = 14
   g_checkeredImageSize = a.float
-  let pxRatio = getPxRatio()
+  let pr = pxRatio()
   g_checkeredImage = vg.renderToImage(
-    width = (a.float * pxRatio).int,
-    height = (a.float * pxRatio).int,
-    pxRatio,
-    {ifRepeatX, ifRepeatY},
+    width = (a.float * pr).int, height = (a.float * pr).int, pr, {ifRepeatX, ifRepeatY}
   ):
-    vg.scale(pxRatio, pxRatio)
+    vg.scale(pr, pr)
     vg.strokeWidth(0)
     vg.fillColor(gray(0.7))
     vg.beginPath()
@@ -111,8 +111,11 @@ proc draw*(dl: DrawLayers, vg: NVGContext) =
 proc currentLayer*(): DrawLayer =
   g_uiState.currentLayer
 
-proc setCurrentLayer*(l: DrawLayer) =
+proc currentLayer*(l: DrawLayer) =
   g_uiState.currentLayer = l
+
+proc setCurrentLayer*(l: DrawLayer) =
+  currentLayer(l)
 
 proc pushDrawOffset*(ds: DrawOffset) =
   g_uiState.drawOffsetStack.add(ds)
@@ -189,7 +192,7 @@ proc fitRectWithinWindow*(
     y = ui.winHeight - pad - h
   result = (x, y)
 
-proc setFont*(
+proc useFont*(
     vg: NVGContext,
     size: float,
     name: string = "sans-bold",
@@ -199,6 +202,15 @@ proc setFont*(
   vg.fontFace(name)
   vg.fontSize(size)
   vg.textAlign(horizAlign, vertAlign)
+
+proc setFont*(
+    vg: NVGContext,
+    size: float,
+    name: string = "sans-bold",
+    horizAlign: HorizontalAlign = haLeft,
+    vertAlign: VerticalAlign = vaMiddle,
+) =
+  vg.useFont(size, name, horizAlign, vertAlign)
 
 const TextBreakRunes = @[
   "\u0020", "\u2000", "\u2001", "\u2002", "\u2003", "\u2004", "\u2005", "\u2006",
@@ -405,7 +417,7 @@ proc drawLabel*(
     of wsActive: s.colorActive
     of wsActiveHover: s.colorActiveHover
     of wsDisabled: s.colorDisabled
-  vg.setFont(s.fontSize, name = s.fontFace, horizAlign = s.align)
+  vg.useFont(s.fontSize, name = s.fontFace, horizAlign = s.align)
   vg.fillColor(color)
   if s.multiLine:
     nanovg.textBox(

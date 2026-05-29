@@ -76,11 +76,11 @@ proc renderUi() =
   vg.fillColor(rgb(0.16, 0.17, 0.18))
   vg.fill()
 
-  var titleStyle = getDefaultLabelStyle()
+  var titleStyle = defaultLabelStyle()
   titleStyle.fontSize = 20
   titleStyle.color = rgb(0.92, 0.94, 0.96)
 
-  var labelStyle = getDefaultLabelStyle()
+  var labelStyle = defaultLabelStyle()
   labelStyle.color = rgb(0.80, 0.84, 0.88)
 
   let
@@ -114,7 +114,7 @@ proc renderUi() =
 when isMainModule:
   glfw.initialize()
   let win = createWindow()
-  setWindow(win)
+  useWindow(win)
 
   let
     display = glfwGetWaylandDisplay()
