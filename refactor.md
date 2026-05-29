@@ -4,49 +4,38 @@ This document records the next step after the current Koi refactor. It folds in
 the engine intent from `ENGINE_SPEC.md` and adds direction for borrowing layout
 and widget ideas from Nuklear without turning Koi into a Nuklear clone.
 
+The current layout direction is documented in `LAYOUT_MODEL.md`. That document
+describes a single unified layout solver: Clay-inspired sizing
+(`fixed`/`grow`/`percent`/`fit`) drives one container model, and the row,
+vertical auto-layout, and manual-space APIs become presets over it rather than
+separate systems. The row, space, and bounds-resolution layout-core work
+described later in this document already shipped; the net-new piece is the
+container solver and its execution model.
+
 Koi remains a small immediate-mode UI library for Nim. The UI is still described
 by function calls every frame, and interaction, layout, style, focus, and draw
 state still live in Koi's central runtime state.
 
 ## Goals
 
-- Preserve Koi's existing public shape for Gridmonger and current users.
-- Keep explicit widget bounds as the base model.
-- Keep the existing vertical auto-layout as the default convenience path.
-- Add hierarchical layout blocks as an extra layer, not a replacement.
+- Build one unified layout solver and express vertical auto-layout, rows, and
+  manual spaces as presets over it.
 - Use Nuklear as a source of proven ideas for rows, layout spaces, widget
   coverage, and behavior split points.
 - Keep APIs Koi-native and Nim-friendly.
+- Get the execution model right deliberately, even where that replaces current
+  types and call styles.
 
 ## Non-Goals
 
 - Do not port Nuklear's C API.
 - Do not adopt Nuklear's window and panel architecture.
-- Do not force every widget through a new layout model.
-- Do not remove explicit `x, y, w, h` widget calls.
-- Do not break Gridmonger-style call sites.
+- Do not make every widget a retained layout node.
 - Do not mix documentation cleanup with runtime implementation work.
 
-## Compatibility Rules
-
-Existing Koi APIs must continue to compile and behave the same unless a later
-document explicitly marks a break and gives a migration path. The default rule is
-no breakage.
-
-The following call styles must remain valid:
-
-```nim
-button(x, y, w, h, "OK")
-button("OK")
-label(x, y, w, h, "Name")
-textField(x, y, w, h, value)
-```
-
-Every widget that currently accepts explicit bounds should keep accepting them.
-Every widget that currently has an auto-layout shorthand should keep it.
-
-New layout APIs should be additive. Prefer Koi-native names and lexical Nim
-templates over Nuklear-like C naming.
+Backward compatibility with Gridmonger and the current public call shape is no
+longer a constraint. Prefer Koi-native names and lexical Nim templates over
+Nuklear-like C naming.
 
 ## Current Engine Model
 
@@ -71,28 +60,23 @@ to reuse, not hide it behind a second model.
 
 ## Layout Direction
 
-Koi has three positioning layers. They should stay ordered by authority:
-
-1. Explicit positioning
-2. Standard vertical auto-layout
-3. Hierarchical layout blocks
-
-Explicit positioning is the ground truth. A widget with `x, y, w, h` is placed at
-those virtual-pixel bounds, adjusted only by the current draw offset or view
-context.
-
-Standard auto-layout remains the simple path. It flows top to bottom, uses
-`AutoLayoutParams`, and advances through `autoLayoutPre()` and
-`autoLayoutPost()`.
-
-Hierarchical layout blocks should be additive. They may provide rows, columns,
-and local spaces, but they still feed widget bounds through the same widget
+The target is one unified container solver (see `LAYOUT_MODEL.md`). Vertical
+auto-layout, rows, and manual spaces become presets over it rather than separate
+positioning layers. All of them feed widget bounds through the same widget
 execution cycle.
 
-### Rows
+The row, layout-space, and bounds-resolution work below already shipped
+(`koi/layout.nim`): `AutoLayoutParams`/`autoLayoutPre`/`autoLayoutPost`, the
+`ColMode` columns (`cmStatic`/`cmDynamic`/`cmRatio`/`cmVariable`) with
+`beginRowLayout`/`layoutRow`, and the `lmSpace` draw-offset spaces. They are
+retained here as the design record for what the unified node must subsume; under
+the unified model these become presets and their current standalone types
+(`LayoutNode`/`LayoutMode`/`LayoutColumn`/`ColMode`) are replaced.
 
-Rows should provide deterministic column allocation before widget calls consume
-bounds. A row should know:
+### Rows (shipped)
+
+Rows provide deterministic column allocation before widget calls consume
+bounds. A row knows:
 
 - its origin and available width;
 - its height;
@@ -110,7 +94,7 @@ Column kinds should stay Koi-native:
 Do not rely on a single mutable "current column mode" for the whole row. The row
 should have enough information to resolve each column in order.
 
-### Layout Spaces
+### Layout Spaces (shipped)
 
 A layout space creates a local coordinate system. Inside a space:
 
@@ -122,7 +106,7 @@ A layout space creates a local coordinate system. Inside a space:
 Layout spaces should not create a second widget model. They only change the
 coordinate origin and available rectangle.
 
-### Bounds Resolution
+### Bounds Resolution (shipped)
 
 Every shorthand widget should resolve bounds through one path:
 
@@ -161,10 +145,9 @@ bounds. Use those strengths.
 
 ## Widget Direction
 
-Widget expansion should happen after the layout core is stable. When adding or
-normalizing widgets:
+Widget expansion should happen after the unified layout core is stable. When
+adding or normalizing widgets:
 
-- preserve explicit and auto-layout call forms;
 - keep style passed through Nim defaults and named arguments;
 - keep custom draw procs where the widget already supports them;
 - split shared behavior only when it removes real duplication;
@@ -176,33 +159,34 @@ surface.
 
 ## Refactor Sequencing
 
-1. Finish the current split-module refactor without changing behavior.
-2. Create this document as the next-step design record.
-3. Stabilize the layout core:
-   - define row data clearly;
-   - make column width resolution deterministic;
-   - make layout spaces explicit about origin, bounds, and vertical advance;
-   - add small examples for rows, ratios, dynamic columns, and spaces.
-4. Normalize widget bounds resolution so every auto-layout shorthand follows the
-   same pre/widget/post pattern.
+1. Finish the current split-module refactor without changing behavior. (done)
+2. Stabilize the row/space/bounds-resolution layout core. (done — see the
+   shipped sections above)
+3. Build the unified container solver and execution model per `LAYOUT_MODEL.md`:
+   - frame-local arena with `fixed`/`grow`/`percent`/`fit` sizing;
+   - solve at `endFrame`, draws deferred to solved rects, interaction read from
+     previous-frame rects;
+   - fold rows, spaces, and vertical auto-layout into the unified node as
+     presets.
+4. Add `fit` and text wrapping via the `measureText` callback.
 5. Only then plan widget feature expansion from the Nuklear checklist.
 
 ## Acceptance Checks
 
 The next implementation pass should be accepted only if:
 
-- existing explicit widget calls still compile;
-- existing auto-layout shorthand calls still compile;
-- Gridmonger can still point at the refactored Koi without API churn;
-- row layout examples have predictable widths;
+- the unified solver produces predictable rects for `fixed`/`grow`/`percent`,
+  with row, auto-layout, and space presets resolving through it;
+- visuals are current on the frame layout changes (no stale-visual lag);
+- widget bodies are evaluated once per frame (no double evaluation);
 - layout-space examples draw and hit-test in the same coordinate system;
-- Nuklear-inspired additions use Koi-native names;
-- docs and examples describe the intended call style.
+- additions use Koi-native names;
+- docs and examples describe the intended call style;
+- pure sizing/placement tests cover sizing, alignment, gap, and the one-frame
+  interaction-lag semantics.
 
 ## Assumptions
 
-- The active refactor in `~/src/koi` is still in progress.
 - `ENGINE_SPEC.md` remains in place until a later cleanup pass decides whether
   to remove or replace it.
-- This document is planning guidance, not permission to break the API.
-- Layout core work comes before widget feature expansion.
+- The unified layout core comes before widget feature expansion.
