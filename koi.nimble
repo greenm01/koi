@@ -20,7 +20,7 @@ const
     "-d:nvgGL3 -d:glfwStaticLib -d:glStaticProcs --path:. --hint:Name:off"
   WgpuBaseFlags =
     "--mm:orc --deepcopy:on -d:nimPreviewFloatRoundtrip " &
-    "-d:wgpu -d:wgvkWGSL -d:NoGLFW -d:koiWebGpu -d:wayland " &
+    "-d:wgpu -d:wgvkWGSL -d:NoGLFW -d:koiWebGpu " &
     "--path:. --passC:-Wno-incompatible-pointer-types --hint:Name:off"
   WaylandLinkFlags =
     "--passL:\"-Lkoi/wayland/zig-out/lib -lkoi_wayland\" " &
@@ -32,15 +32,49 @@ const
 proc sh(cmd: string) =
   exec cmd
 
-proc wgpuFlags(): string =
+proc webgpuPathFlag(): string =
   let webgpuPath = gorge("nimble path webgpu").strip()
-  WgpuBaseFlags & " --path:" & quoteShell(webgpuPath / "src")
+  " --path:" & quoteShell(webgpuPath / "src")
+
+proc glfwWgpuFlags(): string =
+  var flags = WgpuBaseFlags
+  when defined(linux):
+    if existsEnv("WAYLAND_DISPLAY"):
+      flags.add " -d:wayland"
+  flags & webgpuPathFlag()
+
+proc nativeWaylandWgpuFlags(): string =
+  WgpuBaseFlags & " -d:waylandBackend -d:glfwJustCdecl " & WaylandLinkFlags &
+    webgpuPathFlag()
+
+proc wgpuBackend(): string =
+  result = getEnv("KOI_BACKEND").toLowerAscii
+  if result.len == 0:
+    when defined(linux):
+      result = if existsEnv("WAYLAND_DISPLAY"): "wayland" else: "glfw"
+    else:
+      result = "glfw"
+  if result notin ["wayland", "glfw"]:
+    quit "KOI_BACKEND must be 'wayland' or 'glfw'."
+  when not defined(linux):
+    if result == "wayland":
+      quit "KOI_BACKEND=wayland is only supported on Linux."
+
+proc wgpuFlags(): string =
+  if wgpuBackend() == "wayland":
+    nativeWaylandWgpuFlags()
+  else:
+    glfwWgpuFlags()
 
 proc waylandWgpuFlags(): string =
-  wgpuFlags() & " -d:waylandBackend " & WaylandLinkFlags
+  WgpuBaseFlags & " -d:waylandBackend " & WaylandLinkFlags & webgpuPathFlag()
 
 proc buildWaylandBackend() =
   sh "zig build -Doptimize=Debug --build-file koi/wayland/build.zig"
+
+proc buildWgpuBackendIfNeeded() =
+  if wgpuBackend() == "wayland":
+    buildWaylandBackend()
 
 proc nimCompile(source: string, flags = "", outPath = "", nimcache = "") =
   var cmd = "nim c " & flags
@@ -60,6 +94,10 @@ proc nimRun(source: string, flags = "", outPath = "", nimcache = "") =
   cmd.add " " & quoteShell(source)
   sh cmd
 
+proc compileWgpuApp(source, nimcache: string) =
+  buildWgpuBackendIfNeeded()
+  nimCompile(source, wgpuFlags() & " -d:debug", nimcache = nimcache)
+
 task test, "build test example":
   nimCompile(
     "examples/test", CommonFlags & " -d:debug", nimcache = "/tmp/koi_example_test_d"
@@ -71,8 +109,49 @@ task paneltest, "build panel test example":
   )
 
 task minimal, "build minimal wgpu example":
+  compileWgpuApp("examples/minimal", "/tmp/koi_minimal_d")
+
+task layoutInspectorDemo, "build layout inspector wgpu demo":
+  compileWgpuApp("examples/layout_inspector_demo", "/tmp/koi_layout_inspector_demo_d")
+
+task layoutAttachDemo, "build layout attach wgpu demo":
+  compileWgpuApp("examples/layout_attach_demo", "/tmp/koi_layout_attach_demo_d")
+
+task layoutAspectDemo, "build layout aspect-ratio wgpu demo":
+  compileWgpuApp("examples/layout_aspect_demo", "/tmp/koi_layout_aspect_demo_d")
+
+task layoutErrorsDemo, "build layout diagnostics wgpu demo":
+  compileWgpuApp("examples/layout_errors_demo", "/tmp/koi_layout_errors_demo_d")
+
+task layoutStressDemo, "build layout stress wgpu demo":
+  compileWgpuApp("examples/layout_stress_demo", "/tmp/koi_layout_stress_demo_d")
+
+task layoutDemos, "build every layout-focused wgpu demo":
+  buildWgpuBackendIfNeeded()
   nimCompile(
-    "examples/minimal", wgpuFlags() & " -d:debug", nimcache = "/tmp/koi_minimal_d"
+    "examples/layout_inspector_demo",
+    wgpuFlags() & " -d:debug",
+    nimcache = "/tmp/koi_layout_inspector_demo_d",
+  )
+  nimCompile(
+    "examples/layout_attach_demo",
+    wgpuFlags() & " -d:debug",
+    nimcache = "/tmp/koi_layout_attach_demo_d",
+  )
+  nimCompile(
+    "examples/layout_aspect_demo",
+    wgpuFlags() & " -d:debug",
+    nimcache = "/tmp/koi_layout_aspect_demo_d",
+  )
+  nimCompile(
+    "examples/layout_errors_demo",
+    wgpuFlags() & " -d:debug",
+    nimcache = "/tmp/koi_layout_errors_demo_d",
+  )
+  nimCompile(
+    "examples/layout_stress_demo",
+    wgpuFlags() & " -d:debug",
+    nimcache = "/tmp/koi_layout_stress_demo_d",
   )
 
 task waylandMinimal, "build native Wayland minimal example":
@@ -153,7 +232,7 @@ const WindowTests = ["textinput", "textarea", "slider", "scrollbar", "renderer"]
 proc runWindowTest(name: string) =
   nimRun(
     "tests/test_window_" & name,
-    wgpuFlags() & " -d:debug",
+    glfwWgpuFlags() & " -d:debug",
     outPath = "/tmp/koi_win_" & name,
     nimcache = "/tmp/koi_win_" & name & "_d",
   )
@@ -199,7 +278,7 @@ task testFuzz, "run invariant-based randomized tests":
 task benchTextEditing, "profile representative text editing workloads":
   nimRun(
     "tests/bench_text_editing",
-    wgpuFlags() & " -d:release",
+    glfwWgpuFlags() & " -d:release",
     outPath = "/tmp/koi_bench_text_editing",
     nimcache = "/tmp/koi_bench_text_editing_r",
   )
@@ -255,6 +334,11 @@ task tidy, "format sources and remove generated example binaries":
   for path in [
     "examples/test", "examples/test.exe", "examples/paneltest",
     "examples/paneltest.exe", "examples/minimal", "examples/minimal.exe",
+    "examples/layout_inspector_demo", "examples/layout_inspector_demo.exe",
+    "examples/layout_attach_demo", "examples/layout_attach_demo.exe",
+    "examples/layout_aspect_demo", "examples/layout_aspect_demo.exe",
+    "examples/layout_errors_demo", "examples/layout_errors_demo.exe",
+    "examples/layout_stress_demo", "examples/layout_stress_demo.exe",
     "examples/wayland_minimal", "examples/wayland_minimal.exe",
     "examples/wayland_wgpu_minimal", "examples/wayland_wgpu_minimal.exe",
   ]:

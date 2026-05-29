@@ -5,14 +5,12 @@ import std/strutils
 import std/unicode
 
 import nanovg
-import glfw
 when not defined(koiWebGpu):
   import koi/glad/gl
 
 import koi/utils
 import koi/types
 import koi/core
-import koi/input
 
 # Drawing layers and utilities
 
@@ -30,12 +28,11 @@ type
     nextOrder*: int
 
 proc pxRatio*(): float =
-  let win = activeWindow()
-  let (winWidth, _) = win.size
-  let (fbWidth, _) = win.framebufferSize
+  let (winWidth, _) = platformWindowSize()
+  let (fbWidth, _) = platformSurfaceSize()
   result = fbWidth.float / (winWidth.float / g_uiState.scale)
   when defined(koiWebGpu):
-    let (xscale, _) = win.contentScale
+    let (xscale, _) = platformContentScale()
     result = max(result, xscale)
 
 proc getPxRatio*(): float =

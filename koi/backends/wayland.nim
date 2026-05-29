@@ -29,6 +29,7 @@ type KoiWaylandCallbacks* {.bycopy, importc, header: "koi_wayland.h".} = object
     proc(sym, mods: uint32, userdata: pointer) {.cdecl.}
   onKeyUp* {.importc: "on_key_up".}:
     proc(sym, mods: uint32, userdata: pointer) {.cdecl.}
+  onChar* {.importc: "on_char".}: proc(codepoint: uint32, userdata: pointer) {.cdecl.}
   onMouseMove* {.importc: "on_mouse_move".}:
     proc(x, y: cdouble, userdata: pointer) {.cdecl.}
   onMouseButton* {.importc: "on_mouse_button".}:

@@ -303,6 +303,11 @@ let errorLines = layoutInspectorErrorLines()
 let rows = layoutInspectorTreeRows()
 ```
 
+The visual regression examples live in [examples](/examples): the inspector,
+attach, aspect, diagnostics, and stress demos are built with `nimble
+layoutDemos`. WebGPU example tasks auto-select Koi's native Zig Wayland path on
+Linux Wayland sessions and GLFW on X11, macOS, and Windows.
+
 ## Execution Model
 
 The solver needs the layout tree built before it can assign rectangles. Widget

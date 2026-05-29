@@ -1,49 +1,16 @@
-import std/os
-import std/options
 import std/strformat
 
-import glfw
 import nanovg
 
 import koi
-import koi/backends/glfw_wgpu
-import koi/backends/wgpu_renderer
+import koi/backends/wgpu_app
 
 var
-  vg: NVGContext
-  backend: KoiWgpuBackend
   sliderValue = 42.0
   enabled = true
   textValue = "wgpu scissor clips this deliberately long text field value"
 
-proc createWindow(): Window =
-  var cfg = defaultWgpuWindowConfig("Koi wgpu", 900, 560)
-  cfg.size = (w: 900, h: 560)
-  cfg.title = "Koi wgpu"
-  cfg.resizable = true
-  cfg.visible = true
-  cfg.bits = (
-    r: 8'i32.some,
-    g: 8'i32.some,
-    b: 8'i32.some,
-    a: 8'i32.some,
-    stencil: 8'i32.some,
-    depth: 16'i32.some,
-  )
-  newWgpuWindow(cfg)
-
-proc loadData(vg: NVGContext) =
-  let dataDir = currentSourcePath().parentDir().parentDir() / "data"
-
-  let regular = vg.createFont("sans", dataDir / "Roboto-Regular.ttf")
-  if regular == NoFont:
-    quit "Could not load regular font."
-
-  let bold = vg.createFont("sans-bold", dataDir / "Roboto-Bold.ttf")
-  if bold == NoFont:
-    quit "Could not load bold font."
-
-proc renderUi() =
+proc renderUi(vg: NVGContext) =
   beginFrame()
 
   vg.beginPath()
@@ -133,25 +100,4 @@ proc renderUi() =
   endFrame()
 
 when isMainModule:
-  glfw.initialize()
-  let win = createWindow()
-  useWindow(win)
-
-  let (width, height) = win.surfaceSize()
-
-  backend.initKoiWgpuBackendWithSurface(
-    win.wgpuSurfaceHandle(), width.uint32, height.uint32
-  )
-  vg = backend.createNanoVgContext({nifAntialias})
-  init(vg, glfw.getProcAddress)
-  loadData(vg)
-
-  while not win.shouldClose:
-    glfw.pollEvents()
-    let (width, height) = win.surfaceSize()
-    backend.resizeKoiWgpuBackend(width, height)
-    renderUi()
-
-  deleteNanoVgContext(vg)
-  win.destroy()
-  glfw.terminate()
+  runKoiWgpuApp(defaultKoiWgpuAppConfig("Koi wgpu", 900, 560), renderUi)

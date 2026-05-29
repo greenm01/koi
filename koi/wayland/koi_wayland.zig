@@ -32,6 +32,7 @@ const KoiWaylandCallbacks = extern struct {
     on_key_down: ?*const fn (u32, u32, ?*anyopaque) callconv(.c) void,
     on_key_repeat: ?*const fn (u32, u32, ?*anyopaque) callconv(.c) void,
     on_key_up: ?*const fn (u32, u32, ?*anyopaque) callconv(.c) void,
+    on_char: ?*const fn (u32, ?*anyopaque) callconv(.c) void,
     on_mouse_move: ?*const fn (f64, f64, ?*anyopaque) callconv(.c) void,
     on_mouse_button: ?*const fn (u32, bool, ?*anyopaque) callconv(.c) void,
     on_scroll: ?*const fn (f64, f64, ?*anyopaque) callconv(.c) void,
@@ -780,6 +781,12 @@ fn wlKeyboardKey(
     if (state == @as(u32, c.WL_KEYBOARD_KEY_STATE_PRESSED)) {
         if (window.callbacks.on_key_down) |on_key_down| {
             on_key_down(sym, display.mods, window.callbacks.userdata);
+        }
+        if (window.callbacks.on_char) |on_char| {
+            const codepoint = c.xkb_state_key_get_utf32(xkb_state, key + 8);
+            if (codepoint >= 32 and codepoint != 127) {
+                on_char(codepoint, window.callbacks.userdata);
+            }
         }
         startKeyRepeat(display, window, key, sym, display.mods);
     } else if (state == @as(u32, c.WL_KEYBOARD_KEY_STATE_RELEASED)) {

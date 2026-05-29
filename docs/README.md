@@ -4,7 +4,8 @@
 
 **koi** is a small (~8 KLOC, with comments) immediate mode UI library that uses OpenGL for rendering via NanoVG. It was mainly invented for the dungeon mapping tool [Gridmonger](https://gridmonger.johnnovak.net/) (see screenshot below), and then it evolved into a minimalist but feature-rich general-purpose UI library.
 
-GLFW is currently a hard requirement, but it should be easy to adapt it to other frameworks or backends.
+Koi supports a GLFW path for OpenGL examples and non-Wayland WebGPU builds, plus
+a native Zig Wayland path for WebGPU apps on Linux Wayland sessions.
 
 Layout, widget, and style references live in [toolset.md](./toolset.md),
 [layout-model.md](./layout-model.md), and [theming.md](./theming.md). Check the
@@ -37,6 +38,7 @@ To build the examples (the dependencies will be auto-installed if needed):
 nimble minimal
 nimble test
 nimble paneltest
+nimble layoutDemos
 ```
 
 or
@@ -45,6 +47,20 @@ or
 nimble testRelease
 nimble paneltestRelease
 ```
+
+Layout-focused WebGPU demos can also be built one at a time:
+
+```
+nimble layoutInspectorDemo
+nimble layoutAttachDemo
+nimble layoutAspectDemo
+nimble layoutErrorsDemo
+nimble layoutStressDemo
+```
+
+WebGPU example tasks detect the backend automatically. On Linux Wayland sessions
+they use Koi's native Zig Wayland backend; on X11, macOS, and Windows they use
+GLFW. Override detection with `KOI_BACKEND=wayland` or `KOI_BACKEND=glfw`.
 
 See [koi.nimble](/koi.nimble) on how to link statically **koi** and **GLFW** to your program.
 

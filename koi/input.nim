@@ -155,6 +155,58 @@ proc activeWindow*(): Window =
   else:
     glfw.currentContext()
 
+proc installGlfwPlatformHooks*() =
+  setPlatformHooks(
+    PlatformHooks(
+      windowSize: proc(): tuple[w, h: float] =
+        let (w, h) = activeWindow().size
+        (w.float, h.float),
+      surfaceSize: proc(): tuple[w, h: float] =
+        let (w, h) = activeWindow().framebufferSize
+        (w.float, h.float),
+      contentScale: proc(): tuple[x, y: float] =
+        let (x, y) = activeWindow().contentScale
+        (x.float, y.float),
+      cursorPos: proc(): tuple[x, y: float] =
+        let (x, y) = activeWindow().cursorPos()
+        (x.float, y.float),
+      setCursorPos: proc(x, y: float) =
+        activeWindow().cursorPos = (x, y),
+      setCursorShape: proc(shape: CursorShape) =
+        var c: Cursor
+        if shape == csArrow:
+          c = g_cursorArrow
+        elif shape == csIBeam:
+          c = g_cursorIBeam
+        elif shape == csCrosshair:
+          c = g_cursorCrosshair
+        elif shape == csHand:
+          c = g_cursorHand
+        elif shape == csResizeEW:
+          c = g_cursorResizeEW
+        elif shape == csResizeNS:
+          c = g_cursorResizeNS
+        elif shape == csResizeNWSE:
+          c = g_cursorResizeNWSE
+        elif shape == csResizeNESW:
+          c = g_cursorResizeNESW
+        elif shape == csResizeAll:
+          c = g_cursorResizeAll
+        activeWindow().cursor = c,
+      setCursorMode: proc(mode: PlatformCursorMode) =
+        activeWindow().cursorMode =
+          case mode
+          of pcmNormal: cmNormal
+          of pcmHidden: cmHidden
+          of pcmDisabled: cmDisabled
+      ,
+      clipboardGet: proc(): string =
+        $activeWindow().clipboardString,
+      clipboardSet: proc(text: string) =
+        activeWindow().clipboardString = text,
+    )
+  )
+
 proc isKeyDown*(key: Key): bool =
   if key == keyUnknown:
     false
@@ -583,10 +635,13 @@ var
   g_charBuf*: array[CharBufSize, Rune]
   g_charBufIdx*: Natural
 
-proc charCb*(win: Window, codePoint: Rune) =
+proc queueChar*(codePoint: Rune) =
   if g_charBufIdx <= g_charBuf.high:
     g_charBuf[g_charBufIdx] = codePoint
     inc(g_charBufIdx)
+
+proc charCb*(win: Window, codePoint: Rune) =
+  queueChar(codePoint)
 
 proc clearCharBuf*() =
   g_charBufIdx = 0
@@ -607,9 +662,7 @@ const ExcludedKeyEvents = {
   keyRightControl, keyRightAlt, keyRightSuper, keyCapsLock, keyNumLock,
 }
 
-proc keyCb*(
-    win: Window, key: Key, scanCode: int32, action: KeyAction, mods: set[ModifierKey]
-) =
+proc queueKeyEvent*(key: Key, action: KeyAction, mods: set[ModifierKey]) =
   alias(ui, g_uiState)
   let keyIdx = ord(key)
   if keyIdx >= 0 and keyIdx <= ui.keyStates.high:
@@ -623,10 +676,19 @@ proc keyCb*(
     let event = Event(kind: ekKey, key: key, action: action, mods: mods)
     discard g_eventBuf.write(event)
 
-proc mouseButtonCb*(
-    win: Window, button: MouseButton, pressed: bool, modKeys: set[ModifierKey]
+proc keyCb*(
+    win: Window, key: Key, scanCode: int32, action: KeyAction, mods: set[ModifierKey]
 ) =
-  let (x, y) = win.cursorPos()
+  queueKeyEvent(key, action, mods)
+
+proc queueMouseMove*(x, y: float) =
+  g_uiState.mx = x / g_uiState.scale
+  g_uiState.my = y / g_uiState.scale
+
+proc queueMouseButtonEvent*(
+    button: MouseButton, pressed: bool, x, y: float, modKeys: set[ModifierKey]
+) =
+  queueMouseMove(x, y)
   discard g_eventBuf.write(
     Event(
       kind: ekMouseButton,
@@ -638,17 +700,26 @@ proc mouseButtonCb*(
     )
   )
 
+proc mouseButtonCb*(
+    win: Window, button: MouseButton, pressed: bool, modKeys: set[ModifierKey]
+) =
+  let (x, y) = win.cursorPos()
+  queueMouseButtonEvent(button, pressed, x.float, y.float, modKeys)
+
+proc queueScrollEvent*(offsetX, offsetY: float64) =
+  discard g_eventBuf.write(Event(kind: ekScroll, ox: offsetX, oy: offsetY))
+
 proc scrollCb*(win: Window, offset: tuple[x, y: float64]) =
-  discard g_eventBuf.write(Event(kind: ekScroll, ox: offset.x, oy: offset.y))
+  queueScrollEvent(offset.x, offset.y)
 
 proc showCursor*() =
-  activeWindow().cursorMode = cmNormal
+  platformSetCursorMode(pcmNormal)
 
 proc hideCursor*() =
-  activeWindow().cursorMode = cmHidden
+  platformSetCursorMode(pcmHidden)
 
 proc disableCursor*() =
-  activeWindow().cursorMode = cmDisabled
+  platformSetCursorMode(pcmDisabled)
 
 proc cursorShape*(cs: CursorShape) =
   g_uiState.cursorShape = cs
@@ -657,45 +728,21 @@ proc setCursorShape*(cs: CursorShape) =
   cursorShape(cs)
 
 proc applyCursorShape*(cs: CursorShape) =
-  let win = activeWindow()
-
-  var c: Cursor
-  if cs == csArrow:
-    c = g_cursorArrow
-  elif cs == csIBeam:
-    c = g_cursorIBeam
-  elif cs == csCrosshair:
-    c = g_cursorCrosshair
-  elif cs == csHand:
-    c = g_cursorHand
-  elif cs == csResizeEW:
-    c = g_cursorResizeEW
-  elif cs == csResizeNS:
-    c = g_cursorResizeNS
-  elif cs == csResizeNWSE:
-    c = g_cursorResizeNWSE
-  elif cs == csResizeNESW:
-    c = g_cursorResizeNESW
-  elif cs == csResizeAll:
-    c = g_cursorResizeAll
-
-  win.cursor = c
+  platformSetCursorShape(cs)
 
 proc setCursorMode*(cs: CursorShape) =
   applyCursorShape(cs)
 
 proc cursorPosX*(x: float) =
-  let win = activeWindow()
-  let (_, currY) = win.cursorPos()
-  win.cursorPos = (x * g_uiState.scale, currY)
+  let (_, currY) = platformCursorPos()
+  platformSetCursorPos(x * g_uiState.scale, currY)
 
 proc setCursorPosX*(x: float) =
   cursorPosX(x)
 
 proc cursorPosY*(y: float) =
-  let win = activeWindow()
-  let (currX, _) = win.cursorPos()
-  win.cursorPos = (currX, y * g_uiState.scale)
+  let (currX, _) = platformCursorPos()
+  platformSetCursorPos(currX, y * g_uiState.scale)
 
 proc setCursorPosY*(y: float) =
   cursorPosY(y)
@@ -729,19 +776,21 @@ proc setShortcuts*(sm: ShortcutMode) =
   useShortcuts(sm)
 
 proc toClipboard*(s: string) =
-  activeWindow().clipboardString = s
+  platformClipboardSet(s)
 
 proc fromClipboard*(): string =
-  $activeWindow().clipboardString
+  platformClipboardGet()
 
 proc init*(vg: NVGContext, glfwGetProcAddress: proc) =
   initCore(vg, glfwGetProcAddress)
 
-  let win = activeWindow()
-  win.keyCb = keyCb
-  win.charCb = charCb
-  win.mouseButtonCb = mouseButtonCb
-  win.scrollCb = scrollCb
+  when not defined(waylandBackend):
+    installGlfwPlatformHooks()
+    let win = activeWindow()
+    win.keyCb = keyCb
+    win.charCb = charCb
+    win.mouseButtonCb = mouseButtonCb
+    win.scrollCb = scrollCb
 
   useShortcuts(smLinux)
 

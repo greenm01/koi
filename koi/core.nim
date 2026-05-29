@@ -135,10 +135,38 @@ type UIState* = object
   # **************
   tabActivationState*: TabActivationStateVars
 
+type
+  PlatformCursorMode* = enum
+    pcmNormal
+    pcmHidden
+    pcmDisabled
+
+  PlatformWindowSizeProc* = proc(): tuple[w, h: float]
+  PlatformSurfaceSizeProc* = proc(): tuple[w, h: float]
+  PlatformContentScaleProc* = proc(): tuple[x, y: float]
+  PlatformCursorPosProc* = proc(): tuple[x, y: float]
+  PlatformSetCursorPosProc* = proc(x, y: float)
+  PlatformSetCursorShapeProc* = proc(shape: CursorShape)
+  PlatformSetCursorModeProc* = proc(mode: PlatformCursorMode)
+  PlatformClipboardGetProc* = proc(): string
+  PlatformClipboardSetProc* = proc(text: string)
+
+  PlatformHooks* = object
+    windowSize*: PlatformWindowSizeProc
+    surfaceSize*: PlatformSurfaceSizeProc
+    contentScale*: PlatformContentScaleProc
+    cursorPos*: PlatformCursorPosProc
+    setCursorPos*: PlatformSetCursorPosProc
+    setCursorShape*: PlatformSetCursorShapeProc
+    setCursorMode*: PlatformSetCursorModeProc
+    clipboardGet*: PlatformClipboardGetProc
+    clipboardSet*: PlatformClipboardSetProc
+
 var
   g_nvgContext*: NVGContext
   g_uiState*: UIState
   g_window*: Window
+  g_platformHooks*: PlatformHooks
 
   g_cursorArrow*: Cursor
   g_cursorIBeam*: Cursor
@@ -201,6 +229,55 @@ proc scale*(): float =
 proc getScale*(): float =
   scale()
 
+proc setPlatformHooks*(hooks: PlatformHooks) =
+  g_platformHooks = hooks
+
+proc platformWindowSize*(): tuple[w, h: float] =
+  if g_platformHooks.windowSize != nil:
+    g_platformHooks.windowSize()
+  else:
+    (0.0, 0.0)
+
+proc platformSurfaceSize*(): tuple[w, h: float] =
+  if g_platformHooks.surfaceSize != nil:
+    g_platformHooks.surfaceSize()
+  else:
+    platformWindowSize()
+
+proc platformContentScale*(): tuple[x, y: float] =
+  if g_platformHooks.contentScale != nil:
+    g_platformHooks.contentScale()
+  else:
+    (1.0, 1.0)
+
+proc platformCursorPos*(): tuple[x, y: float] =
+  if g_platformHooks.cursorPos != nil:
+    g_platformHooks.cursorPos()
+  else:
+    (g_uiState.mx, g_uiState.my)
+
+proc platformSetCursorPos*(x, y: float) =
+  if g_platformHooks.setCursorPos != nil:
+    g_platformHooks.setCursorPos(x, y)
+
+proc platformSetCursorShape*(shape: CursorShape) =
+  if g_platformHooks.setCursorShape != nil:
+    g_platformHooks.setCursorShape(shape)
+
+proc platformSetCursorMode*(mode: PlatformCursorMode) =
+  if g_platformHooks.setCursorMode != nil:
+    g_platformHooks.setCursorMode(mode)
+
+proc platformClipboardGet*(): string =
+  if g_platformHooks.clipboardGet != nil:
+    g_platformHooks.clipboardGet()
+  else:
+    ""
+
+proc platformClipboardSet*(text: string) =
+  if g_platformHooks.clipboardSet != nil:
+    g_platformHooks.clipboardSet(text)
+
 proc initCore*(vg: NVGContext, glfwGetProcAddress: proc) =
   when not defined(koiWebGpu):
     if not gladLoadGL(glfwGetProcAddress):
@@ -208,27 +285,29 @@ proc initCore*(vg: NVGContext, glfwGetProcAddress: proc) =
 
   g_nvgContext = vg
 
-  g_cursorArrow = createStandardCursor(csArrow)
-  g_cursorIBeam = createStandardCursor(csIBeam)
-  g_cursorCrosshair = createStandardCursor(csCrosshair)
-  g_cursorHand = createStandardCursor(csHand)
-  g_cursorResizeEW = createStandardCursor(csResizeEW)
-  g_cursorResizeNS = createStandardCursor(csResizeNS)
-  g_cursorResizeNWSE = createStandardCursor(csResizeNWSE)
-  g_cursorResizeNESW = createStandardCursor(csResizeNESW)
-  g_cursorResizeAll = createStandardCursor(csResizeAll)
+  when not defined(waylandBackend):
+    g_cursorArrow = createStandardCursor(csArrow)
+    g_cursorIBeam = createStandardCursor(csIBeam)
+    g_cursorCrosshair = createStandardCursor(csCrosshair)
+    g_cursorHand = createStandardCursor(csHand)
+    g_cursorResizeEW = createStandardCursor(csResizeEW)
+    g_cursorResizeNS = createStandardCursor(csResizeNS)
+    g_cursorResizeNWSE = createStandardCursor(csResizeNWSE)
+    g_cursorResizeNESW = createStandardCursor(csResizeNESW)
+    g_cursorResizeAll = createStandardCursor(csResizeAll)
 
   g_eventBuf = initRingBuffer[Event](64)
   scale(1.0)
   requestFrames()
 
 proc deinitCore*() =
-  destroyCursor(g_cursorArrow)
-  destroyCursor(g_cursorIBeam)
-  destroyCursor(g_cursorCrosshair)
-  destroyCursor(g_cursorHand)
-  destroyCursor(g_cursorResizeEW)
-  destroyCursor(g_cursorResizeNS)
-  destroyCursor(g_cursorResizeNWSE)
-  destroyCursor(g_cursorResizeNESW)
-  destroyCursor(g_cursorResizeAll)
+  when not defined(waylandBackend):
+    destroyCursor(g_cursorArrow)
+    destroyCursor(g_cursorIBeam)
+    destroyCursor(g_cursorCrosshair)
+    destroyCursor(g_cursorHand)
+    destroyCursor(g_cursorResizeEW)
+    destroyCursor(g_cursorResizeNS)
+    destroyCursor(g_cursorResizeNWSE)
+    destroyCursor(g_cursorResizeNESW)
+    destroyCursor(g_cursorResizeAll)

@@ -23,8 +23,7 @@ proc beginFrame*() =
   alias(ui, g_uiState)
   alias(vg, g_nvgContext)
 
-  let win = activeWindow()
-  let (winWidth, winHeight) = win.size
+  let (winWidth, winHeight) = platformWindowSize()
 
   ui.winWidth = winWidth.float / g_uiState.scale
   ui.winHeight = winHeight.float / g_uiState.scale
@@ -38,11 +37,11 @@ proc beginFrame*() =
   ui.lastmy = ui.my
 
   if ui.widgetMouseDrag:
-    (ui.dx, ui.dy) = win.cursorPos()
+    (ui.dx, ui.dy) = platformCursorPos()
     ui.dx /= g_uiState.scale
     ui.dy /= g_uiState.scale
   else:
-    (ui.mx, ui.my) = win.cursorPos()
+    (ui.mx, ui.my) = platformCursorPos()
     ui.mx /= g_uiState.scale
     ui.my /= g_uiState.scale
 
@@ -96,7 +95,7 @@ proc beginFrame*() =
       createCheckeredImage(vg)
 
     # Update and render
-    let (fbWidth, fbHeight) = win.framebufferSize
+    let (fbWidth, fbHeight) = platformSurfaceSize()
     glViewport(0, 0, fbWidth.GLsizei, fbHeight.GLsizei)
 
     glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT or GL_STENCIL_BUFFER_BIT)
