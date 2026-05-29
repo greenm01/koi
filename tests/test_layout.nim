@@ -1,4 +1,5 @@
 import std/math
+import std/strutils
 import std/tables
 import std/unittest
 
@@ -28,6 +29,11 @@ template checkColorClose(actual, expected: Color) =
   checkClose(actual.g, expected.g)
   checkClose(actual.b, expected.b)
   checkClose(actual.a, expected.a)
+
+proc hasLineContaining(lines: seq[string], needle: string): bool =
+  for line in lines:
+    if needle in line:
+      return true
 
 proc resetLayout(params: AutoLayoutParams = DefaultAutoLayoutParams) =
   g_uiState = UIState.default
@@ -1115,6 +1121,106 @@ suite "unified layout solver":
     check int32(layoutInspectorHoveredNode()) == 0
     check int32(layoutInspectorSelectedNode()) == int32(selectedAgain.nodeId)
     check int32(layoutInspectorDetailNode()) == int32(selectedAgain.nodeId)
+
+  test "layout inspector node lines include hierarchy sizing and placement details":
+    resetLayout()
+
+    beginFrameLayout()
+    let parent = g_uiState.layoutArena.beginLayoutNode(
+      layoutNode(
+        itemId = 401,
+        width = fixed(100),
+        height = fixed(50),
+        direction = ldLeftToRight,
+        padding = padding(1, 2, 3, 4),
+        childGap = 5,
+        alignMain = laCenter,
+        alignCross = lcaEnd,
+        scrollOffset = size(2, 3),
+        placement = manual(20, 30),
+      )
+    )
+    let child = g_uiState.layoutArena.addLayoutNode(
+      layoutNode(
+        itemId = 402,
+        width = percent(0.5, min = 10, max = 90),
+        height = grow(min = 8, max = 40),
+        aspectRatio = 2,
+        placement = attachParent(
+          lapBottomRight,
+          lapTopLeft,
+          offset = size(6, 7),
+          windowPad = 3,
+          clipToRoot = true,
+          zIndex = 4,
+          capturePointer = true,
+        ),
+      )
+    )
+    discard g_uiState.layoutArena.endLayoutNode()
+    finishFrameLayout()
+
+    let parentLines = layoutInspectorNodeLines(parent)
+    check parentLines.hasLineContaining("children: 1 sibling: 0")
+    check parentLines.hasLineContaining("direction: ldLeftToRight")
+    check parentLines.hasLineContaining("padding: 1.0, 2.0, 3.0, 4.0")
+    check parentLines.hasLineContaining("gap: 5.0")
+    check parentLines.hasLineContaining("align: main=laCenter cross=lcaEnd")
+    check parentLines.hasLineContaining("scroll: 2.0, 3.0")
+    check parentLines.hasLineContaining("placement: manual")
+
+    let childLines = layoutInspectorNodeLines(child)
+    check childLines.hasLineContaining("parents: 0 > " & $int32(parent))
+    check childLines.hasLineContaining("width: percent(0.500")
+    check childLines.hasLineContaining("height: grow(min=8.0, max=40.0)")
+    check childLines.hasLineContaining("placement: attach")
+    check childLines.hasLineContaining("attach target: latParent -1")
+    check childLines.hasLineContaining(
+      "attach points: target=lapBottomRight self=lapTopLeft"
+    )
+    check childLines.hasLineContaining("attach capture: true")
+    check childLines.hasLineContaining("z-index: 4")
+
+  test "layout inspector error lines prioritize detail-node related errors":
+    resetLayout()
+
+    beginFrameLayout()
+    let badPercent = g_uiState.layoutArena.addLayoutNode(
+      layoutNode(itemId = 501, width = percent(1.4), height = fixed(10)),
+      g_uiState.layoutRoot,
+    )
+    discard g_uiState.layoutArena.addLayoutNode(
+      layoutNode(itemId = 501, width = fixed(10), height = fixed(10)),
+      g_uiState.layoutRoot,
+    )
+    discard g_uiState.layoutArena.addLayoutNode(
+      layoutNode(
+        itemId = 502,
+        width = fixed(10),
+        height = fixed(10),
+        placement = attach(LayoutNodeId(999), lapTopLeft, lapTopLeft),
+      ),
+      g_uiState.layoutRoot,
+    )
+    finishFrameLayout()
+
+    g_uiState.layoutDebug.selectedNode = badPercent
+    let lines = layoutInspectorErrorLines()
+    check lines.hasLineContaining("errors: 3")
+    check lines.hasLineContaining("related errors:")
+    check lines.hasLineContaining("lekInvalidPercent")
+    check lines.hasLineContaining("lekDuplicateItemId")
+    check lines.hasLineContaining("recent errors:")
+    check lines.hasLineContaining("lekMissingAttachTarget")
+
+  test "layout inspector error lines include stack imbalance diagnostics":
+    resetLayout()
+    g_uiState.layoutArena.initLayoutArena()
+    discard g_uiState.layoutArena.endLayoutNode()
+
+    let lines = layoutInspectorErrorLines()
+    check lines.hasLineContaining("errors: 1")
+    check lines.hasLineContaining("lekUnbalancedLayoutStack")
 
   test "attached slots follow frame-local targets and expose z-index to draws":
     resetLayout()

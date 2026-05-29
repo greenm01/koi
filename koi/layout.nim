@@ -899,6 +899,159 @@ proc layoutInspectorDetailNode*(): LayoutNodeId =
     g_uiState.layoutDebug.hoveredNode, g_uiState.layoutDebug.selectedNode
   )
 
+func validLayoutInspectorNode(arena: LayoutArena, id: LayoutNodeId): bool =
+  int32(id) >= 0 and int32(id) < arena.nodes.len.int32
+
+func layoutSizeDebugText(spec: LayoutSize): string =
+  case spec.kind
+  of lskFixed:
+    &"fixed({spec.value:.1f})"
+  of lskPercent:
+    &"percent({spec.percent:.3f}, min={spec.min:.1f}, max={spec.max:.1f})"
+  of lskFit:
+    &"fit(min={spec.min:.1f}, max={spec.max:.1f})"
+  of lskGrow:
+    &"grow(min={spec.min:.1f}, max={spec.max:.1f})"
+
+func paddingDebugText(p: Padding): string =
+  &"{p.left:.1f}, {p.right:.1f}, {p.top:.1f}, {p.bottom:.1f}"
+
+func sizeDebugText(s: Size): string =
+  &"{s.w:.1f}, {s.h:.1f}"
+
+func rectDebugText(r: Rect): string =
+  &"{r.x:.1f}, {r.y:.1f}, {r.w:.1f}, {r.h:.1f}"
+
+func siblingIndex(arena: LayoutArena, node: LayoutNode): int =
+  if node.parent.isNull or not arena.validLayoutInspectorNode(node.parent):
+    return -1
+
+  let parent = arena.nodes[int32(node.parent)]
+  for i in 0 ..< int(parent.childCount):
+    let childId = arena.childIndices[int(parent.firstChild) + i]
+    if int32(childId) == int32(node.id):
+      return i
+  -1
+
+func parentChainDebugText(arena: LayoutArena, id: LayoutNodeId): string =
+  if not arena.validLayoutInspectorNode(id):
+    return "none"
+
+  var chain: seq[string]
+  var cursor = arena.nodes[int32(id)].parent
+  while arena.validLayoutInspectorNode(cursor):
+    chain.add($int32(cursor))
+    cursor = arena.nodes[int32(cursor)].parent
+
+  if chain.len == 0:
+    return "none"
+
+  result = chain[^1]
+  if chain.len >= 2:
+    for i in countdown(chain.high - 1, 0):
+      result.add(" > " & chain[i])
+
+func layoutPlacementDebugLines(node: LayoutNode): seq[string] =
+  case node.placement.kind
+  of lpkFlow:
+    @["placement: flow"]
+  of lpkManual:
+    @[
+      "placement: manual", &"manual pos: {node.placement.x:.1f}, {node.placement.y:.1f}"
+    ]
+  of lpkFollow:
+    @[
+      "placement: follow",
+      &"follow target: {int32(node.placement.target)}",
+      &"follow kind: {node.placement.followKind}",
+      &"follow align: {node.placement.followAlign}",
+      &"follow inset: {paddingDebugText(node.placement.followInset)}",
+      &"follow window pad: {node.placement.windowPad:.1f}",
+    ]
+  of lpkAttach:
+    let attach = node.placement.attach
+    @[
+      "placement: attach",
+      &"attach target: {attach.targetKind} {int32(attach.targetNode)}",
+      &"attach points: target={attach.targetPoint} self={attach.selfPoint}",
+      &"attach offset: {sizeDebugText(attach.offset)}",
+      &"attach pad/clip: {attach.windowPad:.1f} / {attach.clipToRoot}",
+      &"attach capture: {attach.capturePointer}",
+    ]
+
+func layoutInspectorNodeLines(arena: LayoutArena, nodeId: LayoutNodeId): seq[string] =
+  if not arena.validLayoutInspectorNode(nodeId):
+    return @["No node selected"]
+
+  let node = arena.nodes[int32(nodeId)]
+  let sibling = arena.siblingIndex(node)
+  result =
+    @[
+      &"node: {int32(node.id)} item: {node.itemId}",
+      &"parent: {int32(node.parent)} kind: {node.kind}",
+      &"parents: {arena.parentChainDebugText(node.id)}",
+      &"children: {node.childCount} sibling: {sibling}",
+      &"rect: {rectDebugText(node.rect)}",
+      &"content: {sizeDebugText(node.contentSize)}",
+      &"scroll: {sizeDebugText(node.scrollOffset)}",
+      &"intrinsic min: {sizeDebugText(node.intrinsicMin)}",
+      &"intrinsic pref: {sizeDebugText(node.intrinsicPref)}",
+      &"width: {layoutSizeDebugText(node.width)}",
+      &"height: {layoutSizeDebugText(node.height)}",
+      &"direction: {node.direction}",
+      &"padding: {paddingDebugText(node.padding)}",
+      &"gap: {node.childGap:.1f}",
+      &"align: main={node.alignMain} cross={node.alignCross}",
+      &"z-index: {arena.layoutZIndex(node.id)}",
+      &"aspect: {node.aspectRatio:.3f}",
+    ]
+  result.add(node.layoutPlacementDebugLines)
+
+proc layoutInspectorNodeLines*(nodeId: LayoutNodeId): seq[string] =
+  g_uiState.layoutArena.layoutInspectorNodeLines(nodeId)
+
+proc layoutInspectorDetailLines*(): seq[string] =
+  layoutInspectorNodeLines(layoutInspectorDetailNode())
+
+func layoutErrorDebugText(index: int, error: LayoutError): string =
+  &"#{index} {error.kind} node={int32(error.nodeId)} item={error.itemId}: {error.message}"
+
+proc layoutInspectorErrorLines*(): seq[string] =
+  let
+    detail = layoutInspectorDetailNode()
+    detailValid = g_uiState.layoutArena.validLayoutInspectorNode(detail)
+    detailItem =
+      if detailValid:
+        g_uiState.layoutArena.nodes[int32(detail)].itemId
+      else:
+        0
+
+  result = @["errors: " & $g_uiState.layoutArena.errors.len]
+  if g_uiState.layoutArena.errors.len == 0:
+    return
+
+  var used = newSeq[bool](g_uiState.layoutArena.errors.len)
+  var relatedCount = 0
+  for i, error in g_uiState.layoutArena.errors:
+    let relatedByNode =
+      detailValid and int32(error.nodeId) >= 0 and int32(error.nodeId) == int32(detail)
+    let relatedByItem = detailItem != 0 and error.itemId == detailItem
+    if relatedByNode or relatedByItem:
+      if relatedCount == 0:
+        result.add("related errors:")
+      result.add(layoutErrorDebugText(i, error))
+      used[i] = true
+      inc relatedCount
+
+  var globalCount = 0
+  for i in countdown(g_uiState.layoutArena.errors.high, 0):
+    if used[i]:
+      continue
+    if globalCount == 0:
+      result.add("recent errors:")
+    result.add(layoutErrorDebugText(i, g_uiState.layoutArena.errors[i]))
+    inc globalCount
+
 proc setLayoutErrorHandler*(handler: LayoutErrorHandler) =
   g_uiState.layoutArena.setLayoutErrorHandler(handler)
 
@@ -950,6 +1103,8 @@ proc queueLayoutInspectorDraw() =
   let capturedSelected = ui.layoutDebug.selectedNode
   let capturedDetail =
     ui.layoutArena.layoutInspectorDetailNode(capturedHover, capturedSelected)
+  let capturedDetailLines = ui.layoutArena.layoutInspectorNodeLines(capturedDetail)
+  let capturedErrorLines = layoutInspectorErrorLines()
   let capturedPanelWidth =
     if ui.layoutDebug.panelWidth > 0.0: ui.layoutDebug.panelWidth else: 360.0
 
@@ -985,28 +1140,23 @@ proc queueLayoutInspectorDraw() =
     discard vg.text(panelX + 12, y, "Layout Inspector")
     y += 22.0
 
-    let detailIndex = int32(capturedDetail)
-    let selectedIndex = int32(capturedSelected)
-    discard vg.text(panelX + 12, y, &"selected: {selectedIndex}")
-    y += 17.0
-    if detailIndex >= 0 and detailIndex < g_uiState.layoutArena.nodes.len.int32:
-      let node = g_uiState.layoutArena.nodes[detailIndex]
-      let lines = [
-        &"node: {int32(node.id)} item: {node.itemId}",
-        &"parent: {int32(node.parent)} kind: {node.kind}",
-        &"rect: {node.rect.x:.1f}, {node.rect.y:.1f}, {node.rect.w:.1f}, {node.rect.h:.1f}",
-        &"intrinsic min: {node.intrinsicMin.w:.1f}, {node.intrinsicMin.h:.1f}",
-        &"intrinsic pref: {node.intrinsicPref.w:.1f}, {node.intrinsicPref.h:.1f}",
-        &"size: {node.width.kind} x {node.height.kind}",
-        &"placement: {node.placement.kind}",
-        &"z-index: {g_uiState.layoutArena.layoutZIndex(node.id)}",
-        &"aspect: {node.aspectRatio:.3f}",
+    var lines =
+      @[
+        &"hovered: {int32(capturedHover)}",
+        &"selected: {int32(capturedSelected)}",
+        &"detail: {int32(capturedDetail)}",
+        "",
       ]
-      for line in lines:
-        discard vg.text(panelX + 12, y, line)
-        y += 17.0
-    else:
-      discard vg.text(panelX + 12, y, "No node selected")
+    lines.add(capturedDetailLines)
+    lines.add("")
+    lines.add(capturedErrorLines)
+
+    for line in lines:
+      if y + 17.0 > panelH - 10.0:
+        discard vg.text(panelX + 12, y, "...")
+        break
+      discard vg.text(panelX + 12, y, line)
+      y += 17.0
 
 proc finishFrameLayout*() =
   alias(ui, g_uiState)
