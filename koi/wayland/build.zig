@@ -21,6 +21,24 @@ pub fn build(b: *std.Build) void {
     lib.installHeader(b.path("koi_wayland.h"), "koi_wayland.h");
     b.installArtifact(lib);
 
-    const test_step = b.step("test", "Build the Koi Wayland C ABI library");
-    test_step.dependOn(&lib.step);
+    const smoke = b.addExecutable(.{
+        .name = "koi-wayland-c-abi-smoke",
+        .root_module = b.createModule(.{
+            .target = target,
+            .optimize = optimize,
+            .link_libc = true,
+        }),
+    });
+    smoke.root_module.addCSourceFile(.{
+        .file = b.path("c_abi_smoke.c"),
+        .flags = &.{ "-std=c11", "-Wall", "-Wextra", "-Werror" },
+    });
+    smoke.root_module.addIncludePath(b.path("."));
+    smoke.root_module.linkLibrary(lib);
+    smoke.root_module.linkSystemLibrary("wayland-client", .{ .use_pkg_config = .yes });
+    smoke.root_module.linkSystemLibrary("xkbcommon", .{ .use_pkg_config = .yes });
+
+    const smoke_run = b.addRunArtifact(smoke);
+    const test_step = b.step("test", "Run Koi Wayland C ABI smoke checks");
+    test_step.dependOn(&smoke_run.step);
 }
