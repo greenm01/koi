@@ -11,6 +11,7 @@ import koi/drawing
 import koi/layout
 import koi/input
 import koi/defaults
+import koi/internal/widget_behavior
 import koi/widgets/common
 import koi/widgets/textfield
 import koi/utils
@@ -41,13 +42,10 @@ proc horizSlider*(
   let (x, y) = addDrawOffset(x, y)
 
   # Hit testing
-  if isHit(x, y, w, h):
-    markHot(id)
-    if ui.mbLeftDown and hasNoActiveItem():
-      markActive(id)
-      sl.state = ssDefault
-      sl.oldValue = value
-      sl.cursorMoved = false
+  if captureDragWidget(id, isHit(x, y, w, h)):
+    sl.state = ssDefault
+    sl.oldValue = value
+    sl.cursorMoved = false
 
   var
     newValue = value
@@ -129,13 +127,7 @@ proc horizSlider*(
   # Draw slider
   if sl.editModeItem != id:
     addDrawLayer(ui.currentLayer, vg):
-      let state =
-        if isHot(id) and hasNoActiveItem():
-          wsHover
-        elif isActive(id):
-          wsDown
-        else:
-          wsNormal
+      let state = dragWidgetState(id)
 
       var sw = s.trackStrokeWidth
       var (rx, ry, rw, rh) = snapToGrid(x, y, w, h, sw)
@@ -209,10 +201,7 @@ proc vertSlider*(
 
   let posY = calcPosY(value)
 
-  if isHit(x, y, w, h):
-    markHot(id)
-    if ui.mbLeftDown and hasNoActiveItem():
-      markActive(id)
+  discard captureDragWidget(id, isHit(x, y, w, h))
 
   var newPosY = posY
 
@@ -252,13 +241,7 @@ proc vertSlider*(
   value_out = value
 
   addDrawLayer(ui.currentLayer, vg):
-    let state =
-      if isHot(id) and hasNoActiveItem():
-        wsHover
-      elif isActive(id):
-        wsDown
-      else:
-        wsNormal
+    let state = dragWidgetState(id)
 
     var sw = s.trackStrokeWidth
     var (rx, ry, rw, rh) = snapToGrid(x, y, w, h, sw)

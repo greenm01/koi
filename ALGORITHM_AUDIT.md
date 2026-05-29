@@ -59,22 +59,23 @@ work that needs broader design or visual validation.
    - Slider and scrollbar behavior remains deferred because their drag and
      repeat states need separate coverage.
 
+9. Drag widget behavior duplicated capture and draw-state code.
+   - Added internal helpers for drag-widget capture and normal/hover/down state
+     selection.
+   - Sliders and scrollbars now share those helpers while keeping their public
+     APIs, draw behavior, and drag state machines unchanged.
+   - Full slider/scrollbar drag-state unification remains deferred.
+
 ## High-Value Follow-Ups
 
-1. Drag widget behavior duplication.
-   - Sliders and scrollbars still repeat hot/active/disabled state transitions
-   around drag, hidden cursor, and repeat modes.
-   - Extract this only after drag and repeat behavior has tests, because small
-   differences are user-visible.
-
-2. WebGPU backend draw expansion.
+1. WebGPU backend draw expansion.
    - The backend expands fans and strips into triangle lists on the CPU and
    binds per draw call.
    - Before optimizing, add image-based or geometry tests for scissor,
    composite-operation behavior, and antialiasing so performance changes do
    not regress rendering.
 
-3. Default style copies.
+2. Default style copies.
    - Default style accessors deep-copy ref-object styles on every call.
    - This is correct for isolation, but expensive if done in hot paths. Cache or
    borrowing APIs would need an explicit mutability policy.
@@ -83,6 +84,8 @@ work that needs broader design or visual validation.
 
 - Unify horizontal and vertical scrollbar implementations around one orientation
   helper after the pure math tests settle.
+- Extract deeper slider and scrollbar drag-state logic only after drag, hidden
+  cursor, and track-repeat behavior have focused tests.
 - Add dropdown keyboard navigation before deeper popup/list refactors.
 - Add double-click word selection and richer selection gestures to text areas
   after the basic multiline behavior settles.

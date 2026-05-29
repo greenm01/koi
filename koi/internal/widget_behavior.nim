@@ -6,6 +6,15 @@ type SimpleWidgetBehavior* = object
   clicked*: bool
   state*: WidgetState
 
+proc captureDragWidget*(id: ItemId, hit: bool, allowActiveCapture: bool = false): bool =
+  if not hit:
+    return false
+
+  markHot(id)
+  if g_uiState.mbLeftDown and (hasNoActiveItem() or allowActiveCapture):
+    markActive(id)
+    return true
+
 proc captureSimpleWidget*(id: ItemId, disabled: bool) =
   markHot(id)
   if not disabled and g_uiState.mbLeftDown and hasNoActiveItem():
@@ -61,3 +70,14 @@ func radioButtonState*(
       else: wsNormal
     else:
       wsNormal
+
+func dragWidgetState*(hot, active, canHover: bool): WidgetState =
+  if hot and canHover:
+    wsHover
+  elif active:
+    wsDown
+  else:
+    wsNormal
+
+proc dragWidgetState*(id: ItemId): WidgetState =
+  dragWidgetState(isHot(id), isActive(id), hasNoActiveItem())

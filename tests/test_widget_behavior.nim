@@ -105,3 +105,39 @@ suite "simple widget behavior":
       hotButton = 1,
       buttonIndex = 0,
     ) == wsNormal
+
+suite "drag widget behavior":
+  test "capture requires a hit":
+    resetUi()
+    g_uiState.mbLeftDown = true
+
+    check not captureDragWidget(20, hit = false)
+    check not isHot(20)
+    check not isActive(20)
+
+  test "capture marks hot and active when input is free":
+    resetUi()
+    g_uiState.mbLeftDown = true
+
+    check captureDragWidget(20, hit = true)
+    check isHot(20)
+    check isActive(20)
+
+  test "focused capture can override an existing active item":
+    resetUi()
+    g_uiState.mbLeftDown = true
+    markActive(10)
+
+    check not captureDragWidget(20, hit = true)
+    check isHot(20)
+    check isActive(10)
+
+    check captureDragWidget(20, hit = true, allowActiveCapture = true)
+    check isActive(20)
+
+  test "drag widget states cover normal hover and down":
+    check dragWidgetState(hot = false, active = false, canHover = true) == wsNormal
+    check dragWidgetState(hot = true, active = false, canHover = true) == wsHover
+    check dragWidgetState(hot = true, active = true, canHover = false) == wsDown
+    check dragWidgetState(hot = false, active = true, canHover = false) == wsDown
+    check dragWidgetState(hot = true, active = false, canHover = false) == wsNormal

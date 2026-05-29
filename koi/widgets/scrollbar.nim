@@ -10,6 +10,7 @@ import koi/layout
 import koi/input
 import koi/defaults
 import koi/internal/algorithms
+import koi/internal/widget_behavior
 import koi/widgets/common
 import koi/utils
 
@@ -66,10 +67,7 @@ proc horizScrollBar*(
     else:
       isHit(x, y, w, h)
 
-  if hit:
-    markHot(id)
-    if ui.mbLeftDown and (hasNoActiveItem() or allowFocusCaptured):
-      markActive(id)
+  discard captureDragWidget(id, hit, allowActiveCapture = allowFocusCaptured)
 
   let insideThumb = mouseInside(thumbX, y, thumbW, h)
 
@@ -174,13 +172,7 @@ proc horizScrollBar*(
       s.autoFade and dy < s.autoFadeDistance and withinX and
       (not ui.focusCaptured or allowFocusCaptured)
     ):
-      let state =
-        if isHot(id) and hasNoActiveItem():
-          wsHover
-        elif isActive(id):
-          wsDown
-        else:
-          wsNormal
+      let state = dragWidgetState(id)
 
       var sw = s.trackStrokeWidth
       var (x, y, w, h) = snapToGrid(x, y, w, h, sw)
@@ -287,10 +279,7 @@ proc vertScrollBar*(
     else:
       isHit(x, y, w, h)
 
-  if hit:
-    markHot(id)
-    if ui.mbLeftDown and (hasNoActiveItem() or allowFocusCaptured):
-      markActive(id)
+  discard captureDragWidget(id, hit, allowActiveCapture = allowFocusCaptured)
 
   let insideThumb = mouseInside(x, thumbY, w, thumbH)
 
@@ -397,13 +386,7 @@ proc vertScrollBar*(
       s.autoFade and dx < s.autoFadeDistance and withinY and
       (not ui.focusCaptured or allowFocusCaptured)
     ):
-      let state =
-        if isHot(id) and hasNoActiveItem():
-          wsHover
-        elif isActive(id):
-          wsDown
-        else:
-          wsNormal
+      let state = dragWidgetState(id)
 
       var sw = s.trackStrokeWidth
       var (x, y, w, h) = snapToGrid(x, y, w, h, sw)
