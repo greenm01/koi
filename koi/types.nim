@@ -253,10 +253,102 @@ type
     smMac = (1, "Mac")
     smLinux = (2, "Linux")
 
-  LayoutMode* = enum
-    lmNone
-    lmRow
-    lmSpace
+  Size* = object
+    w*, h*: float
+
+  Padding* = object
+    left*, right*, top*, bottom*: float
+
+  LayoutNodeId* = distinct int32
+
+  LayoutSizeKind* = enum
+    lskFit
+    lskGrow
+    lskFixed
+    lskPercent
+
+  LayoutSize* = object
+    min*: float
+    max*: float
+    case kind*: LayoutSizeKind
+    of lskFixed:
+      value*: float
+    of lskPercent:
+      percent*: float
+    of lskFit, lskGrow:
+      discard
+
+  LayoutAlign* = enum
+    laStart
+    laCenter
+    laEnd
+    laSpaceBetween
+
+  LayoutCrossAlign* = enum
+    lcaStart
+    lcaCenter
+    lcaEnd
+    lcaStretch
+
+  LayoutDirection* = enum
+    ldLeftToRight
+    ldTopToBottom
+
+  LayoutNodeKind* = enum
+    lnkContainer
+    lnkText
+    lnkWidget
+
+  LayoutPlacementKind* = enum
+    lpkFlow
+    lpkManual
+
+  LayoutPlacement* = object
+    case kind*: LayoutPlacementKind
+    of lpkFlow:
+      discard
+    of lpkManual:
+      x*, y*: float
+
+  TextMeasure* = object
+    minWidth*: float
+    prefWidth*: float
+    lineHeight*: float
+    lineCount*: int
+
+  MeasureTextProc* = proc(
+    text: string, fontSize: float, fontId: int, maxWidth: float
+  ): TextMeasure {.closure.}
+
+  LayoutNode* = object
+    id*: LayoutNodeId
+    itemId*: ItemId
+    parent*: LayoutNodeId
+    firstChild*: int32
+    childCount*: int32
+    kind*: LayoutNodeKind
+    placement*: LayoutPlacement
+    direction*: LayoutDirection
+    width*: LayoutSize
+    height*: LayoutSize
+    padding*: Padding
+    childGap*: float
+    alignMain*: LayoutAlign
+    alignCross*: LayoutCrossAlign
+    intrinsicMin*: Size
+    intrinsicPref*: Size
+    rect*: Rect
+    contentSize*: Size
+    text*: string
+    fontSize*: float
+    fontId*: int
+
+  LayoutArena* = object
+    nodes*: seq[LayoutNode]
+    childIndices*: seq[LayoutNodeId]
+    childStack*: seq[seq[LayoutNodeId]]
+    nodeStack*: seq[LayoutNodeId]
+    measureText*: MeasureTextProc
 
   ColMode* = enum
     cmStatic
@@ -268,8 +360,12 @@ type
     mode*: ColMode
     value*: float
 
-  LayoutNode* = object
-    mode*: LayoutMode
+  LayoutPresetMode* = enum
+    lpmRow
+    lpmSpace
+
+  LayoutPresetFrame* = object
+    mode*: LayoutPresetMode
     x*, y*, w*, h*: float
     rowHeight*: float
     availableWidth*: float
@@ -280,6 +376,7 @@ type
     resolvedWidths*: seq[float]
     currentColumn*: LayoutColumn
     hasCurrentColumn*: bool
+    nodeId*: LayoutNodeId
 
 type
   DrawOffset* = object

@@ -3,9 +3,12 @@ import std/options
 
 import koi/core
 import koi/drawing
+import koi/internal/layout_solver
 import koi/rect
 import koi/types
 import koi/utils
+
+export layout_solver
 
 # Layout engine: standard auto-layout and hierarchical blocks
 
@@ -135,7 +138,7 @@ func resolvedRowWidths(
         flexibleWidth
 
 func legacyColumnWidth(
-    node: LayoutNode, column: LayoutColumn, ap: AutoLayoutParams
+    node: LayoutPresetFrame, column: LayoutColumn, ap: AutoLayoutParams
 ): float =
   case column.mode
   of cmStatic:
@@ -148,7 +151,7 @@ func legacyColumnWidth(
   of cmVariable:
     max(0.0, column.value)
 
-proc currentRowColumn(node: var LayoutNode): LayoutColumn =
+proc currentRowColumn(node: var LayoutPresetFrame): LayoutColumn =
   if node.columns.len > 0:
     let i = min(node.colIndex, node.columns.high)
     result = node.columns[i]
@@ -157,7 +160,7 @@ proc currentRowColumn(node: var LayoutNode): LayoutColumn =
   else:
     result = colDynamic()
 
-proc currentRowWidth(node: var LayoutNode, ap: AutoLayoutParams): float =
+proc currentRowWidth(node: var LayoutPresetFrame, ap: AutoLayoutParams): float =
   if node.columns.len > 0:
     let i = min(node.colIndex, node.resolvedWidths.high)
     result = node.resolvedWidths[i]
@@ -181,7 +184,7 @@ proc autoLayoutPre*(section: bool = false) =
   if ui.layoutStack.len > 0:
     alias(node, ui.layoutStack[^1])
     case node.mode
-    of lmRow:
+    of lpmRow:
       a.rowHeight = node.rowHeight
       a.x = node.currentX
       a.y = node.y
@@ -189,7 +192,7 @@ proc autoLayoutPre*(section: bool = false) =
       a.nextItemHeight = ap.defaultItemHeight
       a.applyNextItemOverrides()
       return
-    of lmSpace:
+    of lpmSpace:
       a.x = 0
       a.y = 0
       a.rowHeight = node.h
@@ -197,8 +200,6 @@ proc autoLayoutPre*(section: bool = false) =
       a.nextItemHeight = node.h
       a.applyNextItemOverrides()
       return
-    of lmNone:
-      discard
 
   let firstColumn = a.currColIndex == 0
 
@@ -233,17 +234,15 @@ proc autoLayoutPost*(section: bool = false) =
   if ui.layoutStack.len > 0:
     alias(node, ui.layoutStack[^1])
     case node.mode
-    of lmRow:
+    of lpmRow:
       node.currentX += a.nextItemWidth
       if node.columns.len > 0 and node.colIndex < node.columns.high:
         node.currentX += node.itemSpacing
       inc(node.colIndex)
       node.hasCurrentColumn = false
       return
-    of lmSpace:
+    of lpmSpace:
       return
-    of lmNone:
-      discard
 
   let lastColumn = a.currColIndex == ap.effectiveItemsPerRow() - 1
 
@@ -289,8 +288,8 @@ proc beginRowLayout*(height: float, columns: openArray[LayoutColumn] = []) =
   let rowColumns = @columns
 
   ui.layoutStack.add(
-    LayoutNode(
-      mode: lmRow,
+    LayoutPresetFrame(
+      mode: lpmRow,
       x: startX,
       y: a.y,
       w: availableW,
@@ -301,6 +300,11 @@ proc beginRowLayout*(height: float, columns: openArray[LayoutColumn] = []) =
       itemSpacing: itemSpacing,
       columns: rowColumns,
       resolvedWidths: rowColumns.resolvedRowWidths(availableW, itemSpacing, ap),
+      nodeId: ui.layoutArena.beginLayoutNode(
+        layoutNode(
+          width = fixed(availableW), height = fixed(height), direction = ldLeftToRight
+        )
+      ),
     )
   )
 
@@ -312,14 +316,30 @@ proc beginSpaceLayout*(height: float) =
     (x, y) = addDrawOffset(a.x, a.y)
     width = if ui.layoutStack.len > 0: a.nextItemWidth else: a.rowWidth
 
-  ui.layoutStack.add(LayoutNode(mode: lmSpace, x: x, y: y, w: width, h: height))
+  ui.layoutStack.add(
+    LayoutPresetFrame(
+      mode: lpmSpace,
+      x: x,
+      y: y,
+      w: width,
+      h: height,
+      nodeId: ui.layoutArena.beginLayoutNode(
+        layoutNode(
+          width = fixed(width), height = fixed(height), placement = manual(x, y)
+        )
+      ),
+    )
+  )
   pushDrawOffset(DrawOffset(ox: x, oy: y))
 
 proc endLayout*() =
   alias(ui, g_uiState)
   if ui.layoutStack.len > 0:
     let node = ui.layoutStack.pop()
-    if node.mode == lmSpace:
+    if not node.nodeId.isNull:
+      discard ui.layoutArena.endLayoutNode()
+
+    if node.mode == lpmSpace:
       popDrawOffset()
 
     ui.autoLayoutState.y += node.h
@@ -328,14 +348,14 @@ proc endLayout*() =
 
 proc beginColumn*(mode: ColMode, value: float = 0.0) =
   alias(ui, g_uiState)
-  if ui.layoutStack.len > 0 and ui.layoutStack[^1].mode == lmRow:
+  if ui.layoutStack.len > 0 and ui.layoutStack[^1].mode == lpmRow:
     alias(node, ui.layoutStack[^1])
     node.currentColumn = LayoutColumn(mode: mode, value: value)
     node.hasCurrentColumn = true
 
 proc endColumn*() =
   alias(ui, g_uiState)
-  if ui.layoutStack.len > 0 and ui.layoutStack[^1].mode == lmRow:
+  if ui.layoutStack.len > 0 and ui.layoutStack[^1].mode == lpmRow:
     ui.layoutStack[^1].hasCurrentColumn = false
 
 template layoutRow*(height: float, body: untyped) =
@@ -389,7 +409,7 @@ template colVariable*(minWidth: float, body: untyped) =
 
 proc layoutSpaceBounds*(): Rect =
   alias(ui, g_uiState)
-  if ui.layoutStack.len > 0 and ui.layoutStack[^1].mode == lmSpace:
+  if ui.layoutStack.len > 0 and ui.layoutStack[^1].mode == lpmSpace:
     let node = ui.layoutStack[^1]
     result = rect(0, 0, node.w, node.h)
   else:

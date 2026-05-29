@@ -203,6 +203,101 @@ suite "layout space":
     checkClose(outerY, 32)
     checkClose(g_uiState.autoLayoutState.y, 132)
 
+suite "unified layout solver":
+  test "horizontal flow distributes remaining space to grow children":
+    var arena: LayoutArena
+    arena.initLayoutArena()
+
+    let root = arena.beginLayoutNode(
+      layoutNode(width = fixed(300), height = fixed(100), direction = ldLeftToRight)
+    )
+    let first = arena.addLayoutNode(layoutNode(width = fixed(100), height = grow()))
+    let second = arena.addLayoutNode(layoutNode(width = grow(), height = grow()))
+    let third = arena.addLayoutNode(layoutNode(width = grow(), height = grow()))
+    discard arena.endLayoutNode()
+
+    arena.solveLayout(rect(0, 0, 300, 100), root)
+
+    checkRect(arena.layoutRect(first), rect(0, 0, 100, 100))
+    checkRect(arena.layoutRect(second), rect(100, 0, 100, 100))
+    checkRect(arena.layoutRect(third), rect(200, 0, 100, 100))
+
+  test "padding, gap, percent, fixed, and grow resolve on one axis":
+    var arena: LayoutArena
+    arena.initLayoutArena()
+
+    let root = arena.beginLayoutNode(
+      layoutNode(
+        width = fixed(400),
+        height = fixed(50),
+        direction = ldLeftToRight,
+        padding = padding(10, 10, 0, 0),
+        childGap = 5,
+      )
+    )
+    let ratio = arena.addLayoutNode(layoutNode(width = percent(0.25), height = grow()))
+    let exact = arena.addLayoutNode(layoutNode(width = fixed(50), height = grow()))
+    let fill = arena.addLayoutNode(layoutNode(width = grow(), height = grow()))
+    let overlay = arena.addLayoutNode(
+      layoutNode(width = fixed(20), height = fixed(20), placement = manual(1, 2))
+    )
+    discard arena.endLayoutNode()
+
+    arena.solveLayout(rect(0, 0, 400, 50), root)
+
+    checkRect(arena.layoutRect(ratio), rect(10, 0, 92.5, 50))
+    checkRect(arena.layoutRect(exact), rect(107.5, 0, 50, 50))
+    checkRect(arena.layoutRect(fill), rect(162.5, 0, 227.5, 50))
+    checkRect(arena.layoutRect(overlay), rect(1, 2, 20, 20))
+
+  test "fit sizing wraps children and padding":
+    var arena: LayoutArena
+    arena.initLayoutArena()
+
+    let root = arena.beginLayoutNode(
+      layoutNode(
+        width = fixed(100),
+        height = fit(),
+        direction = ldTopToBottom,
+        padding = padding(0, 0, 4, 4),
+        childGap = 5,
+      )
+    )
+    let first = arena.addLayoutNode(layoutNode(width = grow(), height = fixed(20)))
+    let second = arena.addLayoutNode(layoutNode(width = grow(), height = fixed(30)))
+    discard arena.endLayoutNode()
+
+    arena.solveLayout(rect(0, 0, 100, 0), root)
+
+    checkRect(arena.layoutRect(root), rect(0, 0, 100, 63))
+    checkRect(arena.layoutRect(first), rect(0, 4, 100, 20))
+    checkRect(arena.layoutRect(second), rect(0, 29, 100, 30))
+
+  test "alignment and manual placement use solved parent rects":
+    var arena: LayoutArena
+    arena.initLayoutArena()
+
+    let root = arena.beginLayoutNode(
+      layoutNode(
+        width = fixed(120),
+        height = fixed(80),
+        direction = ldLeftToRight,
+        alignMain = laCenter,
+        alignCross = lcaEnd,
+      )
+    )
+    let centered =
+      arena.addLayoutNode(layoutNode(width = fixed(40), height = fixed(20)))
+    let manualChild = arena.addLayoutNode(
+      layoutNode(width = fixed(10), height = fixed(10), placement = manual(7, 9))
+    )
+    discard arena.endLayoutNode()
+
+    arena.solveLayout(rect(0, 0, 120, 80), root)
+
+    checkRect(arena.layoutRect(centered), rect(40, 60, 40, 20))
+    checkRect(arena.layoutRect(manualChild), rect(7, 9, 10, 10))
+
 suite "NEP1 naming aliases":
   test "style aliases and compatibility wrappers refer to the same defaults":
     let original = defaultButtonStyle()
