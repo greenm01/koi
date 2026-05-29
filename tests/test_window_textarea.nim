@@ -235,3 +235,34 @@ suite "text area soft wrapping":
 
     renderOneFrame:
       textArea(2, Ax, Ay, c.width, Ah, text)
+
+suite "text area double-click word selection":
+  proc doubleClickAreaAt(text: var string, x, y: float) =
+    g_uiState.mbLeftDown = true
+    g_uiState.mx = x
+    g_uiState.my = y
+    g_uiState.lastMbLeftDownT = currentTime()
+    g_uiState.mbLeftDownT = currentTime()
+    g_uiState.lastMbLeftDownX = x
+    g_uiState.lastMbLeftDownY = y
+    ta(text)
+
+  test "double-click selects a word on the current line":
+    resetUi()
+    var text = ""
+    focusArea(text)
+    typeInto(text, "foo bar baz")
+    key(text, keyEnd)
+
+    doubleClickAreaAt(text, textBoxX() + 42.0, rowMouseY(0))
+    check selectedText(text) == "bar"
+
+  test "double-click word selection stops at punctuation":
+    resetUi()
+    var text = ""
+    focusArea(text)
+    typeInto(text, "foo.bar")
+    key(text, keyHome)
+
+    doubleClickAreaAt(text, textBoxX() + 8.0, rowMouseY(0))
+    check selectedText(text) == "foo"

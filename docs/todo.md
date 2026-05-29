@@ -12,7 +12,7 @@ to the deferred candidates that still look useful.
 
 ## Widgets And Input
 
-- Add double-click word selection and richer selection gestures to text areas.
+- Add richer selection gestures to text areas.
 - Extract deeper slider and scrollbar drag-state logic after focused tests cover
   drag, hidden cursor behavior, and track-repeat behavior.
 - Unify horizontal and vertical scrollbar implementations around one orientation

@@ -202,13 +202,25 @@ proc textArea*(
     elif ta.state in {tasEditLMBPressed, tasEdit} and ui.mbLeftDown and
         mouseInside(textBoxX, textBoxY, textBoxW, textBoxH):
       let cursorPos = cursorPosAtMouse(ui.mx, ui.my)
-      ta.cursorPos = cursorPos
-      ta.selection = TextSelection(startPos: cursorPos.int, endPos: cursorPos)
       ta.lastCursorXPos = float.none
-      ta.state = tasDragStart
+      if ta.state == tasEdit and isDoubleClick():
+        let startPos = findPrevWordStart(text, cursorPos)
+        var endPos = findNextWordEnd(text, cursorPos)
+        while endPos > startPos and not text.runeAtPos(endPos - 1).isAlphanumeric:
+          dec endPos
+        ta.selection = TextSelection(startPos: startPos.int, endPos: endPos)
+        ta.cursorPos = ta.selection.endPos
+        ta.state = tasDoubleClicked
+      else:
+        ta.cursorPos = cursorPos
+        ta.selection = TextSelection(startPos: cursorPos.int, endPos: cursorPos)
+        ta.state = tasDragStart
       cursorChanged = true
       if ui.hasEvent and not ui.eventHandled and ui.currEvent.kind == ekMouseButton:
         markEventHandled()
+    elif ta.state == tasDoubleClicked:
+      if not ui.mbLeftDown:
+        ta.state = tasEdit
     elif ta.state == tasDragStart:
       if ui.mbLeftDown:
         if ui.my < textBoxY:
