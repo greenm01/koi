@@ -37,6 +37,7 @@ func simpleWidgetState*(
 
 proc simpleWidgetBehavior*(id: ItemId, disabled: bool): SimpleWidgetBehavior =
   result.clicked =
+    not disabled and
     simpleWidgetClicked(id, g_uiState.mbLeftDown, isHot(id), isActive(id))
   result.state = simpleWidgetState(disabled, isHot(id), isActive(id), hasNoActiveItem())
 
@@ -44,13 +45,19 @@ proc selectableWidgetBehavior*(
     id: ItemId, disabled, selected: bool
 ): SimpleWidgetBehavior =
   result.clicked =
+    not disabled and
     simpleWidgetClicked(id, g_uiState.mbLeftDown, isHot(id), isActive(id))
   result.state =
     simpleWidgetState(disabled, isHot(id), isActive(id), hasNoActiveItem(), selected)
 
 func radioButtonState*(
-    hot, active, canHover, selected: bool, hotButton, buttonIndex: int
+    hot, active, canHover, selected: bool,
+    hotButton, buttonIndex: int,
+    disabled: bool = false,
 ): WidgetState =
+  if disabled:
+    return wsDisabled
+
   let groupState = simpleWidgetState(false, hot, active, canHover)
   let buttonHot = hotButton == buttonIndex
 

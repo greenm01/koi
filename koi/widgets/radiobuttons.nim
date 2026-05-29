@@ -122,6 +122,7 @@ proc radioButtons*[T](
     layout: RadioButtonsLayout = RadioButtonsLayout(kind: rblHoriz),
     drawProc: Option[RadioButtonsDrawProc] = RadioButtonsDrawProc.none,
     style: RadioButtonsStyle = borrowDefaultRadioButtonsStyle(),
+    disabled: bool = false,
 ) =
   if multiselect:
     assert activeButtons_out.len <= labels.len
@@ -165,7 +166,7 @@ proc radioButtons*[T](
   var hotButton = -1
 
   proc markHotAndActive() =
-    captureSimpleWidget(id, disabled = false)
+    captureSimpleWidget(id, disabled)
     if isActive(id):
       rs.activeItem = hotButton
 
@@ -219,7 +220,7 @@ proc radioButtons*[T](
       markHotAndActive()
 
   # LMB released over active widget means it was clicked
-  if simpleWidgetBehavior(id, disabled = false).clicked and rs.activeItem == hotButton:
+  if simpleWidgetBehavior(id, disabled).clicked and rs.activeItem == hotButton:
     let activeButton = T(hotButton)
 
     if multiselect and not ctrlDown():
@@ -243,6 +244,7 @@ proc radioButtons*[T](
       T(i) in activeButtons,
       hotButton,
       i.int,
+      disabled,
     )
 
   addLayoutDrawLayer(ui.currentLayer, slot.nodeId, vg, bounds):
@@ -369,6 +371,7 @@ template radioButtons*[T](
     layout: RadioButtonsLayout = RadioButtonsLayout(kind: rblHoriz),
     drawProc: Option[RadioButtonsDrawProc] = RadioButtonsDrawProc.none,
     style: RadioButtonsStyle = borrowDefaultRadioButtonsStyle(),
+    disabled: bool = false,
 ) =
   let i = instantiationInfo(fullPaths = true)
   let id = nextId(i.filename, i.line)
@@ -389,6 +392,7 @@ template radioButtons*[T](
     layout,
     drawProc,
     style,
+    disabled,
   )
 
   activeButton = activeButtons[0]
@@ -400,6 +404,7 @@ template radioButtons*[T](
     layout: RadioButtonsLayout = RadioButtonsLayout(kind: rblHoriz),
     drawProc: Option[RadioButtonsDrawProc] = RadioButtonsDrawProc.none,
     style: RadioButtonsStyle = borrowDefaultRadioButtonsStyle(),
+    disabled: bool = false,
 ) =
   let i = instantiationInfo(fullPaths = true)
   let id = nextId(i.filename, i.line)
@@ -422,6 +427,7 @@ template radioButtons*[T](
     layout,
     drawProc,
     style,
+    disabled,
   )
 
   autoLayoutPost()
@@ -437,13 +443,14 @@ template radioButtons*[T](
     layout: RadioButtonsLayout = RadioButtonsLayout(kind: rblHoriz),
     drawProc: Option[RadioButtonsDrawProc] = RadioButtonsDrawProc.none,
     style: RadioButtonsStyle = borrowDefaultRadioButtonsStyle(),
+    disabled: bool = false,
 ) =
   let i = instantiationInfo(fullPaths = true)
   let id = nextId(i.filename, i.line)
 
   radioButtons(
     id, x, y, w, h, labels, activeButtons, tooltips, multiselect, allowNoSelection,
-    layout, drawProc, style,
+    layout, drawProc, style, disabled,
   )
 
 template radioButtons*[T](
@@ -455,6 +462,7 @@ template radioButtons*[T](
     layout: RadioButtonsLayout = RadioButtonsLayout(kind: rblHoriz),
     drawProc: Option[RadioButtonsDrawProc] = RadioButtonsDrawProc.none,
     style: RadioButtonsStyle = borrowDefaultRadioButtonsStyle(),
+    disabled: bool = false,
 ) =
   let i = instantiationInfo(fullPaths = true)
   let id = nextId(i.filename, i.line)
@@ -475,6 +483,7 @@ template radioButtons*[T](
     layout,
     drawProc,
     style,
+    disabled,
   )
 
   autoLayoutPost()
@@ -486,6 +495,7 @@ template radioButtons*[E: enum](
     layout: RadioButtonsLayout = RadioButtonsLayout(kind: rblHoriz),
     drawProc: Option[RadioButtonsDrawProc] = RadioButtonsDrawProc.none,
     style: RadioButtonsStyle = borrowDefaultRadioButtonsStyle(),
+    disabled: bool = false,
 ) =
   let
     i = instantiationInfo(fullPaths = true)
@@ -507,6 +517,7 @@ template radioButtons*[E: enum](
     layout,
     drawProc,
     style,
+    disabled,
   )
   activeButton = activeButtons[0]
 
@@ -516,6 +527,7 @@ template radioButtons*[E: enum](
     layout: RadioButtonsLayout = RadioButtonsLayout(kind: rblHoriz),
     drawProc: Option[RadioButtonsDrawProc] = RadioButtonsDrawProc.none,
     style: RadioButtonsStyle = borrowDefaultRadioButtonsStyle(),
+    disabled: bool = false,
 ) =
   let
     i = instantiationInfo(fullPaths = true)
@@ -538,6 +550,7 @@ template radioButtons*[E: enum](
     layout,
     drawProc,
     style,
+    disabled,
   )
   activeButton = activeButtons[0]
   autoLayoutPost()
@@ -551,6 +564,7 @@ template multiRadioButtons*[T](
     layout: RadioButtonsLayout = RadioButtonsLayout(kind: rblHoriz),
     drawProc: Option[RadioButtonsDrawProc] = RadioButtonsDrawProc.none,
     style: RadioButtonsStyle = borrowDefaultRadioButtonsStyle(),
+    disabled: bool = false,
 ) =
   let i = instantiationInfo(fullPaths = true)
   let id = nextId(i.filename, i.line)
@@ -568,6 +582,7 @@ template multiRadioButtons*[T](
     layout,
     drawProc,
     style,
+    disabled,
   )
 
 template multiRadioButtons*[T](
@@ -578,6 +593,7 @@ template multiRadioButtons*[T](
     layout: RadioButtonsLayout = RadioButtonsLayout(kind: rblHoriz),
     drawProc: Option[RadioButtonsDrawProc] = RadioButtonsDrawProc.none,
     style: RadioButtonsStyle = borrowDefaultRadioButtonsStyle(),
+    disabled: bool = false,
 ) =
   let i = instantiationInfo(fullPaths = true)
   let id = nextId(i.filename, i.line)
@@ -597,6 +613,7 @@ template multiRadioButtons*[T](
     layout,
     drawProc,
     style,
+    disabled,
   )
   autoLayoutPost()
 
@@ -608,6 +625,7 @@ template multiRadioButtons*[E: enum](
     layout: RadioButtonsLayout = RadioButtonsLayout(kind: rblHoriz),
     drawProc: Option[RadioButtonsDrawProc] = RadioButtonsDrawProc.none,
     style: RadioButtonsStyle = borrowDefaultRadioButtonsStyle(),
+    disabled: bool = false,
 ) =
   let
     i = instantiationInfo(fullPaths = true)
@@ -632,6 +650,7 @@ template multiRadioButtons*[E: enum](
     layout,
     drawProc,
     style,
+    disabled,
   )
 
   activeButtons = {}
@@ -645,6 +664,7 @@ template multiRadioButtons*[E: enum](
     layout: RadioButtonsLayout = RadioButtonsLayout(kind: rblHoriz),
     drawProc: Option[RadioButtonsDrawProc] = RadioButtonsDrawProc.none,
     style: RadioButtonsStyle = borrowDefaultRadioButtonsStyle(),
+    disabled: bool = false,
 ) =
   let
     i = instantiationInfo(fullPaths = true)
@@ -670,6 +690,7 @@ template multiRadioButtons*[E: enum](
     layout,
     drawProc,
     style,
+    disabled,
   )
 
   activeButtons = {}

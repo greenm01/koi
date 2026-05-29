@@ -554,6 +554,73 @@ suite "layout-integrated widget behavior":
     check isActive(30)
     check g_uiState.radioButtonState.activeItem == 2
 
+  test "disabled radio group does not activate or change selection":
+    resetUi()
+    type Choice = enum
+      c0
+      c1
+      c2
+
+    var activeButtons = @[c0]
+    g_uiState.layoutRects[301] = rect(40, 40, 30, 10)
+    g_uiState.mx = 55
+    g_uiState.my = 45
+    g_uiState.mbLeftDown = true
+
+    radioButtons(
+      301,
+      0,
+      0,
+      10,
+      5,
+      @["A", "B", "C"],
+      activeButtons,
+      multiselect = false,
+      allowNoSelection = false,
+      disabled = true,
+    )
+
+    check isHot(301)
+    check not isActive(301)
+    check activeButtons == @[c0]
+
+  test "radio custom draw receives disabled state":
+    resetUi()
+    type Choice = enum
+      c0
+      c1
+
+    var
+      activeButtons = @[c0]
+      states: seq[WidgetState] = @[]
+    let drawProc: RadioButtonsDrawProc = proc(
+        vg: NVGContext,
+        id: ItemId,
+        x, y, w, h: float,
+        buttonIdx, numButtons: Natural,
+        label: string,
+        state: WidgetState,
+        style: RadioButtonsStyle,
+    ) =
+      states.add(state)
+
+    radioButtons(
+      302,
+      0,
+      0,
+      10,
+      5,
+      @["A", "B"],
+      activeButtons,
+      multiselect = false,
+      allowNoSelection = false,
+      drawProc = drawProc.some,
+      disabled = true,
+    )
+    g_drawLayers.draw(g_nvgContext)
+
+    check states == @[wsDisabled, wsDisabled]
+
   test "section header hit testing uses a previous solved rect":
     resetUi()
     var expanded = false
@@ -1613,6 +1680,15 @@ suite "simple widget behavior":
     check simpleWidgetClicked(10, mbLeftDown = false, hot = true, active = false) ==
       false
     check simpleWidgetClicked(10, mbLeftDown = false, hot = true, active = true)
+
+  test "disabled behavior suppresses stale active clicks":
+    resetUi()
+    g_uiState.hotItem = 10
+    g_uiState.activeItem = 10
+    g_uiState.mbLeftDown = false
+
+    check not simpleWidgetBehavior(10, disabled = true).clicked
+    check not selectableWidgetBehavior(10, disabled = true, selected = true).clicked
 
   test "plain widget states cover normal hover down and disabled":
     check simpleWidgetState(false, false, false, true) == wsNormal
