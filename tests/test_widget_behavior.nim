@@ -17,6 +17,7 @@ import koi/widgets/button
 import koi/widgets/chart
 import koi/widgets/checkbox
 import koi/widgets/colorpicker
+import koi/widgets/common
 import koi/widgets/dropdown
 import koi/widgets/groupbox
 import koi/widgets/image
@@ -671,6 +672,8 @@ suite "layout-integrated widget behavior":
     check g_drawLayers.layers[ord(layerDefault)].len == 1
 
     endView()
+    check g_uiState.layoutArena.nodes.len == 1
+    check g_drawLayers.layers[ord(layerDefault)].len == 2
 
   test "scroll view wheel hit testing uses a previous solved rect":
     resetUi()
@@ -686,6 +689,18 @@ suite "layout-integrated widget behavior":
     check eventHandled()
     check scrollViewStartY(44) > 0
     check g_uiState.layoutArena.nodes.len == 2
+
+  test "scroll view restore does not register another layout node":
+    resetUi()
+
+    beginScrollView(49, 0, 0, 50, 30)
+    check g_uiState.layoutArena.nodes.len == 1
+    check g_drawLayers.layers[ord(layerDefault)].len == 1
+
+    endScrollView(20)
+
+    check g_uiState.layoutArena.nodes.len == 1
+    check g_drawLayers.layers[ord(layerDefault)].len == 2
 
   test "auto-layout views register under active rows":
     resetUi()
@@ -1005,6 +1020,14 @@ suite "scroll view behavior":
     endScrollView(100, 20)
 
 suite "feature widget behavior":
+  test "tooltip drawing registers a draw-only layout node":
+    resetUi()
+
+    drawTooltip(20, 20, "Tip")
+
+    check g_uiState.layoutArena.nodes.len == 1
+    check g_drawLayers.layers[ord(layerTooltip)].len == 1
+
   test "dialog background registers a layout-backed draw node":
     resetUi()
 

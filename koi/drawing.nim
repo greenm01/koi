@@ -103,6 +103,10 @@ template addDrawLayer*(layer: DrawLayer, vg, body: untyped) =
       body,
   )
 
+template addDrawStateLayer*(layer: DrawLayer, vg, body: untyped) =
+  addDrawLayer(layer, vg):
+    body
+
 proc draw*(dl: DrawLayers, vg: NVGContext) =
   for layer in dl.layers:
     for drawProc in layer:

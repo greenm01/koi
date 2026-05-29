@@ -6,6 +6,8 @@ import koi/types
 import koi/core
 import koi/input
 import koi/drawing
+import koi/layout
+import koi/rect
 import koi/defaults
 import koi/utils
 
@@ -43,38 +45,43 @@ proc handleTooltip*(id: ItemId, tooltip: string) =
       requestFrames()
 
 proc drawTooltip*(x, y: float, text: string, alpha: float = 1.0) =
-  addDrawLayer(layerTooltip, vg):
-    var w = 300.0
-    let fontSize = 14.0
-    let lineHeight = 1.4
-    let padX = 10.0
-    let padY = 10.0
+  let fontSize = 14.0
+  let lineHeight = 1.4
+  let padX = 10.0
+  let padY = 10.0
+  let measure = measureLayoutText(text, fontSize, "sans-bold", 300.0 - padX * 2)
+  let
+    tooltipW =
+      if measure.lineCount <= 1:
+        measure.prefWidth + padX * 2
+      else:
+        300.0
+    tooltipH = fontSize * lineHeight * measure.lineCount.float + padY * 2
+    (tx, ty) =
+      fitRectWithinWindow(tooltipW, tooltipH, x - 8, y - 8, 30, 30, haLeft)
+    slot = layoutDrawSlot(0, rect(round(tx), round(ty), tooltipW, tooltipH))
 
+  addLayoutDrawLayer(layerTooltip, slot.nodeId, vg, bounds):
     vg.useFont(fontSize, "sans-bold")
 
-    var rows = textBreakLines(text, w - padX * 2)
-    var h = fontSize * lineHeight * rows.len.float + padY * 2
+    let rows = textBreakLines(text, bounds.w - padX * 2)
 
-    if rows.len == 1:
-      w = vg.textWidth(text) + padX * 2
-
-    var (tx, ty) = fitRectWithinWindow(w, h, x - 8, y - 8, 30, 30, haLeft)
-    let (_, _, rw, rh) = snapToGrid(tx, ty, w, h)
-    tx = round(tx)
-    ty = round(ty)
+    let (_, _, rw, rh) = snapToGrid(bounds.x, bounds.y, bounds.w, bounds.h)
 
     vg.globalAlpha(alpha)
-    drawShadow(vg, tx, ty, rw, rh, borrowDefaultShadowStyle())
+    drawShadow(vg, bounds.x, bounds.y, rw, rh, borrowDefaultShadowStyle())
 
     vg.beginPath()
-    vg.roundedRect(tx, ty, rw, rh, 5)
+    vg.roundedRect(bounds.x, bounds.y, rw, rh, 5)
     vg.fillColor(gray(0.1, 0.88))
     vg.fill()
 
     vg.fillColor(white(0.9))
-    var curY = ty + padY + fontSize * lineHeight * 0.55
+    var curY = bounds.y + padY + fontSize * lineHeight * 0.55
     for row in rows:
-      discard vg.text(tx + padX, curY, text, row.startBytePos, row.endBytePos)
+      discard vg.text(
+        bounds.x + padX, curY, text, row.startBytePos, row.endBytePos
+      )
       curY += fontSize * lineHeight
 
     vg.globalAlpha(1.0)

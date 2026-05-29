@@ -84,7 +84,7 @@ template beginView*(x, y, w, h: float) =
 
 proc endView*() =
   alias(ui, g_uiState)
-  addDrawLayer(ui.currentLayer, vg):
+  addDrawStateLayer(ui.currentLayer, vg):
     vg.restore()
   popDrawOffset()
   autoLayoutFinal()
@@ -134,7 +134,7 @@ proc endScrollView*(contentW, contentH: float) =
   alias(ui, g_uiState)
   alias(a, ui.autoLayoutState)
 
-  addDrawLayer(ui.currentLayer, vg):
+  addDrawStateLayer(ui.currentLayer, vg):
     vg.restore()
 
   popDrawOffset()
