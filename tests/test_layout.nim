@@ -958,6 +958,29 @@ suite "NEP1 naming aliases":
       setDefaultButtonStyle(originalButton)
       setDefaultTextAreaStyle(originalTextArea)
 
+  test "global default font applies to text-bearing styles":
+    let originalFont = defaultFont()
+
+    try:
+      setDefaultFont("test-font", 17.0)
+
+      check defaultFont().fontFace == "test-font"
+      checkClose(defaultFont().fontSize, 17.0)
+      check borrowDefaultLabelStyle().fontFace == "test-font"
+      checkClose(borrowDefaultLabelStyle().fontSize, 17.0)
+      check borrowDefaultButtonStyle().label.fontFace == "test-font"
+      checkClose(borrowDefaultButtonStyle().label.fontSize, 17.0)
+      check borrowDefaultTextFieldStyle().textFontFace == "test-font"
+      checkClose(borrowDefaultTextFieldStyle().textFontSize, 17.0)
+      check borrowDefaultTextAreaStyle().textFontFace == "test-font"
+      checkClose(borrowDefaultTextAreaStyle().textFontSize, 17.0)
+      check borrowDefaultTooltipStyle().fontFace == "test-font"
+      checkClose(borrowDefaultTooltipStyle().fontSize, 17.0)
+      check borrowDefaultTableStyle().rowLabel.fontFace == "test-font"
+      checkClose(borrowDefaultTableStyle().rowLabel.fontSize, 17.0)
+    finally:
+      setDefaultFont(originalFont.fontFace, originalFont.fontSize)
+
   test "state aliases preserve old wrapper behavior":
     g_uiState = UIState.default
 

@@ -994,3 +994,72 @@ const DefaultAutoLayoutParams* = AutoLayoutParams(
   defaultRowHeight: 21.0,
   defaultItemHeight: 21.0,
 )
+
+proc setLabelFont(style: LabelStyle, fontFace: string, fontSize: float) =
+  if style != nil:
+    style.fontFace = fontFace
+    style.fontSize = fontSize
+
+proc setButtonFont(style: ButtonStyle, fontFace: string, fontSize: float) =
+  if style != nil:
+    setLabelFont(style.label, fontFace, fontSize)
+
+proc setSelectableFont(style: SelectableStyle, fontFace: string, fontSize: float) =
+  if style != nil:
+    setLabelFont(style.label, fontFace, fontSize)
+
+proc setTextFieldFont(style: TextFieldStyle, fontFace: string, fontSize: float) =
+  if style != nil:
+    style.textFontFace = fontFace
+    style.textFontSize = fontSize
+
+proc defaultFont*(): tuple[fontFace: string, fontSize: float] =
+  (DefaultLabelStyle.fontFace, DefaultLabelStyle.fontSize)
+
+proc getDefaultFont*(): tuple[fontFace: string, fontSize: float] =
+  defaultFont()
+
+proc setDefaultFont*(fontFace: string, fontSize: float) =
+  doAssert fontFace.len > 0
+  doAssert fontSize > 0
+
+  setLabelFont(DefaultLabelStyle, fontFace, fontSize)
+
+  DefaultTooltipStyle.fontFace = fontFace
+  DefaultTooltipStyle.fontSize = fontSize
+
+  setButtonFont(DefaultButtonStyle, fontFace, fontSize)
+  setSelectableFont(DefaultSelectableStyle, fontFace, fontSize)
+  setLabelFont(DefaultToggleButtonStyle.label, fontFace, fontSize)
+  setLabelFont(DefaultToggleButtonStyle.labelActive, fontFace, fontSize)
+  setLabelFont(DefaultCheckBoxStyle.icon, fontFace, fontSize)
+  setLabelFont(DefaultRadioButtonsStyle.label, fontFace, fontSize)
+
+  setLabelFont(DefaultDropDownStyle.label, fontFace, fontSize)
+  setLabelFont(DefaultDropDownStyle.item, fontFace, fontSize)
+  setTextFieldFont(DefaultTextFieldStyle, fontFace, fontSize)
+  DefaultTextAreaStyle.textFontFace = fontFace
+  DefaultTextAreaStyle.textFontSize = fontSize
+
+  setLabelFont(DefaultSliderStyle.label, fontFace, fontSize)
+  setLabelFont(DefaultSliderStyle.value, fontFace, fontSize)
+  setLabelFont(DefaultProgressStyle.label, fontFace, fontSize)
+
+  setLabelFont(DefaultPropertyStyle.label, fontFace, fontSize)
+  setButtonFont(DefaultPropertyStyle.button, fontFace, fontSize)
+  setTextFieldFont(DefaultPropertyStyle.textField, fontFace, fontSize)
+
+  setButtonFont(DefaultMenuStyle.button, fontFace, fontSize)
+  setSelectableFont(DefaultMenuStyle.item, fontFace, fontSize)
+
+  setLabelFont(DefaultSectionHeaderStyle.label, fontFace, fontSize)
+  setLabelFont(DefaultSubSectionHeaderStyle.label, fontFace, fontSize)
+  setLabelFont(DefaultChartStyle.label, fontFace, fontSize)
+  setLabelFont(DefaultTableStyle.headerLabel, fontFace, fontSize)
+  setLabelFont(DefaultTableStyle.rowLabel, fontFace, fontSize)
+  setButtonFont(DefaultColorComboStyle.button, fontFace, fontSize)
+  setLabelFont(DefaultColorComboStyle.label, fontFace, fontSize)
+  setLabelFont(DefaultGroupBoxStyle.titleLabel, fontFace, fontSize)
+
+proc defaultFont*(fontFace: string, fontSize: float) =
+  setDefaultFont(fontFace, fontSize)

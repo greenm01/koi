@@ -15,5 +15,5 @@ to the deferred candidates that still look useful.
 
 ## Layout And Theming
 
-- Finish complete theming coverage, including global theme parameters such as
-  font, corner roundness, and colors.
+- Finish complete theming coverage, including global theme parameters for
+  corner roundness and colors.

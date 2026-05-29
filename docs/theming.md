@@ -14,6 +14,11 @@ Transient UI should follow the same rule as visible widgets. Tooltips use
 `TooltipStyle`, including font metrics, padding, maximum width, corner radius,
 background/text colors, and shadow, instead of hard-coded drawing constants.
 
+Global theme parameters are intentionally small convenience setters layered on
+top of those same style values. `setDefaultFont` updates the default font face
+and size across the default text-bearing widget styles; callers can still edit
+individual style objects when a widget needs a different font.
+
 Core style fields should meet three tests:
 
 - They describe widget behavior or appearance in renderer-neutral terms.
