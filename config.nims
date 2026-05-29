@@ -1,6 +1,12 @@
 import std/os
 import std/strutils
 
+when defined(waylandBackend):
+  exec "zig build -Doptimize=Debug --build-file koi/wayland/build.zig"
+  switch("passL", "-Lkoi/wayland/zig-out/lib -lkoi_wayland")
+  switch("passL", "-lwayland-client -lxkbcommon")
+  switch("passC", "-Ikoi/wayland")
+
 proc setCommonCompileParams() =
   --gc:
     orc
