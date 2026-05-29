@@ -281,10 +281,13 @@ template menuItemImage*(
 template menu*(label: string, popupW, popupH: float, body: untyped) =
   let i = instantiationInfo(fullPaths = true)
   let id = nextId(i.filename, i.line, label)
+  let popupId = hashId($id & ":popup")
   let style = activeMenuStyle
   let buttonX = menuBarCursorX
   let buttonW = style.menuButtonWidth
   let headerIndex = menuBarIndex
+  let (buttonSx, buttonSy) = addDrawOffset(buttonX, menuBarY)
+  let buttonSlot = layoutSlot(id, rect(buttonSx, buttonSy, buttonW, menuBarH))
 
   if g_uiState.menuTraversalState.activeMenu != 0 and
       g_uiState.menuTraversalState.activeMenuIndex + g_uiState.menuTraversalState.moved ==
@@ -294,7 +297,7 @@ template menu*(label: string, popupW, popupH: float, body: untyped) =
     g_uiState.menuTraversalState.activeItem = 0
     openPopup(id)
 
-  if button(buttonX, menuBarY, buttonW, menuBarH, label, style = style.button):
+  if buttonWithSlot(buttonSlot, id, label, "", false, style = style.button):
     g_uiState.menuTraversalState.activeMenu = id
     g_uiState.menuTraversalState.activeMenuIndex = headerIndex
     g_uiState.menuTraversalState.activeItem = 0
@@ -303,15 +306,22 @@ template menu*(label: string, popupW, popupH: float, body: untyped) =
   menuBarCursorX += buttonW
   inc(menuBarIndex)
 
-  if beginPopup(id, buttonX, menuBarY + menuBarH, popupW, popupH, style.popup):
-    g_uiState.menuTraversalState.activeMenu = id
-    g_uiState.menuTraversalState.activeMenuIndex = headerIndex
-    beginMenuItems(popupW, style)
-    try:
-      body
-    finally:
-      endMenuItems()
-      endPopup()
+  if isPopupOpen(id):
+    let popupSlot = layoutFollowerSlot(
+      popupId,
+      rect(buttonSx, buttonSy + menuBarH, popupW, popupH),
+      buttonSlot.nodeId,
+      lfkDropdownPopup,
+    )
+    if beginPopupWithSlot(id, popupSlot, style.popup):
+      g_uiState.menuTraversalState.activeMenu = id
+      g_uiState.menuTraversalState.activeMenuIndex = headerIndex
+      beginMenuItems(popupW, style)
+      try:
+        body
+      finally:
+        endMenuItems()
+        endPopup()
 
 proc contextMenuState(id: ItemId): ContextMenuState =
   alias(ui, g_uiState)

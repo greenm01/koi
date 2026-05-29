@@ -244,6 +244,50 @@ suite "menu behavior":
     check not isPopupOpen(40)
     endContextMenu()
 
+  test "open menu bar popup follows solved menu button rect":
+    resetUi()
+    g_uiState.winWidth = 240
+    g_uiState.winHeight = 120
+
+    useNextId("menu-layout-test")
+    let
+      menuId = hashId("menu-layout-test")
+      popupId = hashId($menuId & ":popup")
+    openPopup(menuId)
+    g_uiState.mbLeftDown = false
+
+    beginFrameLayout()
+    beginMenuBar(10, 10, 120, 24)
+    menu("File", 80, 40):
+      menuLabel("Open")
+    endMenuBar()
+    finishFrameLayout()
+
+    var buttonNode = NullLayoutNodeId
+    var popupNode = NullLayoutNodeId
+    for node in g_uiState.layoutArena.nodes:
+      if node.itemId == menuId:
+        buttonNode = node.id
+      elif node.itemId == popupId:
+        popupNode = node.id
+
+    check not buttonNode.isNull
+    check not popupNode.isNull
+    check g_uiState.layoutArena.nodes[popupNode.int].placement.kind == lpkFollow
+    check g_uiState.layoutArena.nodes[popupNode.int].placement.followKind ==
+      lfkDropdownPopup
+    check int32(g_uiState.layoutArena.nodes[popupNode.int].placement.target) ==
+      int32(buttonNode)
+    check g_uiState.layoutRects.hasKey(menuId)
+    check g_uiState.layoutRects.hasKey(popupId)
+
+    let
+      buttonRect = g_uiState.layoutRects[menuId]
+      popupRect = g_uiState.layoutRects[popupId]
+    check popupRect.x == buttonRect.x
+    check popupRect.y == buttonRect.y + buttonRect.h
+    check popupRect != buttonRect
+
 suite "image widget behavior":
   test "image button with an empty paint keeps normal click behavior":
     resetUi()
