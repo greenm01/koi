@@ -93,6 +93,18 @@ The Zig layer compiles to `libkoi_wayland.a` and exposes this interface:
 typedef struct KoiWaylandDisplay KoiWaylandDisplay;
 typedef struct KoiWaylandWindow  KoiWaylandWindow;
 
+typedef enum {
+  KOI_WAYLAND_CURSOR_DEFAULT,
+  KOI_WAYLAND_CURSOR_TEXT,
+  KOI_WAYLAND_CURSOR_CROSSHAIR,
+  KOI_WAYLAND_CURSOR_POINTER,
+  KOI_WAYLAND_CURSOR_RESIZE_EW,
+  KOI_WAYLAND_CURSOR_RESIZE_NS,
+  KOI_WAYLAND_CURSOR_RESIZE_NWSE,
+  KOI_WAYLAND_CURSOR_RESIZE_NESW,
+  KOI_WAYLAND_CURSOR_RESIZE_ALL,
+} KoiWaylandCursorShape;
+
 typedef struct {
   void (*on_close)       (void* ud);
   void (*on_resize)      (uint32_t w, uint32_t h, void* ud);
@@ -114,8 +126,11 @@ void               koi_wayland_set_callbacks(KoiWaylandWindow*,
 void               koi_wayland_poll_events(KoiWaylandDisplay*);
 void*              koi_wayland_get_wl_display(KoiWaylandDisplay*);
 void*              koi_wayland_get_wl_surface(KoiWaylandWindow*);
+bool               koi_wayland_window_should_close(KoiWaylandWindow*);
 void               koi_wayland_set_title(KoiWaylandWindow*, const char*);
 void               koi_wayland_set_size(KoiWaylandWindow*, uint32_t w, uint32_t h);
+void               koi_wayland_set_cursor_shape(KoiWaylandWindow*,
+                                                 KoiWaylandCursorShape);
 void               koi_wayland_destroy_window(KoiWaylandWindow*);
 void               koi_wayland_destroy(KoiWaylandDisplay*);
 ```
@@ -123,6 +138,11 @@ void               koi_wayland_destroy(KoiWaylandDisplay*);
 `koi_wayland_get_wl_display` and `koi_wayland_get_wl_surface` return opaque
 pointers passed directly to wgpu-native's surface descriptor. Koi's Nim code
 never dereferences them.
+
+`koi_wayland_set_cursor_shape` uses `wp_cursor_shape_v1` when the compositor
+advertises it and is otherwise a no-op. `koi_wayland_window_should_close`
+mirrors the close callback so direct event loops can poll close state without
+maintaining separate userdata.
 
 ### Build
 

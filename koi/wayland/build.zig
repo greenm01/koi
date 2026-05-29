@@ -4,6 +4,8 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
     const xdg_shell_xml = "/usr/share/wayland-protocols/stable/xdg-shell/xdg-shell.xml";
+    const cursor_shape_xml = "/usr/share/wayland-protocols/staging/cursor-shape/cursor-shape-v1.xml";
+    const tablet_xml = "/usr/share/wayland-protocols/unstable/tablet/tablet-unstable-v2.xml";
 
     const xdg_header_step = b.addSystemCommand(&.{
         "wayland-scanner",
@@ -19,6 +21,27 @@ pub fn build(b: *std.Build) void {
     });
     const xdg_code = xdg_code_step.addOutputFileArg("xdg-shell-protocol.c");
 
+    const cursor_shape_header_step = b.addSystemCommand(&.{
+        "wayland-scanner",
+        "client-header",
+        cursor_shape_xml,
+    });
+    const cursor_shape_header = cursor_shape_header_step.addOutputFileArg("cursor-shape-v1-client-protocol.h");
+
+    const cursor_shape_code_step = b.addSystemCommand(&.{
+        "wayland-scanner",
+        "private-code",
+        cursor_shape_xml,
+    });
+    const cursor_shape_code = cursor_shape_code_step.addOutputFileArg("cursor-shape-v1-protocol.c");
+
+    const tablet_code_step = b.addSystemCommand(&.{
+        "wayland-scanner",
+        "private-code",
+        tablet_xml,
+    });
+    const tablet_code = tablet_code_step.addOutputFileArg("tablet-unstable-v2-protocol.c");
+
     const module = b.createModule(.{
         .root_source_file = b.path("koi_wayland.zig"),
         .target = target,
@@ -26,8 +49,17 @@ pub fn build(b: *std.Build) void {
         .link_libc = true,
     });
     module.addIncludePath(xdg_header.dirname());
+    module.addIncludePath(cursor_shape_header.dirname());
     module.addCSourceFile(.{
         .file = xdg_code,
+        .flags = &.{ "-std=c11", "-Wall", "-Wextra" },
+    });
+    module.addCSourceFile(.{
+        .file = cursor_shape_code,
+        .flags = &.{ "-std=c11", "-Wall", "-Wextra" },
+    });
+    module.addCSourceFile(.{
+        .file = tablet_code,
         .flags = &.{ "-std=c11", "-Wall", "-Wextra" },
     });
     module.linkSystemLibrary("wayland-client", .{ .use_pkg_config = .yes });

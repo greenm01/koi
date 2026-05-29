@@ -76,6 +76,7 @@ when isMainModule:
     quit "Could not create native Wayland window."
 
   koiWaylandSetCallbacks(window, addr callbacks)
+  koiWaylandSetCursorShape(window, kwcDefault)
 
   var backend: KoiWgpuBackend
   let (surfaceW, surfaceH) = surfaceSize(window)
@@ -84,7 +85,7 @@ when isMainModule:
   )
   let vg = backend.createNanoVgContext({nifAntialias})
 
-  while not state.closed:
+  while not state.closed and not koiWaylandWindowShouldClose(window):
     koiWaylandPollEvents(display)
     let (width, height) = surfaceSize(window)
     backend.resizeKoiWgpuBackend(width, height)

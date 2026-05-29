@@ -18,6 +18,18 @@ enum {
   KOI_WAYLAND_MOD_SUPER = 1u << 3,
 };
 
+typedef enum {
+  KOI_WAYLAND_CURSOR_DEFAULT = 1,
+  KOI_WAYLAND_CURSOR_TEXT = 2,
+  KOI_WAYLAND_CURSOR_CROSSHAIR = 3,
+  KOI_WAYLAND_CURSOR_POINTER = 4,
+  KOI_WAYLAND_CURSOR_RESIZE_EW = 5,
+  KOI_WAYLAND_CURSOR_RESIZE_NS = 6,
+  KOI_WAYLAND_CURSOR_RESIZE_NWSE = 7,
+  KOI_WAYLAND_CURSOR_RESIZE_NESW = 8,
+  KOI_WAYLAND_CURSOR_RESIZE_ALL = 9,
+} KoiWaylandCursorShape;
+
 typedef struct {
   void (*on_close)(void* userdata);
   void (*on_resize)(uint32_t w, uint32_t h, void* userdata);
@@ -41,8 +53,11 @@ void* koi_wayland_get_wl_display(KoiWaylandDisplay* display);
 void* koi_wayland_get_wl_surface(KoiWaylandWindow* window);
 uint32_t koi_wayland_get_width(KoiWaylandWindow* window);
 uint32_t koi_wayland_get_height(KoiWaylandWindow* window);
+bool koi_wayland_window_should_close(KoiWaylandWindow* window);
 void koi_wayland_set_title(KoiWaylandWindow* window, const char* title);
 void koi_wayland_set_size(KoiWaylandWindow* window, uint32_t w, uint32_t h);
+void koi_wayland_set_cursor_shape(
+    KoiWaylandWindow* window, KoiWaylandCursorShape shape);
 void koi_wayland_destroy_window(KoiWaylandWindow* window);
 void koi_wayland_destroy(KoiWaylandDisplay* display);
 

@@ -9,6 +9,17 @@ const
   koiWaylandModAlt* = 1'u32 shl 2
   koiWaylandModSuper* = 1'u32 shl 3
 
+type KoiWaylandCursorShape* {.size: sizeof(cint).} = enum
+  kwcDefault = 1
+  kwcText = 2
+  kwcCrosshair = 3
+  kwcPointer = 4
+  kwcResizeEW = 5
+  kwcResizeNS = 6
+  kwcResizeNWSE = 7
+  kwcResizeNESW = 8
+  kwcResizeAll = 9
+
 type KoiWaylandCallbacks* {.bycopy, importc, header: "koi_wayland.h".} = object
   onClose* {.importc: "on_close".}: proc(userdata: pointer) {.cdecl.}
   onResize* {.importc: "on_resize".}: proc(w, h: uint32, userdata: pointer) {.cdecl.}
@@ -60,6 +71,10 @@ proc koiWaylandGetHeight*(
   window: ptr KoiWaylandWindow
 ): uint32 {.cdecl, importc: "koi_wayland_get_height", header: "koi_wayland.h".}
 
+proc koiWaylandWindowShouldClose*(
+  window: ptr KoiWaylandWindow
+): bool {.cdecl, importc: "koi_wayland_window_should_close", header: "koi_wayland.h".}
+
 proc koiWaylandSetTitle*(
   window: ptr KoiWaylandWindow, title: cstring
 ) {.cdecl, importc: "koi_wayland_set_title", header: "koi_wayland.h".}
@@ -67,6 +82,10 @@ proc koiWaylandSetTitle*(
 proc koiWaylandSetSize*(
   window: ptr KoiWaylandWindow, w, h: uint32
 ) {.cdecl, importc: "koi_wayland_set_size", header: "koi_wayland.h".}
+
+proc koiWaylandSetCursorShape*(
+  window: ptr KoiWaylandWindow, shape: KoiWaylandCursorShape
+) {.cdecl, importc: "koi_wayland_set_cursor_shape", header: "koi_wayland.h".}
 
 proc koiWaylandDestroyWindow*(
   window: ptr KoiWaylandWindow

@@ -1,7 +1,9 @@
 const std = @import("std");
 const c = @cImport({
+    @cInclude("poll.h");
     @cInclude("time.h");
     @cInclude("unistd.h");
+    @cInclude("cursor-shape-v1-client-protocol.h");
     @cInclude("wayland-client.h");
     @cInclude("xkbcommon/xkbcommon.h");
     @cInclude("xdg-shell-client-protocol.h");
@@ -13,6 +15,16 @@ const KoiWaylandModShift: u32 = 1 << 0;
 const KoiWaylandModCtrl: u32 = 1 << 1;
 const KoiWaylandModAlt: u32 = 1 << 2;
 const KoiWaylandModSuper: u32 = 1 << 3;
+
+const KoiWaylandCursorDefault: u32 = 1;
+const KoiWaylandCursorText: u32 = 2;
+const KoiWaylandCursorCrosshair: u32 = 3;
+const KoiWaylandCursorPointer: u32 = 4;
+const KoiWaylandCursorResizeEw: u32 = 5;
+const KoiWaylandCursorResizeNs: u32 = 6;
+const KoiWaylandCursorResizeNwse: u32 = 7;
+const KoiWaylandCursorResizeNesw: u32 = 8;
+const KoiWaylandCursorResizeAll: u32 = 9;
 
 const KoiWaylandCallbacks = extern struct {
     on_close: ?*const fn (?*anyopaque) callconv(.c) void,
@@ -36,6 +48,9 @@ const KoiWaylandDisplay = extern struct {
     wl_keyboard: ?*c.struct_wl_keyboard,
     wl_output: ?*c.struct_wl_output,
     xdg_wm_base: ?*c.struct_xdg_wm_base,
+    cursor_shape_manager: ?*c.struct_wp_cursor_shape_manager_v1,
+    cursor_shape_device: ?*c.struct_wp_cursor_shape_device_v1,
+    cursor_shape_version: u32,
     xkb_context: ?*c.struct_xkb_context,
     xkb_keymap: ?*c.struct_xkb_keymap,
     xkb_state: ?*c.struct_xkb_state,
@@ -55,6 +70,7 @@ const KoiWaylandDisplay = extern struct {
     active_window: ?*KoiWaylandWindow,
     pointer_window: ?*KoiWaylandWindow,
     keyboard_window: ?*KoiWaylandWindow,
+    pointer_enter_serial: u32,
 };
 
 const KoiWaylandWindow = extern struct {
@@ -65,6 +81,11 @@ const KoiWaylandWindow = extern struct {
     callbacks: KoiWaylandCallbacks,
     width: u32,
     height: u32,
+    pending_width: u32,
+    pending_height: u32,
+    has_pending_resize: bool,
+    closed: bool,
+    cursor_shape: u32,
     scale: f64,
 };
 
@@ -128,6 +149,24 @@ fn registryGlobal(
         if (display.xdg_wm_base) |wm_base| {
             _ = c.xdg_wm_base_add_listener(wm_base, &xdg_wm_base_listener, display);
         }
+    } else if (cStringEquals(interface, "wp_cursor_shape_manager_v1")) {
+        const cursor_shape_version = @min(version, 2);
+        display.cursor_shape_manager = bindGlobal(
+            c.struct_wp_cursor_shape_manager_v1,
+            reg,
+            name,
+            &c.wp_cursor_shape_manager_v1_interface,
+            cursor_shape_version,
+        );
+        display.cursor_shape_version = cursor_shape_version;
+        if (display.cursor_shape_manager) |manager| {
+            if (display.wl_pointer) |pointer| {
+                display.cursor_shape_device = c.wp_cursor_shape_manager_v1_get_pointer(
+                    manager,
+                    pointer,
+                );
+            }
+        }
     } else if (cStringEquals(interface, "wl_seat")) {
         display.wl_seat = bindGlobal(
             c.struct_wl_seat,
@@ -182,11 +221,22 @@ fn wlSeatCapabilities(
         display.wl_pointer = c.wl_seat_get_pointer(seat);
         if (display.wl_pointer) |pointer| {
             _ = c.wl_pointer_add_listener(pointer, &wl_pointer_listener, display);
+            if (display.cursor_shape_manager) |manager| {
+                display.cursor_shape_device = c.wp_cursor_shape_manager_v1_get_pointer(
+                    manager,
+                    pointer,
+                );
+            }
         }
     } else if (!has_pointer and display.wl_pointer != null) {
+        if (display.cursor_shape_device) |device| {
+            c.wp_cursor_shape_device_v1_destroy(device);
+            display.cursor_shape_device = null;
+        }
         c.wl_pointer_destroy(display.wl_pointer.?);
         display.wl_pointer = null;
         display.pointer_window = null;
+        display.pointer_enter_serial = 0;
     }
 
     if (has_keyboard and display.wl_keyboard == null) {
@@ -296,6 +346,36 @@ const wl_output_listener = c.struct_wl_output_listener{
     .scale = wlOutputScale,
 };
 
+fn protocolCursorShape(shape: u32, version: u32) u32 {
+    return switch (shape) {
+        KoiWaylandCursorText => c.WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_TEXT,
+        KoiWaylandCursorCrosshair => c.WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_CROSSHAIR,
+        KoiWaylandCursorPointer => c.WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_POINTER,
+        KoiWaylandCursorResizeEw => c.WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_EW_RESIZE,
+        KoiWaylandCursorResizeNs => c.WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_NS_RESIZE,
+        KoiWaylandCursorResizeNwse => c.WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_NWSE_RESIZE,
+        KoiWaylandCursorResizeNesw => c.WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_NESW_RESIZE,
+        KoiWaylandCursorResizeAll => if (version >= 2)
+            c.WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_ALL_RESIZE
+        else
+            c.WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_ALL_SCROLL,
+        else => c.WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_DEFAULT,
+    };
+}
+
+fn applyCursorShape(window: *KoiWaylandWindow) void {
+    const display = window.display orelse return;
+    if (display.pointer_window != window or display.pointer_enter_serial == 0) {
+        return;
+    }
+    const device = display.cursor_shape_device orelse return;
+    c.wp_cursor_shape_device_v1_set_shape(
+        device,
+        display.pointer_enter_serial,
+        protocolCursorShape(window.cursor_shape, display.cursor_shape_version),
+    );
+}
+
 fn pointerWindowForSurface(
     display: *KoiWaylandDisplay,
     surface: ?*c.struct_wl_surface,
@@ -316,10 +396,11 @@ fn wlPointerEnter(
     surface_y: c.wl_fixed_t,
 ) callconv(.c) void {
     _ = wl_pointer;
-    _ = serial;
     const display: *KoiWaylandDisplay = @ptrCast(@alignCast(data orelse return));
     const window = pointerWindowForSurface(display, surface) orelse return;
     display.pointer_window = window;
+    display.pointer_enter_serial = serial;
+    applyCursorShape(window);
     if (window.callbacks.on_mouse_move) |on_mouse_move| {
         on_mouse_move(
             fixedToDouble(surface_x),
@@ -341,6 +422,7 @@ fn wlPointerLeave(
     if (display.pointer_window) |window| {
         if (window.wl_surface == surface) {
             display.pointer_window = null;
+            display.pointer_enter_serial = 0;
         }
     }
 }
@@ -778,9 +860,19 @@ fn xdgSurfaceConfigure(
     xdg_surface: ?*c.struct_xdg_surface,
     serial: u32,
 ) callconv(.c) void {
-    _ = data;
+    const window: *KoiWaylandWindow = @ptrCast(@alignCast(data orelse return));
     const surface = xdg_surface orelse return;
     c.xdg_surface_ack_configure(surface, serial);
+    if (window.has_pending_resize) {
+        window.has_pending_resize = false;
+        if (window.width != window.pending_width or window.height != window.pending_height) {
+            window.width = window.pending_width;
+            window.height = window.pending_height;
+            if (window.callbacks.on_resize) |on_resize| {
+                on_resize(window.width, window.height, window.callbacks.userdata);
+            }
+        }
+    }
 }
 
 const xdg_surface_listener = c.struct_xdg_surface_listener{
@@ -799,15 +891,9 @@ fn xdgToplevelConfigure(
 
     const window: *KoiWaylandWindow = @ptrCast(@alignCast(data orelse return));
     if (width > 0 and height > 0) {
-        const next_width: u32 = @intCast(width);
-        const next_height: u32 = @intCast(height);
-        if (window.width != next_width or window.height != next_height) {
-            window.width = next_width;
-            window.height = next_height;
-            if (window.callbacks.on_resize) |on_resize| {
-                on_resize(next_width, next_height, window.callbacks.userdata);
-            }
-        }
+        window.pending_width = @intCast(width);
+        window.pending_height = @intCast(height);
+        window.has_pending_resize = true;
     }
 }
 
@@ -817,6 +903,7 @@ fn xdgToplevelClose(
 ) callconv(.c) void {
     _ = xdg_toplevel;
     const window: *KoiWaylandWindow = @ptrCast(@alignCast(data orelse return));
+    window.closed = true;
     if (window.callbacks.on_close) |on_close| {
         on_close(window.callbacks.userdata);
     }
@@ -855,6 +942,9 @@ fn destroyDisplayResources(display: *KoiWaylandDisplay) void {
     if (display.wl_keyboard) |keyboard| {
         c.wl_keyboard_destroy(keyboard);
     }
+    if (display.cursor_shape_device) |device| {
+        c.wp_cursor_shape_device_v1_destroy(device);
+    }
     if (display.wl_pointer) |pointer| {
         c.wl_pointer_destroy(pointer);
     }
@@ -866,6 +956,9 @@ fn destroyDisplayResources(display: *KoiWaylandDisplay) void {
     }
     if (display.xdg_wm_base) |wm_base| {
         c.xdg_wm_base_destroy(wm_base);
+    }
+    if (display.cursor_shape_manager) |manager| {
+        c.wp_cursor_shape_manager_v1_destroy(manager);
     }
     if (display.wl_compositor) |compositor| {
         c.wl_compositor_destroy(compositor);
@@ -894,6 +987,9 @@ export fn koi_wayland_init() ?*KoiWaylandDisplay {
         .wl_keyboard = null,
         .wl_output = null,
         .xdg_wm_base = null,
+        .cursor_shape_manager = null,
+        .cursor_shape_device = null,
+        .cursor_shape_version = 0,
         .xkb_context = c.xkb_context_new(c.XKB_CONTEXT_NO_FLAGS),
         .xkb_keymap = null,
         .xkb_state = null,
@@ -913,6 +1009,7 @@ export fn koi_wayland_init() ?*KoiWaylandDisplay {
         .active_window = null,
         .pointer_window = null,
         .keyboard_window = null,
+        .pointer_enter_serial = 0,
     };
     if (display.wl_display == null) {
         if (display.xkb_context) |context| {
@@ -962,6 +1059,11 @@ export fn koi_wayland_create_window(
         .callbacks = std.mem.zeroes(KoiWaylandCallbacks),
         .width = w,
         .height = h,
+        .pending_width = w,
+        .pending_height = h,
+        .has_pending_resize = false,
+        .closed = false,
+        .cursor_shape = KoiWaylandCursorDefault,
         .scale = d.output_scale,
     };
     if (window.wl_surface == null) {
@@ -1012,12 +1114,40 @@ export fn koi_wayland_set_callbacks(
     }
 }
 
+fn dispatchWaylandEvents(display: *KoiWaylandDisplay) void {
+    const wl_display = display.wl_display orelse return;
+
+    while (c.wl_display_dispatch_pending(wl_display) > 0) {}
+    while (c.wl_display_prepare_read(wl_display) != 0) {
+        if (c.wl_display_dispatch_pending(wl_display) < 0) {
+            return;
+        }
+    }
+
+    _ = c.wl_display_flush(wl_display);
+
+    var pfd = c.struct_pollfd{
+        .fd = c.wl_display_get_fd(wl_display),
+        .events = c.POLLIN,
+        .revents = 0,
+    };
+    const ready = c.poll(&pfd, 1, 0);
+    if (ready > 0 and (pfd.revents & c.POLLIN) != 0) {
+        if (c.wl_display_read_events(wl_display) == 0) {
+            _ = c.wl_display_dispatch_pending(wl_display);
+        }
+    } else {
+        c.wl_display_cancel_read(wl_display);
+    }
+}
+
 export fn koi_wayland_poll_events(display: ?*KoiWaylandDisplay) void {
     const d = display orelse return;
-    const wl_display = d.wl_display orelse return;
-    _ = c.wl_display_dispatch_pending(wl_display);
+    dispatchWaylandEvents(d);
     dispatchKeyRepeats(d);
-    _ = c.wl_display_flush(wl_display);
+    if (d.wl_display) |wl_display| {
+        _ = c.wl_display_flush(wl_display);
+    }
 }
 
 export fn koi_wayland_get_wl_display(display: ?*KoiWaylandDisplay) ?*anyopaque {
@@ -1040,6 +1170,11 @@ export fn koi_wayland_get_height(window: ?*KoiWaylandWindow) u32 {
     return w.height;
 }
 
+export fn koi_wayland_window_should_close(window: ?*KoiWaylandWindow) bool {
+    const w = window orelse return true;
+    return w.closed;
+}
+
 export fn koi_wayland_set_title(window: ?*KoiWaylandWindow, title: [*:0]const u8) void {
     const win = window orelse return;
     if (win.xdg_toplevel) |toplevel| {
@@ -1051,6 +1186,12 @@ export fn koi_wayland_set_size(window: ?*KoiWaylandWindow, w: u32, h: u32) void 
     const win = window orelse return;
     win.width = w;
     win.height = h;
+}
+
+export fn koi_wayland_set_cursor_shape(window: ?*KoiWaylandWindow, shape: u32) void {
+    const win = window orelse return;
+    win.cursor_shape = shape;
+    applyCursorShape(win);
 }
 
 export fn koi_wayland_destroy_window(window: ?*KoiWaylandWindow) void {

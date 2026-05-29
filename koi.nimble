@@ -196,6 +196,14 @@ task testAdversarial, "run adversarial cross-widget tests":
 task testFuzz, "run invariant-based randomized tests":
   runHeadlessTest("fuzz")
 
+task benchTextEditing, "profile representative text editing workloads":
+  nimRun(
+    "tests/bench_text_editing",
+    wgpuFlags() & " -d:release",
+    outPath = "/tmp/koi_bench_text_editing",
+    nimcache = "/tmp/koi_bench_text_editing_r",
+  )
+
 task testWindowTextInput, "run windowed text field tests (wgpu)":
   runWindowTest("textinput")
 

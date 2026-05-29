@@ -28,6 +28,7 @@ when isMainModule:
   koiWaylandSetCallbacks(window, addr callbacks)
   koiWaylandSetTitle(window, "Koi Native Wayland")
   koiWaylandSetSize(window, 640, 420)
+  koiWaylandSetCursorShape(window, kwcDefault)
 
   if koiWaylandGetWlDisplay(display) == nil:
     koiWaylandDestroyWindow(window)
@@ -39,7 +40,7 @@ when isMainModule:
     quit "Wayland surface handle was nil."
 
   for _ in 0 ..< 3:
-    if closed:
+    if closed or koiWaylandWindowShouldClose(window):
       break
     koiWaylandPollEvents(display)
 

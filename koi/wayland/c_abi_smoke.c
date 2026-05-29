@@ -15,6 +15,9 @@ int main(void) {
        KOI_WAYLAND_MOD_ALT | KOI_WAYLAND_MOD_SUPER) != 15u) {
     return 1;
   }
+  if (KOI_WAYLAND_CURSOR_DEFAULT == KOI_WAYLAND_CURSOR_TEXT) {
+    return 1;
+  }
 
   KoiWaylandCallbacks callbacks = {0};
   callbacks.on_close = on_close;
@@ -35,6 +38,8 @@ int main(void) {
     koi_wayland_set_callbacks(window, &callbacks);
     koi_wayland_set_title(window, "Koi Wayland ABI Smoke");
     koi_wayland_set_size(window, 320, 240);
+    koi_wayland_set_cursor_shape(window, KOI_WAYLAND_CURSOR_DEFAULT);
+    (void)koi_wayland_window_should_close(window);
     (void)koi_wayland_get_wl_surface(window);
     if (koi_wayland_get_width(window) == 0 ||
         koi_wayland_get_height(window) == 0) {
