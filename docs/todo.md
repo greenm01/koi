@@ -5,8 +5,6 @@ to the deferred candidates that still look useful.
 
 ## Backend And Rendering
 
-- Wire the native Wayland window path into the default wgpu surface creation
-  path, beyond the current ABI and smoke examples.
 - Complete broader Wayland input support, especially keyboard/xkb mapping,
   modifiers, repeat, cursor shape, output scale, and robust close/resize flow.
 

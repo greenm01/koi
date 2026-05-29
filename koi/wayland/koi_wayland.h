@@ -31,6 +31,8 @@ void koi_wayland_set_callbacks(
 void koi_wayland_poll_events(KoiWaylandDisplay* display);
 void* koi_wayland_get_wl_display(KoiWaylandDisplay* display);
 void* koi_wayland_get_wl_surface(KoiWaylandWindow* window);
+uint32_t koi_wayland_get_width(KoiWaylandWindow* window);
+uint32_t koi_wayland_get_height(KoiWaylandWindow* window);
 void koi_wayland_set_title(KoiWaylandWindow* window, const char* title);
 void koi_wayland_set_size(KoiWaylandWindow* window, uint32_t w, uint32_t h);
 void koi_wayland_destroy_window(KoiWaylandWindow* window);

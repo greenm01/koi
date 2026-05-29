@@ -45,6 +45,14 @@ proc koiWaylandGetWlSurface*(
   window: ptr KoiWaylandWindow
 ): pointer {.cdecl, importc: "koi_wayland_get_wl_surface", header: "koi_wayland.h".}
 
+proc koiWaylandGetWidth*(
+  window: ptr KoiWaylandWindow
+): uint32 {.cdecl, importc: "koi_wayland_get_width", header: "koi_wayland.h".}
+
+proc koiWaylandGetHeight*(
+  window: ptr KoiWaylandWindow
+): uint32 {.cdecl, importc: "koi_wayland_get_height", header: "koi_wayland.h".}
+
 proc koiWaylandSetTitle*(
   window: ptr KoiWaylandWindow, title: cstring
 ) {.cdecl, importc: "koi_wayland_set_title", header: "koi_wayland.h".}

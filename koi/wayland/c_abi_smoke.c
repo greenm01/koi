@@ -24,6 +24,12 @@ int main(void) {
     koi_wayland_set_title(window, "Koi Wayland ABI Smoke");
     koi_wayland_set_size(window, 320, 240);
     (void)koi_wayland_get_wl_surface(window);
+    if (koi_wayland_get_width(window) == 0 ||
+        koi_wayland_get_height(window) == 0) {
+      koi_wayland_destroy_window(window);
+      koi_wayland_destroy(display);
+      return 1;
+    }
     koi_wayland_destroy_window(window);
   }
 

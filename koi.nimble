@@ -22,10 +22,12 @@ const
     "--mm:orc --deepcopy:on -d:nimPreviewFloatRoundtrip " &
     "-d:wgpu -d:wgvkWGSL -d:NoGLFW -d:koiWebGpu -d:wayland " &
     "--path:. --passC:-Wno-incompatible-pointer-types --hint:Name:off"
-  WaylandFlags =
-    "--mm:orc --deepcopy:on -d:waylandBackend --path:. --hint:Name:off " &
+  WaylandLinkFlags =
     "--passL:\"-Lkoi/wayland/zig-out/lib -lkoi_wayland\" " &
     "--passL:\"-lwayland-client -lxkbcommon\" --passC:-Ikoi/wayland"
+  WaylandFlags =
+    "--mm:orc --deepcopy:on -d:waylandBackend --path:. --hint:Name:off " &
+    WaylandLinkFlags
 
 proc sh(cmd: string) =
   exec cmd
@@ -33,6 +35,9 @@ proc sh(cmd: string) =
 proc wgpuFlags(): string =
   let webgpuPath = gorge("nimble path webgpu").strip()
   WgpuBaseFlags & " --path:" & quoteShell(webgpuPath / "src")
+
+proc waylandWgpuFlags(): string =
+  wgpuFlags() & " -d:waylandBackend " & WaylandLinkFlags
 
 proc buildWaylandBackend() =
   sh "zig build -Doptimize=Debug --build-file koi/wayland/build.zig"
@@ -76,6 +81,14 @@ task waylandMinimal, "build native Wayland minimal example":
     "examples/wayland_minimal",
     WaylandFlags & " -d:debug",
     nimcache = "/tmp/koi_wayland_minimal_d",
+  )
+
+task waylandWgpuMinimal, "build native Wayland wgpu minimal example":
+  buildWaylandBackend()
+  nimCompile(
+    "examples/wayland_wgpu_minimal",
+    waylandWgpuFlags() & " -d:debug",
+    nimcache = "/tmp/koi_wayland_wgpu_minimal_d",
   )
 
 task testLayout, "run headless layout tests":
@@ -240,6 +253,7 @@ task tidy, "format sources and remove generated example binaries":
     "examples/test", "examples/test.exe", "examples/paneltest",
     "examples/paneltest.exe", "examples/minimal", "examples/minimal.exe",
     "examples/wayland_minimal", "examples/wayland_minimal.exe",
+    "examples/wayland_wgpu_minimal", "examples/wayland_wgpu_minimal.exe",
   ]:
     cleanup.add " " & quoteShell(path)
   sh cleanup

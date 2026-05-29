@@ -577,6 +577,16 @@ export fn koi_wayland_get_wl_surface(window: ?*KoiWaylandWindow) ?*anyopaque {
     return w.wl_surface;
 }
 
+export fn koi_wayland_get_width(window: ?*KoiWaylandWindow) u32 {
+    const w = window orelse return 0;
+    return w.width;
+}
+
+export fn koi_wayland_get_height(window: ?*KoiWaylandWindow) u32 {
+    const w = window orelse return 0;
+    return w.height;
+}
+
 export fn koi_wayland_set_title(window: ?*KoiWaylandWindow, title: [*:0]const u8) void {
     const win = window orelse return;
     if (win.xdg_toplevel) |toplevel| {
