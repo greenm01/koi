@@ -34,6 +34,19 @@ func fixedGlyphs(count: Natural, advance: float): seq[GlyphPosition] =
       )
     )
 
+func textRow(
+    startPos, endPos: Natural, nextRowPos: int, width: float = 10
+): types.TextRow =
+  types.TextRow(
+    startPos: startPos,
+    startBytePos: startPos,
+    endPos: endPos,
+    endBytePos: endPos,
+    nextRowPos: nextRowPos,
+    nextRowBytePos: nextRowPos,
+    width: width,
+  )
+
 suite "layout algorithms":
   test "itemsPerRow zero falls back to one column":
     var params = DefaultAutoLayoutParams
@@ -169,3 +182,41 @@ suite "text field view algorithms":
     check textFieldCursorPosAt(
       glyphs, 10.Natural, view.displayStartPos, view.displayStartX, 500
     ) == 10
+
+suite "text area view algorithms":
+  test "empty text maps cursor and clicks to the first row":
+    let rows = @[textRow(0, 0, -1, width = 0)]
+    let glyphs = fixedGlyphs(0, 10)
+
+    check textAreaRowForCursor(rows, 0) == 0
+    check textAreaRowAtY(rows.len.Natural, 0, 100, 20, 80) == 0
+    check textAreaCursorPosAt(glyphs, 0, textAreaRowEndCursor(rows[0]), 120, 100) == 0
+
+  test "cursor positions map across wrapped and trailing rows":
+    let rows = @[textRow(0, 4, 5), textRow(5, 9, 10), textRow(10, 10, -1, width = 0)]
+
+    check textAreaRowForCursor(rows, 0) == 0
+    check textAreaRowForCursor(rows, 5) == 1
+    check textAreaRowForCursor(rows, 9) == 1
+    check textAreaRowForCursor(rows, 10) == 2
+
+  test "mouse y clamps to available rows":
+    check textAreaRowAtY(3, 1, 100, 20, 70) == 0
+    check textAreaRowAtY(3, 1, 100, 20, 121) == 2
+    check textAreaRowAtY(3, 1, 100, 20, 500) == 2
+
+  test "display start follows the cursor only when needed":
+    checkClose(textAreaDisplayStartRowForCursor(10, 1, 60, 20, 0), 0)
+    checkClose(textAreaDisplayStartRowForCursor(10, 3, 60, 20, 0), 1)
+    checkClose(textAreaDisplayStartRowForCursor(10, 2, 60, 20, 5), 2)
+    checkClose(textAreaDisplayStartRowForCursor(2, 1, 60, 20, 5), 0)
+
+  test "mouse x maps to row-local cursor positions":
+    let glyphs = fixedGlyphs(4, 10)
+
+    check textAreaCursorPosAt(glyphs, 5, 9, 99, 100) == 5
+    check textAreaCursorPosAt(glyphs, 5, 9, 116, 100) == 7
+    check textAreaCursorPosAt(glyphs, 5, 9, 500, 100) == 9
+    checkClose(textAreaCursorX(glyphs, 5, 5, 100), 100)
+    checkClose(textAreaCursorX(glyphs, 5, 7, 100), 120)
+    checkClose(textAreaCursorX(glyphs, 5, 9, 100), 140)

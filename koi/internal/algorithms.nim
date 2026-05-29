@@ -2,6 +2,7 @@ import std/math
 
 import nanovg
 
+import koi/types
 import koi/utils
 
 type TextFieldView* = object
@@ -92,6 +93,92 @@ func textFieldViewForCursor*(
     result.displayStartX = textBoxX
   elif result.displayStartX > textBoxX:
     result.displayStartX = textBoxX
+
+func textAreaRowEndCursor*(row: types.TextRow): Natural =
+  if row.nextRowPos >= 0:
+    row.nextRowPos.Natural
+  elif row.startPos == row.endPos and row.width == 0:
+    row.startPos
+  else:
+    row.endPos + 1
+
+func textAreaRowForCursor*(
+    rows: openArray[types.TextRow], cursorPos: Natural
+): Natural =
+  if rows.len == 0:
+    return 0.Natural
+
+  for i, row in rows:
+    let rowEnd = textAreaRowEndCursor(row)
+    if rowEnd == row.startPos:
+      if cursorPos == row.startPos:
+        return i.Natural
+    elif cursorPos >= row.startPos and cursorPos < rowEnd:
+      return i.Natural
+
+  rows.high.Natural
+
+func textAreaRowAtY*(
+    rowsLen: Natural, displayStartRow: float, textBoxY, rowHeight, mouseY: float
+): Natural =
+  if rowsLen == 0:
+    return 0.Natural
+
+  let startRow = max(floor(displayStartRow).int, 0)
+  if rowHeight <= 0:
+    return min(startRow, rowsLen.int - 1).Natural
+
+  let localRow = floor((mouseY - textBoxY) / rowHeight).int
+  clamp(startRow + localRow, 0, rowsLen.int - 1).Natural
+
+func textAreaDisplayStartRowForCursor*(
+    rowsLen, rowIndex: Natural, textBoxH, rowHeight, currentStart: float
+): float =
+  if rowsLen == 0 or rowHeight <= 0:
+    return 0.0
+
+  let visibleRows = max(floor(textBoxH / rowHeight).int, 1)
+  let maxStart = max(rowsLen.int - visibleRows, 0)
+  var start = clamp(floor(currentStart).int, 0, maxStart)
+  let rowIndex = min(rowIndex.int, rowsLen.int - 1)
+
+  if rowIndex < start:
+    start = rowIndex
+  elif rowIndex >= start + visibleRows:
+    start = rowIndex - visibleRows + 1
+
+  clamp(start, 0, maxStart).float
+
+func textAreaCursorX*(
+    rowGlyphs: openArray[GlyphPosition],
+    rowStartPos, cursorPos: Natural,
+    textBoxX: float,
+): float =
+  if rowGlyphs.len == 0 or cursorPos <= rowStartPos:
+    return textBoxX
+
+  let offset = cursorPos - rowStartPos
+  if offset >= rowGlyphs.len.Natural:
+    textBoxX + rowGlyphs[^1].maxX.float
+  else:
+    textBoxX + rowGlyphs[offset].x.float
+
+func textAreaCursorPosAt*(
+    rowGlyphs: openArray[GlyphPosition],
+    rowStartPos, rowEndPos: Natural,
+    mouseX, textBoxX: float,
+): Natural =
+  if rowEndPos <= rowStartPos or rowGlyphs.len == 0:
+    return rowStartPos
+
+  let glyphCount = min(rowGlyphs.len.Natural, rowEndPos - rowStartPos)
+  for i in 0 ..< glyphCount:
+    let midX =
+      rowGlyphs[i].minX.float + (rowGlyphs[i].maxX.float - rowGlyphs[i].minX.float) * 0.5
+    if mouseX < textBoxX + midX:
+      return rowStartPos + i
+
+  rowStartPos + glyphCount
 
 func dropDownHoverItem*(
     mouseY, itemListY, itemListPadVert, itemHeight: float,

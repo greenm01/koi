@@ -12,6 +12,7 @@ import koi/drawing
 import koi/layout
 import koi/input
 import koi/defaults
+import koi/internal/algorithms
 import koi/widgets/common
 import koi/widgets/scrollbar
 import koi/utils
@@ -83,7 +84,41 @@ proc textArea*(
 
   var text = text_out
   var rows = text.textBreakLines(textBoxW)
+  let rowHeight = s.textFontSize * s.textLineHeight
   let maxLen = if constraint.isSome: constraint.get.maxLen else: Natural.none
+
+  proc fillRowGlyphs(row: types.TextRow, glyphs: var openArray[GlyphPosition]): int =
+    let rowEnd = textAreaRowEndCursor(row)
+    if rowEnd <= row.startPos:
+      return 0
+
+    useTextFont()
+    g_nvgContext.textGlyphPositions(
+      0, 0, text, startPos = row.startBytePos, endPos = row.endBytePos, glyphs
+    )
+
+  proc cursorPosAtMouse(mx, my: float): Natural =
+    let rowIndex =
+      textAreaRowAtY(rows.len.Natural, ta.displayStartRow, textBoxY, rowHeight, my)
+    let row = rows[rowIndex]
+    var glyphs: array[1024, GlyphPosition]
+    let glyphCount = fillRowGlyphs(row, glyphs)
+    if glyphCount <= 0:
+      return row.startPos
+
+    textAreaCursorPosAt(
+      toOpenArray(glyphs, 0, glyphCount - 1),
+      row.startPos,
+      textAreaRowEndCursor(row),
+      mx,
+      textBoxX,
+    )
+
+  proc keepCursorVisible() =
+    let rowIndex = textAreaRowForCursor(rows, ta.cursorPos)
+    ta.displayStartRow = textAreaDisplayStartRowForCursor(
+      rows.len.Natural, rowIndex, textBoxH, rowHeight, ta.displayStartRow
+    )
 
   # Hit testing
   if ta.activeItem == id:
@@ -98,6 +133,9 @@ proc textArea*(
     # LMB pressed outside the text area exits edit mode
     if ui.mbLeftDown and not mouseInside(x, y, w, h):
       exitEditMode()
+    elif ui.mbLeftDown and mouseInside(textBoxX, textBoxY, textBoxW, textBoxH):
+      ta.cursorPos = cursorPosAtMouse(ui.mx, ui.my)
+      ta.selection = NoSelection
 
     # Event handling
     if ui.hasEvent and (not ui.eventHandled) and ui.currEvent.kind == ekKey and
@@ -136,6 +174,10 @@ proc textArea*(
       rows = text.textBreakLines(textBoxW)
       markEventHandled()
 
+    if ta.activeItem == id:
+      ta.cursorPos = min(ta.cursorPos, text.runeLen.Natural)
+      keepCursorVisible()
+
   text_out = text
 
   # Draw
@@ -152,7 +194,6 @@ proc textArea*(
     vg.save()
     vg.intersectScissor(textBoxX, textBoxY, textBoxW, textBoxH)
 
-    let rowHeight = s.textFontSize * s.textLineHeight
     var ty = textBoxY + rowHeight * TextVertAlignFactor - ta.displayStartRow * rowHeight
 
     useTextFont()
@@ -164,6 +205,27 @@ proc textArea*(
           textBoxX, ty, text, startPos = row.startBytePos, endPos = row.endBytePos
         )
       ty += rowHeight
+
+    if editing:
+      let rowIndex = textAreaRowForCursor(rows, ta.cursorPos)
+      let row = rows[rowIndex]
+      let cursorY1 = textBoxY + (rowIndex.float - ta.displayStartRow) * rowHeight
+      let cursorY2 = cursorY1 + rowHeight
+
+      if cursorY2 > textBoxY and cursorY1 < textBoxY + textBoxH:
+        var glyphs: array[1024, GlyphPosition]
+        let glyphCount = fillRowGlyphs(row, glyphs)
+        let cursorX =
+          if glyphCount <= 0:
+            textBoxX
+          else:
+            textAreaCursorX(
+              toOpenArray(glyphs, 0, glyphCount - 1),
+              row.startPos,
+              ta.cursorPos,
+              textBoxX,
+            )
+        vg.drawCursor(cursorX, cursorY1, cursorY2, s.cursorColor, s.cursorWidth)
 
     vg.restore()
 

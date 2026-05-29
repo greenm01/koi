@@ -34,13 +34,20 @@ work that needs broader design or visual validation.
    - The helpers are covered with synthetic glyph metrics and do not require a
      live NanoVG context.
 
+6. Text area editing had no tested row/cursor layer.
+   - Added pure helpers for wrapped row selection, display-start clamping, and
+     row-local mouse/caret mapping.
+   - Active text areas now place the cursor from mouse clicks and draw a caret.
+   - Selection rendering, drag selection, vertical cursor movement, and scrollbar
+     behavior remain deferred.
+
 ## High-Value Follow-Ups
 
-1. Text area editing model.
-   - Text area recalculates wrapped rows after edits and has partial state for
-     cursor and selection behavior.
-   - The next pass should extract row/cursor mapping helpers before adding
-     vertical movement, selection drawing, or scrollbar behavior.
+1. Text area selection and scrolling.
+   - Text area cursor placement is covered, but selection drawing and drag
+     selection still need a designed behavior pass.
+   - Vertical cursor movement and scrollbar behavior should reuse the wrapped
+     row helpers before adding more widget-local state.
 
 2. Widget behavior duplication.
    - Button, toggle button, checkbox, radio buttons, sliders, and scrollbars
