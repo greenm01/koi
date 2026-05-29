@@ -147,6 +147,12 @@ proc markAutoSlotUsed(ui: var UIState, parent: LayoutNodeId) =
   if not parent.isNull and int32(parent) == int32(ui.autoLayoutState.activeSlotParent):
     ui.autoLayoutState.activeSlotUsed = true
 
+proc markPresetSlotUsed(ui: var UIState) =
+  if ui.layoutStack.len > 0 and ui.layoutStack[^1].mode == lpmRow:
+    ui.autoLayoutState.activeSlotUsed = true
+
+proc currentRowLayoutSize(node: LayoutPresetFrame, ap: AutoLayoutParams): LayoutSize
+
 proc layoutSlotWithSizing(
     id: ItemId, fallback: Rect, width, height: LayoutSize, parent: LayoutNodeId
 ): LayoutSlot =
@@ -173,6 +179,7 @@ proc layoutSlotWithSizing(
     else:
       ui.layoutArena.addLayoutNode(node, parent)
   ui.markAutoSlotUsed(parent)
+  ui.markPresetSlotUsed()
 
   result = LayoutSlot(
     itemId: id,
@@ -182,8 +189,13 @@ proc layoutSlotWithSizing(
   )
 
 proc layoutSlot*(id: ItemId, fallback: Rect): LayoutSlot =
-  let parent = g_uiState.activeAutoSlotParent()
-  layoutSlotWithSizing(id, fallback, fixed(fallback.w), fixed(fallback.h), parent)
+  alias(ui, g_uiState)
+  let parent = ui.activeAutoSlotParent()
+  var width = fixed(fallback.w)
+  if parent.isNull and ui.layoutStack.len > 0 and ui.layoutStack[^1].mode == lpmRow and
+      ui.layoutStack[^1].columns.len > 0:
+    width = ui.layoutStack[^1].currentRowLayoutSize(ui.autoLayoutParams)
+  layoutSlotWithSizing(id, fallback, width, fixed(fallback.h), parent)
 
 proc layoutDrawSlot*(id: ItemId, fallback: Rect): LayoutSlot =
   layoutSlotWithSizing(
@@ -222,6 +234,7 @@ proc textLayoutSlotWithSizing(
     else:
       ui.layoutArena.addLayoutNode(node, parent)
   ui.markAutoSlotUsed(parent)
+  ui.markPresetSlotUsed()
 
   result = LayoutSlot(
     itemId: id,
@@ -235,12 +248,16 @@ proc textLayoutSlot*(
 ): LayoutSlot =
   alias(ui, g_uiState)
   let parent = ui.activeAutoSlotParent()
+  var width = fixed(fallback.w)
+  if parent.isNull and ui.layoutStack.len > 0 and ui.layoutStack[^1].mode == lpmRow and
+      ui.layoutStack[^1].columns.len > 0:
+    width = ui.layoutStack[^1].currentRowLayoutSize(ui.autoLayoutParams)
   textLayoutSlotWithSizing(
     id,
     fallback,
     text,
     style,
-    fixed(fallback.w),
+    width,
     if parent.isNull:
       fixed(fallback.h)
     else:
@@ -398,6 +415,22 @@ func resolvedRowWidths(
       of cmDynamic:
         flexibleWidth
 
+func rowColumnLayoutSize(column: LayoutColumn): LayoutSize =
+  case column.mode
+  of cmStatic:
+    fixed(max(0.0, column.value))
+  of cmRatio:
+    percent(column.value.clamp(0.0, 1.0))
+  of cmDynamic:
+    grow()
+  of cmVariable:
+    grow(min = max(0.0, column.value))
+
+func resolvedRowSizes(columns: openArray[LayoutColumn]): seq[LayoutSize] =
+  result = newSeq[LayoutSize](columns.len)
+  for i, column in columns:
+    result[i] = column.rowColumnLayoutSize()
+
 func legacyColumnWidth(
     node: LayoutPresetFrame, column: LayoutColumn, ap: AutoLayoutParams
 ): float =
@@ -412,7 +445,7 @@ func legacyColumnWidth(
   of cmVariable:
     max(0.0, column.value)
 
-proc currentRowColumn(node: var LayoutPresetFrame): LayoutColumn =
+proc currentRowColumn(node: LayoutPresetFrame): LayoutColumn =
   if node.columns.len > 0:
     let i = min(node.colIndex, node.columns.high)
     result = node.columns[i]
@@ -421,12 +454,19 @@ proc currentRowColumn(node: var LayoutPresetFrame): LayoutColumn =
   else:
     result = colDynamic()
 
-proc currentRowWidth(node: var LayoutPresetFrame, ap: AutoLayoutParams): float =
+proc currentRowWidth(node: LayoutPresetFrame, ap: AutoLayoutParams): float =
   if node.columns.len > 0:
     let i = min(node.colIndex, node.resolvedWidths.high)
     result = node.resolvedWidths[i]
   else:
     result = node.legacyColumnWidth(node.currentRowColumn(), ap)
+
+proc currentRowLayoutSize(node: LayoutPresetFrame, ap: AutoLayoutParams): LayoutSize =
+  if node.columns.len > 0:
+    let i = min(node.colIndex, node.resolvedSizes.high)
+    result = node.resolvedSizes[i]
+  else:
+    result = fixed(node.currentRowWidth(ap))
 
 proc applyNextItemOverrides(a: var AutoLayoutStateVars) =
   if a.nextItemWidthOverride.isSome:
@@ -527,6 +567,21 @@ proc addEmptyAutoSlot(ui: var UIState) =
   discard ui.layoutArena.addLayoutNode(node, parent)
   a.activeSlotUsed = true
 
+proc addEmptyRowSlot(ui: var UIState, row: LayoutPresetFrame) =
+  alias(a, ui.autoLayoutState)
+  if row.nodeId.isNull or a.activeSlotUsed:
+    return
+
+  var node = layoutNode(
+    kind = lnkWidget,
+    width = row.currentRowLayoutSize(ui.autoLayoutParams),
+    height = fixed(autoLayoutNextItemHeight()),
+  )
+  node.intrinsicMin = size(a.nextItemWidth, autoLayoutNextItemHeight())
+  node.intrinsicPref = node.intrinsicMin
+  discard ui.layoutArena.addLayoutNode(node, row.nodeId)
+  a.activeSlotUsed = true
+
 proc autoLayoutPre*(section: bool = false) =
   alias(ui, g_uiState)
   alias(a, ui.autoLayoutState)
@@ -591,6 +646,7 @@ proc autoLayoutPost*(section: bool = false) =
     alias(node, ui.layoutStack[^1])
     case node.mode
     of lpmRow:
+      ui.addEmptyRowSlot(node)
       node.currentX += a.nextItemWidth
       if node.columns.len > 0 and node.colIndex < node.columns.high:
         node.currentX += node.itemSpacing
@@ -648,6 +704,11 @@ proc beginRowLayout*(height: float, columns: openArray[LayoutColumn] = []) =
   let availableW = if ui.layoutStack.len > 0: a.nextItemWidth else: a.rowWidth
   let itemSpacing = 0.0
   let rowColumns = @columns
+  let rowSolverW =
+    if rowColumns.len > 0:
+      max(0.0, availableW - ap.leftPad - ap.rightPad)
+    else:
+      availableW
 
   ui.layoutStack.add(
     LayoutPresetFrame(
@@ -662,9 +723,10 @@ proc beginRowLayout*(height: float, columns: openArray[LayoutColumn] = []) =
       itemSpacing: itemSpacing,
       columns: rowColumns,
       resolvedWidths: rowColumns.resolvedRowWidths(availableW, itemSpacing, ap),
+      resolvedSizes: rowColumns.resolvedRowSizes(),
       nodeId: ui.layoutArena.beginLayoutNode(
         layoutNode(
-          width = fixed(availableW),
+          width = fixed(rowSolverW),
           height = fixed(height),
           direction = ldLeftToRight,
           alignCross = lcaCenter,

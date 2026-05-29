@@ -247,6 +247,69 @@ suite "layout frame integration":
 
     checkRect(g_uiState.layoutRects[12], rect(13, 5, 100, 21))
 
+  test "predeclared row columns register solver-native sizes":
+    resetLayout()
+    beginFrameLayout()
+
+    beginRowLayout(30, [col(100), colDynamic(), colRatio(0.25), colVariable(50)])
+
+    autoLayoutPre()
+    let fixedSlot = layoutSlot(13, autoLayoutNextBounds())
+    autoLayoutPost()
+
+    autoLayoutPre()
+    let dynamicSlot = layoutSlot(14, autoLayoutNextBounds())
+    autoLayoutPost()
+
+    autoLayoutPre()
+    let ratioSlot = layoutSlot(15, autoLayoutNextBounds())
+    autoLayoutPost()
+
+    autoLayoutPre()
+    let variableSlot = layoutSlot(16, autoLayoutNextBounds())
+    autoLayoutPost()
+
+    endLayout()
+    finishFrameLayout()
+
+    check g_uiState.layoutArena.nodes[fixedSlot.nodeId.int].width.kind == lskFixed
+    check g_uiState.layoutArena.nodes[dynamicSlot.nodeId.int].width.kind == lskGrow
+    check g_uiState.layoutArena.nodes[ratioSlot.nodeId.int].width.kind == lskPercent
+    check g_uiState.layoutArena.nodes[variableSlot.nodeId.int].width.kind == lskGrow
+
+    checkRect(g_uiState.layoutRects[13], rect(13, 5, 100, 21))
+    checkRect(g_uiState.layoutRects[14], rect(113, 5, 38.625, 21))
+    checkRect(g_uiState.layoutRects[15], rect(151.625, 5, 75.75, 21))
+    checkRect(g_uiState.layoutRects[16], rect(227.375, 5, 88.625, 21))
+
+  test "row spacer preserves skipped column in solved layout":
+    resetLayout()
+    beginFrameLayout()
+
+    beginRowLayout(30, [col(40), col(60), col(80)])
+    spacer()
+    autoLayoutPre()
+    discard layoutSlot(17, autoLayoutNextBounds())
+    autoLayoutPost()
+    endLayout()
+    finishFrameLayout()
+
+    checkRect(g_uiState.layoutRects[17], rect(53, 5, 60, 21))
+
+  test "nextLayoutColumn preserves skipped column in solved layout":
+    resetLayout()
+    beginFrameLayout()
+
+    beginRowLayout(30, [col(40), col(80)])
+    nextLayoutColumn()
+    autoLayoutPre()
+    discard layoutSlot(18, autoLayoutNextBounds())
+    autoLayoutPost()
+    endLayout()
+    finishFrameLayout()
+
+    checkRect(g_uiState.layoutRects[18], rect(53, 5, 80, 21))
+
   test "frame layout installs default text measurement":
     resetLayout()
     beginFrameLayout()

@@ -380,6 +380,7 @@ type
     colIndex*: int
     columns*: seq[LayoutColumn]
     resolvedWidths*: seq[float]
+    resolvedSizes*: seq[LayoutSize]
     currentColumn*: LayoutColumn
     hasCurrentColumn*: bool
     nodeId*: LayoutNodeId
