@@ -32,6 +32,7 @@ proc horizScrollBar*(
     thumbSize: float = -1.0,
     clickStep: float = -1.0,
     style: ScrollBarStyle = defaultScrollBarStyle(),
+    allowFocusCaptured: bool = false,
 ) =
   alias(ui, g_uiState)
   alias(sb, ui.scrollBarState)
@@ -59,9 +60,15 @@ proc horizScrollBar*(
   let thumbX = calcThumbX(value)
 
   # Hit testing
-  if isHit(x, y, w, h):
+  let hit =
+    if allowFocusCaptured:
+      mouseInside(x, y, w, h)
+    else:
+      isHit(x, y, w, h)
+
+  if hit:
     markHot(id)
-    if ui.mbLeftDown and hasNoActiveItem():
+    if ui.mbLeftDown and (hasNoActiveItem() or allowFocusCaptured):
       markActive(id)
 
   let insideThumb = mouseInside(thumbX, y, thumbW, h)
@@ -163,8 +170,10 @@ proc horizScrollBar*(
     let dy = abs(y - ui.my)
     let withinX = ui.mx >= x and ui.mx <= x + w
 
-    if not s.autoFade or
-        (s.autoFade and dy < s.autoFadeDistance and withinX and not ui.focusCaptured):
+    if not s.autoFade or (
+      s.autoFade and dy < s.autoFadeDistance and withinX and
+      (not ui.focusCaptured or allowFocusCaptured)
+    ):
       let state =
         if isHot(id) and hasNoActiveItem():
           wsHover
@@ -244,6 +253,7 @@ proc vertScrollBar*(
     thumbSize: float = -1.0,
     clickStep: float = -1.0,
     style: ScrollBarStyle = defaultScrollBarStyle(),
+    allowFocusCaptured: bool = false,
 ) =
   alias(ui, g_uiState)
   alias(sb, ui.scrollBarState)
@@ -271,9 +281,15 @@ proc vertScrollBar*(
   let thumbY = calcThumbY(value)
 
   # Hit testing
-  if isHit(x, y, w, h):
+  let hit =
+    if allowFocusCaptured:
+      mouseInside(x, y, w, h)
+    else:
+      isHit(x, y, w, h)
+
+  if hit:
     markHot(id)
-    if ui.mbLeftDown and hasNoActiveItem():
+    if ui.mbLeftDown and (hasNoActiveItem() or allowFocusCaptured):
       markActive(id)
 
   let insideThumb = mouseInside(x, thumbY, w, thumbH)
@@ -377,8 +393,10 @@ proc vertScrollBar*(
     let dx = abs(x - ui.mx)
     let withinY = ui.my >= y and ui.my <= y + h
 
-    if not s.autoFade or
-        (s.autoFade and dx < s.autoFadeDistance and withinY and not ui.focusCaptured):
+    if not s.autoFade or (
+      s.autoFade and dx < s.autoFadeDistance and withinY and
+      (not ui.focusCaptured or allowFocusCaptured)
+    ):
       let state =
         if isHot(id) and hasNoActiveItem():
           wsHover
@@ -463,12 +481,14 @@ template horizScrollBar*(
     thumbSize: float = -1.0,
     clickStep: float = -1.0,
     style: ScrollBarStyle = defaultScrollBarStyle(),
+    allowFocusCaptured: bool = false,
 ) =
   let i = instantiationInfo(fullPaths = true)
   let id = nextId(i.filename, i.line)
 
   horizScrollBar(
-    id, x, y, w, h, startVal, endVal, value, tooltip, thumbSize, clickStep, style
+    id, x, y, w, h, startVal, endVal, value, tooltip, thumbSize, clickStep, style,
+    allowFocusCaptured,
   )
 
 template vertScrollBar*(
@@ -479,10 +499,12 @@ template vertScrollBar*(
     thumbSize: float = -1.0,
     clickStep: float = -1.0,
     style: ScrollBarStyle = defaultScrollBarStyle(),
+    allowFocusCaptured: bool = false,
 ) =
   let i = instantiationInfo(fullPaths = true)
   let id = nextId(i.filename, i.line)
 
   vertScrollBar(
-    id, x, y, w, h, startVal, endVal, value, tooltip, thumbSize, clickStep, style
+    id, x, y, w, h, startVal, endVal, value, tooltip, thumbSize, clickStep, style,
+    allowFocusCaptured,
   )

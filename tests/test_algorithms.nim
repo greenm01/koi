@@ -211,6 +211,44 @@ suite "text area view algorithms":
     checkClose(textAreaDisplayStartRowForCursor(10, 2, 60, 20, 5), 2)
     checkClose(textAreaDisplayStartRowForCursor(2, 1, 60, 20, 5), 0)
 
+  test "scroll display start clamps to available rows":
+    check textAreaVisibleRows(60, 20) == 3
+    checkClose(textAreaMaxDisplayStart(10, 60, 20), 7)
+    checkClose(textAreaScrollDisplayStart(10, 60, 20, 0, -3), 0)
+    checkClose(textAreaScrollDisplayStart(10, 60, 20, 5, 10), 7)
+    checkClose(textAreaScrollDisplayStart(2, 60, 20, 5, 1), 0)
+
+  test "line start and end use the cursor row":
+    let rows = @[textRow(0, 4, 5), textRow(5, 9, 10), textRow(10, 10, -1, width = 0)]
+
+    check textAreaLineStartCursor(rows, 7) == 5
+    check textAreaLineEndCursor(rows, 7) == 10
+    check textAreaLineStartCursor(rows, 10) == 10
+    check textAreaLineEndCursor(rows, 10) == 10
+
+  test "row delta clamps at document bounds":
+    check textAreaRowByDelta(4, 1, -10) == 0
+    check textAreaRowByDelta(4, 1, 2) == 3
+    check textAreaRowByDelta(4, 3, 1) == 3
+    check textAreaRowByDelta(0, 3, 1) == 0
+
+  test "selection spans are clipped to each wrapped row":
+    let rows = @[textRow(0, 4, 5), textRow(5, 9, 10), textRow(10, 12, -1)]
+    let selection = TextSelection(startPos: 3, endPos: 11)
+    let first = textAreaSelectionForRow(rows[0], selection)
+    let middle = textAreaSelectionForRow(rows[1], selection)
+    let last = textAreaSelectionForRow(rows[2], selection)
+
+    check first.active
+    check first.startPos == 3
+    check first.endPos == 5
+    check middle.active
+    check middle.startPos == 5
+    check middle.endPos == 10
+    check last.active
+    check last.startPos == 10
+    check last.endPos == 11
+
   test "mouse x maps to row-local cursor positions":
     let glyphs = fixedGlyphs(4, 10)
 

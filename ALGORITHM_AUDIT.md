@@ -41,37 +41,42 @@ work that needs broader design or visual validation.
    - Selection rendering, drag selection, vertical cursor movement, and scrollbar
      behavior remain deferred.
 
+7. Text area selection and scrolling had state but no complete behavior.
+   - Added row helpers for selection spans, line starts/ends, row deltas, and
+     scroll clamping.
+   - Text areas now render selection, support drag selection, handle vertical
+     and page movement, consume scroll-wheel rows, and expose an embedded
+     scrollbar while focused.
+   - Double-click word selection and advanced selection gestures remain
+     deferred.
+
 ## High-Value Follow-Ups
 
-1. Text area selection and scrolling.
-   - Text area cursor placement is covered, but selection drawing and drag
-     selection still need a designed behavior pass.
-   - Vertical cursor movement and scrollbar behavior should reuse the wrapped
-     row helpers before adding more widget-local state.
-
-2. Widget behavior duplication.
+1. Widget behavior duplication.
    - Button, toggle button, checkbox, radio buttons, sliders, and scrollbars
-     repeat hot/active/disabled state transitions.
+   repeat hot/active/disabled state transitions.
    - Extract this only after the current behavior has tests, because small
-     differences are user-visible.
+   differences are user-visible.
 
-3. WebGPU backend draw expansion.
+2. WebGPU backend draw expansion.
    - The backend expands fans and strips into triangle lists on the CPU and
-     binds per draw call.
+   binds per draw call.
    - Before optimizing, add image-based or geometry tests for scissor,
-     composite-operation behavior, and antialiasing so performance changes do
-     not regress rendering.
+   composite-operation behavior, and antialiasing so performance changes do
+   not regress rendering.
 
-4. Default style copies.
+3. Default style copies.
    - Default style accessors deep-copy ref-object styles on every call.
    - This is correct for isolation, but expensive if done in hot paths. Cache or
-     borrowing APIs would need an explicit mutability policy.
+   borrowing APIs would need an explicit mutability policy.
 
 ## Deferred Candidates
 
 - Unify horizontal and vertical scrollbar implementations around one orientation
   helper after the pure math tests settle.
 - Add dropdown keyboard navigation before deeper popup/list refactors.
+- Add double-click word selection and richer selection gestures to text areas
+  after the basic multiline behavior settles.
 - Replace repeated rune-length scans in text editing with cached rune metadata
   only if profiling shows it matters for real text sizes.
 - Coalesce adjacent WebGPU draw calls with the same texture after correctness

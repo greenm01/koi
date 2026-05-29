@@ -9,6 +9,11 @@ type TextFieldView* = object
   displayStartPos*: Natural
   displayStartX*: float
 
+type TextAreaRowSelection* = object
+  active*: bool
+  startPos*: Natural
+  endPos*: Natural
+
 func textFieldGlyphCount(glyphs: openArray[GlyphPosition], textLen: Natural): Natural =
   min(textLen, glyphs.len.Natural)
 
@@ -148,6 +153,62 @@ func textAreaDisplayStartRowForCursor*(
     start = rowIndex - visibleRows + 1
 
   clamp(start, 0, maxStart).float
+
+func textAreaVisibleRows*(textBoxH, rowHeight: float): Natural =
+  if rowHeight <= 0:
+    1.Natural
+  else:
+    max(floor(textBoxH / rowHeight).int, 1).Natural
+
+func textAreaMaxDisplayStart*(rowsLen: Natural, textBoxH, rowHeight: float): float =
+  let visibleRows = textAreaVisibleRows(textBoxH, rowHeight)
+  max(rowsLen.int - visibleRows.int, 0).float
+
+func textAreaScrollDisplayStart*(
+    rowsLen: Natural, textBoxH, rowHeight, currentStart, deltaRows: float
+): float =
+  clamp(
+    currentStart + deltaRows, 0.0, textAreaMaxDisplayStart(rowsLen, textBoxH, rowHeight)
+  )
+
+func textAreaRowByDelta*(rowsLen, rowIndex: Natural, deltaRows: int): Natural =
+  if rowsLen == 0:
+    return 0.Natural
+
+  clamp(rowIndex.int + deltaRows, 0, rowsLen.int - 1).Natural
+
+func textAreaLineStartCursor*(
+    rows: openArray[types.TextRow], cursorPos: Natural
+): Natural =
+  if rows.len == 0:
+    return 0.Natural
+
+  rows[textAreaRowForCursor(rows, cursorPos)].startPos
+
+func textAreaLineEndCursor*(
+    rows: openArray[types.TextRow], cursorPos: Natural
+): Natural =
+  if rows.len == 0:
+    return 0.Natural
+
+  textAreaRowEndCursor(rows[textAreaRowForCursor(rows, cursorPos)])
+
+func textAreaSelectionForRow*(
+    row: types.TextRow, selection: types.TextSelection
+): TextAreaRowSelection =
+  if selection.startPos < 0 or selection.startPos == selection.endPos.int:
+    return
+
+  let
+    selectionStart = min(selection.startPos, selection.endPos.int).Natural
+    selectionEnd = max(selection.startPos, selection.endPos.int).Natural
+    rowStart = row.startPos
+    rowEnd = textAreaRowEndCursor(row)
+    startPos = max(selectionStart, rowStart)
+    endPos = min(selectionEnd, rowEnd)
+
+  if startPos < endPos:
+    result = TextAreaRowSelection(active: true, startPos: startPos, endPos: endPos)
 
 func textAreaCursorX*(
     rowGlyphs: openArray[GlyphPosition],

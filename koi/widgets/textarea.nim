@@ -17,7 +17,9 @@ import koi/widgets/common
 import koi/widgets/scrollbar
 import koi/utils
 
-const TextVertAlignFactor = 0.55
+const
+  TextVertAlignFactor = 0.55
+  TextAreaScrollRowsPerTick = 3.0
 
 # textArea()
 proc textArea*(
@@ -65,8 +67,11 @@ proc textArea*(
         ta.cursorPos = text_out.runeLen
         ta.displayStartRow = 0
         ta.originalText = text_out
-        ta.selection.startPos = 0
-        ta.selection.endPos = ta.cursorPos.Natural
+        if ui.mbLeftDown and not activate and not tabActivate:
+          ta.selection = NoSelection
+        else:
+          ta.selection.startPos = 0
+          ta.selection.endPos = ta.cursorPos.Natural
         ui.focusCaptured = true
 
   proc exitEditMode() =
@@ -86,6 +91,7 @@ proc textArea*(
   var rows = text.textBreakLines(textBoxW)
   let rowHeight = s.textFontSize * s.textLineHeight
   let maxLen = if constraint.isSome: constraint.get.maxLen else: Natural.none
+  let scrollBarId = hashId($id & ":scrollBar")
 
   proc fillRowGlyphs(row: types.TextRow, glyphs: var openArray[GlyphPosition]): int =
     let rowEnd = textAreaRowEndCursor(row)
@@ -114,28 +120,116 @@ proc textArea*(
       textBoxX,
     )
 
+  proc cursorXAt(pos: Natural): float =
+    let rowIndex = textAreaRowForCursor(rows, pos)
+    let row = rows[rowIndex]
+    var glyphs: array[1024, GlyphPosition]
+    let glyphCount = fillRowGlyphs(row, glyphs)
+    if glyphCount <= 0:
+      return textBoxX
+
+    textAreaCursorX(toOpenArray(glyphs, 0, glyphCount - 1), row.startPos, pos, textBoxX)
+
+  proc cursorPosAtRowX(rowIndex: Natural, cursorX: float): Natural =
+    let row = rows[rowIndex]
+    var glyphs: array[1024, GlyphPosition]
+    let glyphCount = fillRowGlyphs(row, glyphs)
+    if glyphCount <= 0:
+      return row.startPos
+
+    textAreaCursorPosAt(
+      toOpenArray(glyphs, 0, glyphCount - 1),
+      row.startPos,
+      textAreaRowEndCursor(row),
+      cursorX,
+      textBoxX,
+    )
+
   proc keepCursorVisible() =
     let rowIndex = textAreaRowForCursor(rows, ta.cursorPos)
     ta.displayStartRow = textAreaDisplayStartRowForCursor(
       rows.len.Natural, rowIndex, textBoxH, rowHeight, ta.displayStartRow
     )
 
+  proc clampDisplayStart() =
+    ta.displayStartRow = textAreaScrollDisplayStart(
+      rows.len.Natural, textBoxH, rowHeight, ta.displayStartRow, 0
+    )
+
+  proc setCursor(newCursorPos: Natural, selecting: bool, preserveX: bool = false) =
+    if selecting:
+      ta.selection = updateSelection(ta.selection, ta.cursorPos, newCursorPos)
+    else:
+      ta.selection = NoSelection
+    ta.cursorPos = min(newCursorPos, text.runeLen.Natural)
+    if not preserveX:
+      ta.lastCursorXPos = float.none
+
+  proc moveCursorByRows(deltaRows: int, selecting: bool) =
+    let
+      sourceRow = textAreaRowForCursor(rows, ta.cursorPos)
+      targetRow = textAreaRowByDelta(rows.len.Natural, sourceRow, deltaRows)
+      cursorX =
+        if ta.lastCursorXPos.isSome:
+          ta.lastCursorXPos.get
+        else:
+          cursorXAt(ta.cursorPos)
+
+    ta.lastCursorXPos = cursorX.some
+    setCursor(cursorPosAtRowX(targetRow, cursorX), selecting, preserveX = true)
+
   # Hit testing
   if ta.activeItem == id:
     markHot(id)
-    markActive(id)
+    if not isActive(scrollBarId):
+      markActive(id)
     cursorShape(csIBeam)
+    var cursorChanged = false
 
-    if ta.state == tasEditLMBPressed:
-      if not ui.mbLeftDown:
-        ta.state = tasEdit
+    proc scrollRows(deltaRows: float) =
+      ta.displayStartRow = textAreaScrollDisplayStart(
+        rows.len.Natural, textBoxH, rowHeight, ta.displayStartRow, deltaRows
+      )
 
     # LMB pressed outside the text area exits edit mode
     if ui.mbLeftDown and not mouseInside(x, y, w, h):
       exitEditMode()
-    elif ui.mbLeftDown and mouseInside(textBoxX, textBoxY, textBoxW, textBoxH):
-      ta.cursorPos = cursorPosAtMouse(ui.mx, ui.my)
-      ta.selection = NoSelection
+    elif ta.state in {tasEditLMBPressed, tasEdit} and ui.mbLeftDown and
+        mouseInside(textBoxX, textBoxY, textBoxW, textBoxH):
+      let cursorPos = cursorPosAtMouse(ui.mx, ui.my)
+      ta.cursorPos = cursorPos
+      ta.selection = TextSelection(startPos: cursorPos.int, endPos: cursorPos)
+      ta.lastCursorXPos = float.none
+      ta.state = tasDragStart
+      cursorChanged = true
+      if ui.hasEvent and not ui.eventHandled and ui.currEvent.kind == ekMouseButton:
+        markEventHandled()
+    elif ta.state == tasDragStart:
+      if ui.mbLeftDown:
+        if ui.my < textBoxY:
+          scrollRows(-1)
+          requestFrames()
+        elif ui.my > textBoxY + textBoxH:
+          scrollRows(1)
+          requestFrames()
+
+        let cursorPos = cursorPosAtMouse(ui.mx, ui.my)
+        ta.cursorPos = cursorPos
+        ta.selection.endPos = cursorPos
+        ta.lastCursorXPos = float.none
+        cursorChanged = true
+      else:
+        if not hasSelection(ta.selection):
+          ta.selection = NoSelection
+        ta.state = tasEdit
+
+    if ta.state == tasEditLMBPressed and not ui.mbLeftDown:
+      ta.state = tasEdit
+
+    if ui.hasEvent and not ui.eventHandled and ui.currEvent.kind == ekScroll and
+        mouseInside(x, y, w, h):
+      scrollRows(-ui.currEvent.oy * TextAreaScrollRowsPerTick)
+      markEventHandled()
 
     # Event handling
     if ui.hasEvent and (not ui.eventHandled) and ui.currEvent.kind == ekKey and
@@ -150,20 +244,65 @@ proc textArea*(
         text = res.get.text
         ta.cursorPos = res.get.cursorPos
         ta.selection = res.get.selection
+        ta.lastCursorXPos = float.none
         rows = text.textBreakLines(textBoxW)
+        cursorChanged = true
       else:
         # TextArea specific shortcuts
         if sc in shortcuts[tesAccept]:
           exitEditMode()
         elif sc in shortcuts[tesCancel]:
           text = ta.originalText
+          rows = text.textBreakLines(textBoxW)
           exitEditMode()
+        elif sc in shortcuts[tesCursorToLineStart]:
+          setCursor(textAreaLineStartCursor(rows, ta.cursorPos), selecting = false)
+          cursorChanged = true
+        elif sc in shortcuts[tesCursorToLineEnd]:
+          setCursor(textAreaLineEndCursor(rows, ta.cursorPos), selecting = false)
+          cursorChanged = true
+        elif sc in shortcuts[tesSelectionToLineStart]:
+          setCursor(textAreaLineStartCursor(rows, ta.cursorPos), selecting = true)
+          cursorChanged = true
+        elif sc in shortcuts[tesSelectionToLineEnd]:
+          setCursor(textAreaLineEndCursor(rows, ta.cursorPos), selecting = true)
+          cursorChanged = true
+        elif sc in shortcuts[tesCursorToPreviousLine]:
+          moveCursorByRows(-1, selecting = false)
+          cursorChanged = true
+        elif sc in shortcuts[tesCursorToNextLine]:
+          moveCursorByRows(1, selecting = false)
+          cursorChanged = true
+        elif sc in shortcuts[tesSelectionToPreviousLine]:
+          moveCursorByRows(-1, selecting = true)
+          cursorChanged = true
+        elif sc in shortcuts[tesSelectionToNextLine]:
+          moveCursorByRows(1, selecting = true)
+          cursorChanged = true
+        elif sc in shortcuts[tesCursorPageUp]:
+          let rowsPerPage = textAreaVisibleRows(textBoxH, rowHeight).int
+          moveCursorByRows(-rowsPerPage, selecting = false)
+          cursorChanged = true
+        elif sc in shortcuts[tesCursorPageDown]:
+          let rowsPerPage = textAreaVisibleRows(textBoxH, rowHeight).int
+          moveCursorByRows(rowsPerPage, selecting = false)
+          cursorChanged = true
+        elif sc in shortcuts[tesSelectionPageUp]:
+          let rowsPerPage = textAreaVisibleRows(textBoxH, rowHeight).int
+          moveCursorByRows(-rowsPerPage, selecting = true)
+          cursorChanged = true
+        elif sc in shortcuts[tesSelectionPageDown]:
+          let rowsPerPage = textAreaVisibleRows(textBoxH, rowHeight).int
+          moveCursorByRows(rowsPerPage, selecting = true)
+          cursorChanged = true
         elif sc in shortcuts[tesInsertNewline]:
           let res = insertString(text, ta.cursorPos, ta.selection, "\n", maxLen)
           text = res.text
           ta.cursorPos = res.cursorPos
           ta.selection = res.selection
+          ta.lastCursorXPos = float.none
           rows = text.textBreakLines(textBoxW)
+          cursorChanged = true
 
     if not charBufEmpty():
       var newChars = consumeCharBuf()
@@ -171,12 +310,46 @@ proc textArea*(
       text = res.text
       ta.cursorPos = res.cursorPos
       ta.selection = res.selection
+      ta.lastCursorXPos = float.none
       rows = text.textBreakLines(textBoxW)
+      cursorChanged = true
       markEventHandled()
 
     if ta.activeItem == id:
       ta.cursorPos = min(ta.cursorPos, text.runeLen.Natural)
-      keepCursorVisible()
+      clampDisplayStart()
+      if cursorChanged:
+        keepCursorVisible()
+
+  clampDisplayStart()
+
+  let visibleRows = textAreaVisibleRows(textBoxH, rowHeight)
+  if rows.len.Natural > visibleRows:
+    var scrollValue = ta.displayStartRow
+    let
+      maxStart = textAreaMaxDisplayStart(rows.len.Natural, textBoxH, rowHeight)
+      thumbSize =
+        if rows.len == 0:
+          0.0
+        else:
+          visibleRows.float * (maxStart / rows.len.float)
+
+    vertScrollBar(
+      scrollBarId,
+      x = x + w - s.scrollBarWidth,
+      y = textBoxY,
+      w = s.scrollBarWidth,
+      h = textBoxH,
+      startVal = 0,
+      endVal = maxStart,
+      value_out = scrollValue,
+      thumbSize = thumbSize,
+      clickStep = visibleRows.float,
+      style = if ta.activeItem == id: s.scrollBarStyleEdit else: s.scrollBarStyleNormal,
+      allowFocusCaptured = ta.activeItem == id,
+    )
+    ta.displayStartRow =
+      textAreaScrollDisplayStart(rows.len.Natural, textBoxH, rowHeight, scrollValue, 0)
 
   text_out = text
 
@@ -195,8 +368,44 @@ proc textArea*(
     vg.intersectScissor(textBoxX, textBoxY, textBoxW, textBoxH)
 
     var ty = textBoxY + rowHeight * TextVertAlignFactor - ta.displayStartRow * rowHeight
+    var rowY = textBoxY - ta.displayStartRow * rowHeight
 
     useTextFont()
+
+    if editing and hasSelection(ta.selection):
+      for row in rows:
+        if rowY + rowHeight > textBoxY and rowY < textBoxY + textBoxH:
+          let rowSelection = textAreaSelectionForRow(row, ta.selection)
+          if rowSelection.active:
+            var glyphs: array[1024, GlyphPosition]
+            let glyphCount = fillRowGlyphs(row, glyphs)
+            let x1 =
+              if glyphCount <= 0:
+                textBoxX
+              else:
+                textAreaCursorX(
+                  toOpenArray(glyphs, 0, glyphCount - 1),
+                  row.startPos,
+                  rowSelection.startPos,
+                  textBoxX,
+                )
+            let x2 =
+              if glyphCount <= 0:
+                textBoxX
+              else:
+                textAreaCursorX(
+                  toOpenArray(glyphs, 0, glyphCount - 1),
+                  row.startPos,
+                  rowSelection.endPos,
+                  textBoxX,
+                )
+
+            vg.beginPath()
+            vg.rect(x1, rowY, max(x2 - x1, s.cursorWidth), rowHeight)
+            vg.fillColor(s.selectionColor)
+            vg.fill()
+        rowY += rowHeight
+
     vg.fillColor(if editing: s.textColorActive else: s.textColor)
 
     for row in rows:
