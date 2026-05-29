@@ -65,11 +65,15 @@ proc scrollViewStartY*(id: ItemId): float =
 proc getScrollViewStartY*(id: ItemId): float =
   scrollViewStartY(id)
 
+proc beginViewWithSlot*(slot: LayoutSlot)
+
 proc beginView*(id: ItemId, x, y, w, h: float) =
-  alias(ui, g_uiState)
   let (x, y) = addDrawOffset(x, y)
   let slot = beginLayoutContainerSlot(id, rect(x, y, w, h))
+  beginViewWithSlot(slot)
 
+proc beginViewWithSlot*(slot: LayoutSlot) =
+  alias(ui, g_uiState)
   addLayoutDrawLayer(ui.currentLayer, slot.nodeId, vg, bounds):
     vg.save()
     vg.intersectScissor(bounds.x, bounds.y, bounds.w, bounds.h)
@@ -78,7 +82,7 @@ proc beginView*(id: ItemId, x, y, w, h: float) =
     slot.previousBounds.x, slot.previousBounds.y, slot.previousBounds.w,
     slot.previousBounds.h,
   )
-  pushDrawOffset(DrawOffset(ox: x, oy: y))
+  pushDrawOffset(DrawOffset(ox: slot.bounds.x, oy: slot.bounds.y))
 
 template beginView*(x, y, w, h: float) =
   let i = instantiationInfo(fullPaths = true)
@@ -94,13 +98,12 @@ proc endView*() =
   autoLayoutFinal()
   resetHitClip()
 
-proc beginScrollView*(
+proc prepareScrollViewState(
     id: ItemId,
     x, y, w, h: float,
-    style: ScrollViewStyle = borrowDefaultScrollViewStyle(),
-) =
+    style: ScrollViewStyle,
+): tuple[scrollX, scrollY: float] =
   alias(ui, g_uiState)
-  let (x, y) = addDrawOffset(x, y)
 
   discard
     ui.itemState.hasKeyOrPut(
@@ -124,28 +127,71 @@ proc beginScrollView*(
   if ss.autoContentHeight:
     ss.contentHeight = max(previousContent.h, h)
 
-  let
-    scrollX = ss.clampedStartX()
-    scrollY = ss.clampedStartY()
-    slot = beginLayoutContainerSlotAt(
-      id,
-      rect(x, y, w, h),
-      rect(x - scrollX, y - scrollY, w, h),
-      size(scrollX, scrollY),
-    )
-    hitBounds = slot.previousBounds
+  ui.itemState[id] = ss
+  result.scrollX = ss.clampedStartX()
+  result.scrollY = ss.clampedStartY()
+
+proc beginScrollViewWithSlot*(
+    id: ItemId,
+    slot: LayoutSlot,
+    drawOffsetBounds: Rect,
+    style: ScrollViewStyle = borrowDefaultScrollViewStyle(),
+) =
+  alias(ui, g_uiState)
 
   addLayoutDrawLayer(ui.currentLayer, slot.nodeId, vg, bounds):
     vg.save()
     vg.intersectScissor(bounds.x, bounds.y, bounds.w, bounds.h)
 
   ui.scrollViewState.activeItem = id
-  hitClip(hitBounds.x, hitBounds.y, hitBounds.w, hitBounds.h)
+  hitClip(
+    slot.previousBounds.x, slot.previousBounds.y, slot.previousBounds.w,
+    slot.previousBounds.h,
+  )
 
-  ss.hitBounds = hitBounds
+  var ss = cast[ScrollViewState](ui.itemState[id])
+  ss.hitBounds = slot.previousBounds
   ss.viewportNode = slot.nodeId
-  pushDrawOffset(DrawOffset(ox: x - scrollX, oy: y - scrollY))
+  ss.style = style
+  pushDrawOffset(DrawOffset(ox: drawOffsetBounds.x, oy: drawOffsetBounds.y))
   ui.itemState[id] = ss
+
+proc beginScrollViewWithFollowerSlot*(
+    id: ItemId,
+    fallback: Rect,
+    target: LayoutNodeId,
+    followInset: Padding,
+    style: ScrollViewStyle = borrowDefaultScrollViewStyle(),
+) =
+  let (scrollX, scrollY) =
+    prepareScrollViewState(id, fallback.x, fallback.y, fallback.w, fallback.h, style)
+  let drawBounds = rect(fallback.x - scrollX, fallback.y - scrollY, fallback.w,
+    fallback.h)
+  let slot = beginLayoutFollowerContainerSlotAt(
+    id,
+    fallback,
+    drawBounds,
+    target,
+    lfkMatchTarget,
+    followInset = followInset,
+    scrollOffset = size(scrollX, scrollY),
+  )
+  beginScrollViewWithSlot(id, slot, drawBounds, style)
+
+proc beginScrollView*(
+    id: ItemId,
+    x, y, w, h: float,
+    style: ScrollViewStyle = borrowDefaultScrollViewStyle(),
+) =
+  let (x, y) = addDrawOffset(x, y)
+  let (scrollX, scrollY) = prepareScrollViewState(id, x, y, w, h, style)
+  let slot = beginLayoutContainerSlotAt(
+    id,
+    rect(x, y, w, h),
+    rect(x - scrollX, y - scrollY, w, h),
+    size(scrollX, scrollY),
+  )
+  beginScrollViewWithSlot(id, slot, rect(x - scrollX, y - scrollY, w, h), style)
 
 template beginScrollView*(
     x, y, w, h: float, style: ScrollViewStyle = borrowDefaultScrollViewStyle()

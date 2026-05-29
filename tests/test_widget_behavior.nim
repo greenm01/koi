@@ -1728,6 +1728,140 @@ suite "feature widget behavior":
     check g_drawLayers.layers[ord(layerDefault)].len == 2
     endTitledScrollView(20)
 
+  test "auto-layout group box frame owns row slot and content follows":
+    resetUi()
+    var params = DefaultAutoLayoutParams
+    params.itemsPerRow = 1
+    params.rowWidth = 120
+    params.leftPad = 0
+    params.rightPad = 0
+    params.rowPad = 0
+    params.sectionPad = 0
+    params.defaultRowHeight = 80
+    params.defaultItemHeight = 80
+    initAutoLayout(params)
+    beginFrameLayout()
+
+    let
+      groupId: ItemId = 92
+      frameId = hashId($groupId & ":frame")
+      style = borrowDefaultGroupBoxStyle()
+    autoLayoutPre()
+    let groupRow = g_uiState.autoLayoutState.autoRow
+    discard beginGroupBox(
+      groupId,
+      g_uiState.autoLayoutState.x,
+      autoLayoutNextY(),
+      autoLayoutNextItemWidth(),
+      autoLayoutNextItemHeight(),
+      "Group",
+      style,
+    )
+    endGroupBox()
+    autoLayoutPost()
+    finishFrameLayout()
+
+    var rowChildren = 0
+    var frameNode = NullLayoutNodeId
+    var contentNode = NullLayoutNodeId
+    for node in g_uiState.layoutArena.nodes:
+      if int32(node.parent) == int32(groupRow):
+        inc rowChildren
+      if node.itemId == frameId:
+        frameNode = node.id
+      elif node.itemId == groupId:
+        contentNode = node.id
+
+    check rowChildren == 1
+    check not frameNode.isNull
+    check not contentNode.isNull
+    check int32(g_uiState.layoutArena.nodes[frameNode.int].parent) == int32(groupRow)
+    check g_uiState.layoutArena.nodes[contentNode.int].placement.kind == lpkFollow
+    check g_uiState.layoutArena.nodes[contentNode.int].placement.followKind ==
+      lfkMatchTarget
+    check int32(g_uiState.layoutArena.nodes[contentNode.int].placement.target) ==
+      int32(frameNode)
+
+    let
+      frameRect = g_uiState.layoutRects[frameId]
+      contentRect = g_uiState.layoutRects[groupId]
+    checkRect(
+      contentRect,
+      rect(
+        frameRect.x + style.pad,
+        frameRect.y + style.titleHeight + style.pad,
+        max(0.0, frameRect.w - style.pad * 2),
+        max(0.0, frameRect.h - style.titleHeight - style.pad * 2),
+      ),
+    )
+
+  test "auto-layout titled scroll view frame owns row slot and viewport follows":
+    resetUi()
+    var params = DefaultAutoLayoutParams
+    params.itemsPerRow = 1
+    params.rowWidth = 120
+    params.leftPad = 0
+    params.rightPad = 0
+    params.rowPad = 0
+    params.sectionPad = 0
+    params.defaultRowHeight = 80
+    params.defaultItemHeight = 80
+    initAutoLayout(params)
+    beginFrameLayout()
+
+    let
+      scrollId: ItemId = 93
+      frameId = hashId($scrollId & ":frame")
+      style = borrowDefaultGroupBoxStyle()
+    autoLayoutPre()
+    let scrollRow = g_uiState.autoLayoutState.autoRow
+    discard beginTitledScrollView(
+      scrollId,
+      g_uiState.autoLayoutState.x,
+      autoLayoutNextY(),
+      autoLayoutNextItemWidth(),
+      autoLayoutNextItemHeight(),
+      "Group",
+      style,
+    )
+    endTitledScrollView(20)
+    autoLayoutPost()
+    finishFrameLayout()
+
+    var rowChildren = 0
+    var frameNode = NullLayoutNodeId
+    var viewportNode = NullLayoutNodeId
+    for node in g_uiState.layoutArena.nodes:
+      if int32(node.parent) == int32(scrollRow):
+        inc rowChildren
+      if node.itemId == frameId:
+        frameNode = node.id
+      elif node.itemId == scrollId:
+        viewportNode = node.id
+
+    check rowChildren == 1
+    check not frameNode.isNull
+    check not viewportNode.isNull
+    check int32(g_uiState.layoutArena.nodes[frameNode.int].parent) == int32(scrollRow)
+    check g_uiState.layoutArena.nodes[viewportNode.int].placement.kind == lpkFollow
+    check g_uiState.layoutArena.nodes[viewportNode.int].placement.followKind ==
+      lfkMatchTarget
+    check int32(g_uiState.layoutArena.nodes[viewportNode.int].placement.target) ==
+      int32(frameNode)
+
+    let
+      frameRect = g_uiState.layoutRects[frameId]
+      viewportRect = g_uiState.layoutRects[scrollId]
+    checkRect(
+      viewportRect,
+      rect(
+        frameRect.x + style.pad,
+        frameRect.y + style.titleHeight + style.pad,
+        max(0.0, frameRect.w - style.pad * 2),
+        max(0.0, frameRect.h - style.titleHeight - style.pad * 2),
+      ),
+    )
+
   test "table header hit testing uses a previous solved rect":
     resetUi()
     let columns =

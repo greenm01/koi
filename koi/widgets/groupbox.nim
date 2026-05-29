@@ -19,11 +19,9 @@ proc groupBoxContentRect(x, y, w, h: float, style: GroupBoxStyle): Rect =
   )
 
 proc drawGroupBoxFrame(
-    id: ItemId, x, y, w, h: float, title: string, style: GroupBoxStyle
+    slot: LayoutSlot, title: string, style: GroupBoxStyle
 ) =
   alias(ui, g_uiState)
-  let (sx, sy) = addDrawOffset(x, y)
-  let slot = layoutDrawSlot(id, rect(sx, sy, w, h))
 
   addLayoutDrawLayer(ui.currentLayer, slot.nodeId, vg, bounds):
     let (rx, ry, rw, rh) =
@@ -45,15 +43,30 @@ proc drawGroupBoxFrame(
       vg.fill()
       vg.drawLabel(rx, ry, rw, style.titleHeight, title, wsNormal, style.titleLabel)
 
+func groupBoxContentInset(style: GroupBoxStyle): Padding =
+  padding(style.pad, style.pad, style.titleHeight + style.pad, style.pad)
+
 proc beginGroupBox*(
     id: ItemId,
     x, y, w, h: float,
     title: string,
     style: GroupBoxStyle = borrowDefaultGroupBoxStyle(),
 ): Rect =
-  drawGroupBoxFrame(hashId($id & ":frame"), x, y, w, h, title, style)
   result = groupBoxContentRect(x, y, w, h, style)
-  beginView(id, result.x, result.y, result.w, result.h)
+  let
+    (sx, sy) = addDrawOffset(x, y)
+    frameSlot = layoutSlot(hashId($id & ":frame"), rect(sx, sy, w, h))
+    contentFallback = groupBoxContentRect(sx, sy, w, h, style)
+    contentSlot = beginLayoutFollowerContainerSlotAt(
+      id,
+      contentFallback,
+      contentFallback,
+      frameSlot.nodeId,
+      lfkMatchTarget,
+      followInset = groupBoxContentInset(style),
+    )
+  drawGroupBoxFrame(frameSlot, title, style)
+  beginViewWithSlot(contentSlot)
 
 proc endGroupBox*() =
   endView()
@@ -85,9 +98,19 @@ proc beginTitledScrollView*(
     groupStyle: GroupBoxStyle = borrowDefaultGroupBoxStyle(),
     scrollStyle: ScrollViewStyle = borrowDefaultScrollViewStyle(),
 ): Rect =
-  drawGroupBoxFrame(hashId($id & ":frame"), x, y, w, h, title, groupStyle)
   result = groupBoxContentRect(x, y, w, h, groupStyle)
-  beginScrollView(id, result.x, result.y, result.w, result.h, scrollStyle)
+  let
+    (sx, sy) = addDrawOffset(x, y)
+    frameSlot = layoutSlot(hashId($id & ":frame"), rect(sx, sy, w, h))
+    contentFallback = groupBoxContentRect(sx, sy, w, h, groupStyle)
+  drawGroupBoxFrame(frameSlot, title, groupStyle)
+  beginScrollViewWithFollowerSlot(
+    id,
+    contentFallback,
+    frameSlot.nodeId,
+    groupBoxContentInset(groupStyle),
+    scrollStyle,
+  )
 
 proc endTitledScrollView*(contentW, contentH: float) =
   endScrollView(contentW, contentH)

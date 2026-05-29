@@ -335,6 +335,61 @@ proc beginLayoutContainerSlotAt*(
 proc beginLayoutContainerSlot*(id: ItemId, fallback: Rect): LayoutSlot =
   beginLayoutContainerSlotAt(id, fallback, fallback)
 
+proc beginLayoutFollowerContainerSlotAt*(
+    id: ItemId,
+    fallback, frameBounds: Rect,
+    target: LayoutNodeId,
+    followKind: LayoutFollowerKind,
+    followAlign: HorizontalAlign = haLeft,
+    windowPad: float = 10.0,
+    followInset: Padding = Padding(),
+    scrollOffset: Size = size(0, 0),
+): LayoutSlot =
+  alias(ui, g_uiState)
+  alias(a, ui.autoLayoutState)
+
+  var node = layoutNode(
+    kind = lnkContainer,
+    itemId = id,
+    width = fixed(fallback.w),
+    height = fixed(fallback.h),
+    scrollOffset = scrollOffset,
+    placement = follow(target, followKind, followAlign, windowPad, followInset),
+  )
+  node.intrinsicMin = size(fallback.w, fallback.h)
+  node.intrinsicPref = size(fallback.w, fallback.h)
+  node.rect = fallback
+
+  let nodeId =
+    if ui.frameLayoutActive():
+      let child = ui.layoutArena.addLayoutNode(node, ui.layoutRoot)
+      ui.layoutArena.nodeStack.add(child)
+      child
+    else:
+      ui.layoutArena.beginLayoutNode(node)
+
+  ui.layoutStack.add(
+    LayoutPresetFrame(
+      mode: lpmViewport,
+      x: frameBounds.x,
+      y: frameBounds.y,
+      w: frameBounds.w,
+      h: frameBounds.h,
+      nodeId: nodeId,
+      savedActiveSlotParent: a.activeSlotParent,
+      savedActiveSlotUsed: a.activeSlotUsed,
+    )
+  )
+  a.activeSlotParent = NullLayoutNodeId
+  a.activeSlotUsed = false
+
+  result = LayoutSlot(
+    itemId: id,
+    nodeId: nodeId,
+    bounds: fallback,
+    previousBounds: previousLayoutRect(id, fallback),
+  )
+
 proc endLayoutContainerSlot*() =
   alias(ui, g_uiState)
   if ui.layoutStack.len == 0 or ui.layoutStack[^1].mode != lpmViewport:
