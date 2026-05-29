@@ -3,7 +3,9 @@ import nanovg
 import koi/types
 import koi/core
 import koi/drawing
+import koi/input
 import koi/layout
+import koi/rect
 import koi/defaults
 import koi/internal/algorithms
 import koi/utils
@@ -23,18 +25,23 @@ proc drawChartFrame(
   if label.len > 0:
     vg.drawLabel(x, y, w, h, label, wsNormal, style.label)
 
-proc plotChart*(
-    x, y, w, h: float,
+proc plotChartSlot(
+    slot: LayoutSlot,
     series: openArray[ChartSeries],
     minValue, maxValue: float,
     label: string = "",
     style: ChartStyle = borrowDefaultChartStyle(),
 ) =
   alias(ui, g_uiState)
-  let (x, y) = addDrawOffset(x, y)
   let chartSeries = @series
 
-  addDrawLayer(ui.currentLayer, vg):
+  addLayoutDrawLayer(ui.currentLayer, slot.nodeId, vg, bounds):
+    let
+      x = bounds.x
+      y = bounds.y
+      w = bounds.w
+      h = bounds.h
+
     vg.drawChartFrame(x, y, w, h, label, style)
 
     let hasColumns = block:
@@ -104,6 +111,41 @@ proc plotChart*(
       vg.drawLabel(legendX + 12, legendY, 90, 16, s.label, wsNormal, style.label)
       legendX += 104
 
+proc plotChart*(
+    id: ItemId,
+    x, y, w, h: float,
+    series: openArray[ChartSeries],
+    minValue, maxValue: float,
+    label: string = "",
+    style: ChartStyle = borrowDefaultChartStyle(),
+) =
+  let (x, y) = addDrawOffset(x, y)
+  let slot = layoutSlot(id, rect(x, y, w, h))
+  plotChartSlot(slot, series, minValue, maxValue, label, style)
+
+proc plotChart*(
+    x, y, w, h: float,
+    series: openArray[ChartSeries],
+    minValue, maxValue: float,
+    label: string = "",
+    style: ChartStyle = borrowDefaultChartStyle(),
+) =
+  let (x, y) = addDrawOffset(x, y)
+  let slot = layoutDrawSlot(0, rect(x, y, w, h))
+  plotChartSlot(slot, series, minValue, maxValue, label, style)
+
+proc plotLine*(
+    id: ItemId,
+    x, y, w, h: float,
+    values: openArray[float],
+    minValue, maxValue: float,
+    label: string = "",
+    style: ChartStyle = borrowDefaultChartStyle(),
+) =
+  let series =
+    [ChartSeries(label: "", values: @values, kind: ckLine, color: style.lineColor)]
+  plotChart(id, x, y, w, h, series, minValue, maxValue, label, style)
+
 proc plotLine*(
     x, y, w, h: float,
     values: openArray[float],
@@ -114,6 +156,18 @@ proc plotLine*(
   let series =
     [ChartSeries(label: "", values: @values, kind: ckLine, color: style.lineColor)]
   plotChart(x, y, w, h, series, minValue, maxValue, label, style)
+
+proc plotColumns*(
+    id: ItemId,
+    x, y, w, h: float,
+    values: openArray[float],
+    minValue, maxValue: float,
+    label: string = "",
+    style: ChartStyle = borrowDefaultChartStyle(),
+) =
+  let series =
+    [ChartSeries(label: "", values: @values, kind: ckColumns, color: style.columnColor)]
+  plotChart(id, x, y, w, h, series, minValue, maxValue, label, style)
 
 proc plotColumns*(
     x, y, w, h: float,
@@ -132,8 +186,12 @@ template plotChart*(
     label: string = "",
     style: ChartStyle = borrowDefaultChartStyle(),
 ) =
+  let i = instantiationInfo(fullPaths = true)
+  let id = nextId(i.filename, i.line, label)
+
   autoLayoutPre()
   plotChart(
+    id,
     g_uiState.autoLayoutState.x,
     autoLayoutNextY(),
     autoLayoutNextItemWidth(),
@@ -152,8 +210,12 @@ template plotLine*(
     label: string = "",
     style: ChartStyle = borrowDefaultChartStyle(),
 ) =
+  let i = instantiationInfo(fullPaths = true)
+  let id = nextId(i.filename, i.line, label)
+
   autoLayoutPre()
   plotLine(
+    id,
     g_uiState.autoLayoutState.x,
     autoLayoutNextY(),
     autoLayoutNextItemWidth(),
@@ -172,8 +234,12 @@ template plotColumns*(
     label: string = "",
     style: ChartStyle = borrowDefaultChartStyle(),
 ) =
+  let i = instantiationInfo(fullPaths = true)
+  let id = nextId(i.filename, i.line, label)
+
   autoLayoutPre()
   plotColumns(
+    id,
     g_uiState.autoLayoutState.x,
     autoLayoutNextY(),
     autoLayoutNextItemWidth(),

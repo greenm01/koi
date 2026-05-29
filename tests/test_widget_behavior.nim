@@ -14,10 +14,12 @@ import koi/layout
 import koi/rect
 import koi/types
 import koi/widgets/button
+import koi/widgets/chart
 import koi/widgets/checkbox
 import koi/widgets/colorpicker
 import koi/widgets/dropdown
 import koi/widgets/groupbox
+import koi/widgets/image
 import koi/widgets/label
 import koi/widgets/menu
 import koi/widgets/popup
@@ -229,6 +231,44 @@ suite "image widget behavior":
     g_uiState.hotItem = 0
     g_uiState.mbLeftDown = false
     check buttonImageLabel(50, 0, 0, 30, 20, paint, "Image")
+
+  test "manual image drawing registers a draw-only layout node":
+    resetUi()
+    var paint = Paint()
+
+    image(0, 0, 20, 10, paint)
+
+    check g_uiState.layoutArena.nodes.len == 1
+    check g_drawLayers.layers[ord(layerDefault)].len == 1
+
+  test "auto-layout image registers under active rows":
+    resetUi()
+    var params = DefaultAutoLayoutParams
+    params.itemsPerRow = 1
+    params.rowWidth = 20
+    params.leftPad = 0
+    params.rightPad = 0
+    params.rowPad = 0
+    params.sectionPad = 0
+    params.defaultRowHeight = 10
+    params.defaultItemHeight = 10
+    initAutoLayout(params)
+    beginFrameLayout()
+
+    var paint = Paint()
+    autoLayoutPre()
+    let imageRow = g_uiState.autoLayoutState.autoRow
+    image(
+      51,
+      g_uiState.autoLayoutState.x,
+      autoLayoutNextY(),
+      autoLayoutNextItemWidth(),
+      autoLayoutNextItemHeight(),
+      paint,
+    )
+    autoLayoutPost()
+
+    check int32(g_uiState.layoutArena.nodes[3].parent) == int32(imageRow)
 
 suite "layout-integrated widget behavior":
   test "label registers a text node and queues solved-rect drawing":
@@ -1007,6 +1047,46 @@ suite "feature widget behavior":
 
     check g_uiState.layoutArena.nodes.len == 3
     check g_drawLayers.layers[ord(layerDefault)].len == 3
+
+  test "manual chart drawing registers a draw-only layout node":
+    resetUi()
+    let series: seq[ChartSeries] = @[]
+
+    plotChart(0, 0, 20, 10, series, 0, 1)
+
+    check g_uiState.layoutArena.nodes.len == 1
+    check g_drawLayers.layers[ord(layerDefault)].len == 1
+
+  test "auto-layout chart registers under active rows":
+    resetUi()
+    var params = DefaultAutoLayoutParams
+    params.itemsPerRow = 1
+    params.rowWidth = 20
+    params.leftPad = 0
+    params.rightPad = 0
+    params.rowPad = 0
+    params.sectionPad = 0
+    params.defaultRowHeight = 10
+    params.defaultItemHeight = 10
+    initAutoLayout(params)
+    beginFrameLayout()
+
+    let series: seq[ChartSeries] = @[]
+    autoLayoutPre()
+    let chartRow = g_uiState.autoLayoutState.autoRow
+    plotChart(
+      102,
+      g_uiState.autoLayoutState.x,
+      autoLayoutNextY(),
+      autoLayoutNextItemWidth(),
+      autoLayoutNextItemHeight(),
+      series,
+      0,
+      1,
+    )
+    autoLayoutPost()
+
+    check int32(g_uiState.layoutArena.nodes[3].parent) == int32(chartRow)
 
   test "interactive table header updates caller-owned sort state":
     resetUi()

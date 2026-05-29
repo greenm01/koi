@@ -9,6 +9,7 @@ import koi/widgets/common as commonModule
 import koi/widgets/popup as popupModule
 import koi/widgets/label as labelModule
 import koi/widgets/button as buttonModule
+import koi/widgets/image as imageModule
 import koi/widgets/selectable as selectableModule
 import koi/widgets/togglebutton as toggleButtonModule
 import koi/widgets/checkbox as checkBoxModule
@@ -32,7 +33,8 @@ import koi/widgets/groupbox as groupBoxModule
 import koi/widgets/dialog as dialogModule
 
 export types, core, lifecycle, defaults, drawing, layout, input
-export commonModule, popupModule, labelModule, buttonModule, selectableModule
+export commonModule, popupModule, labelModule, buttonModule, imageModule
+export selectableModule
 export toggleButtonModule
 export checkBoxModule, radioButtonsModule, scrollBarModule, dropDownModule
 export textFieldModule, textAreaModule, sliderModule, progressModule, propertyModule

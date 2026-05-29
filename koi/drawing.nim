@@ -474,13 +474,3 @@ proc drawImage*(vg: NVGContext, x, y, w, h: float, paint: Paint) =
   vg.fillPaint(paint)
   vg.fill()
   vg.restore()
-
-proc image*(x, y, w, h: float, paint: Paint) =
-  alias(ui, g_uiState)
-  let (x, y) = addDrawOffset(x, y)
-  addDrawLayer(ui.currentLayer, vg):
-    vg.drawImage(x, y, w, h, paint)
-
-proc image*(paint: Paint) =
-  alias(a, g_uiState.autoLayoutState)
-  image(a.x, a.y, a.nextItemWidth, a.nextItemHeight, paint)
