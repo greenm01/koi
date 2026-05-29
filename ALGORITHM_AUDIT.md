@@ -26,33 +26,36 @@ work that needs broader design or visual validation.
    - Insert length now accounts for the post-deletion base length.
    - Delete-right at the end of a field now avoids unnecessary substring work.
 
+5. Text field caret and glyph tracking kept the end cursor short of the right edge.
+   - Added pure helpers for text-field view state, cursor X, and mouse-to-cursor
+     mapping.
+   - Long single-line text now keeps the caret visible at the right edge when
+     the cursor is after the last character.
+   - The helpers are covered with synthetic glyph metrics and do not require a
+     live NanoVG context.
+
 ## High-Value Follow-Ups
 
-1. Text field caret and glyph tracking.
-   - The TODO about the cursor at the right edge is likely in display-start
-     calculation, not shortcut handling.
-   - Add visual/state tests around long single-line text before changing it.
-
-2. Text area editing model.
+1. Text area editing model.
    - Text area recalculates wrapped rows after edits and has partial state for
      cursor and selection behavior.
    - The next pass should extract row/cursor mapping helpers before adding
      vertical movement, selection drawing, or scrollbar behavior.
 
-3. Widget behavior duplication.
+2. Widget behavior duplication.
    - Button, toggle button, checkbox, radio buttons, sliders, and scrollbars
      repeat hot/active/disabled state transitions.
    - Extract this only after the current behavior has tests, because small
      differences are user-visible.
 
-4. WebGPU backend draw expansion.
+3. WebGPU backend draw expansion.
    - The backend expands fans and strips into triangle lists on the CPU and
      binds per draw call.
    - Before optimizing, add image-based or geometry tests for scissor,
      composite-operation behavior, and antialiasing so performance changes do
      not regress rendering.
 
-5. Default style copies.
+4. Default style copies.
    - Default style accessors deep-copy ref-object styles on every call.
    - This is correct for isolation, but expensive if done in hot paths. Cache or
      borrowing APIs would need an explicit mutability policy.

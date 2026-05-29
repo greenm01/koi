@@ -12,6 +12,7 @@ import koi/drawing
 import koi/layout
 import koi/input
 import koi/defaults
+import koi/internal/algorithms
 import koi/widgets/common
 import koi/utils
 
@@ -135,21 +136,19 @@ proc textField*(
           result = originalText
 
   proc cursorPosAt(x: float): Natural =
-    for p in tf.displayStartPos .. max(text.runeLen - 1, 0):
-      let midX = glyphs[p].minX + (glyphs[p].maxX - glyphs[p].minX) * 0.5
-      if x < tf.displayStartX + midX - glyphs[tf.displayStartPos].x:
-        return p.Natural
-    result = text.runeLen.Natural
+    textFieldCursorPosAt(
+      glyphs, text.runeLen.Natural, tf.displayStartPos, tf.displayStartX, x
+    )
 
   proc cursorXPos(): float =
-    if tf.cursorPos == 0:
-      textBoxX
-    elif tf.cursorPos == text.runeLen:
-      tf.displayStartX + glyphs[tf.cursorPos - 1].maxX - glyphs[tf.displayStartPos].x
-    elif tf.cursorPos > 0:
-      tf.displayStartX + glyphs[tf.cursorPos].x - glyphs[tf.displayStartPos].x
-    else:
-      textBoxX
+    textFieldCursorX(
+      glyphs,
+      text.runeLen.Natural,
+      tf.cursorPos,
+      TextFieldView(
+        displayStartPos: tf.displayStartPos, displayStartX: tf.displayStartX
+      ),
+    )
 
   if tf.activeItem == id and tf.state >= tfsEditLMBPressed:
     calcGlyphPos()
@@ -305,28 +304,18 @@ proc textField*(
         tf.displayStartPos = 0
         tf.displayStartX = textBoxX
       else:
-        var p = min(tf.cursorPos, textLen - 1)
-        let startOffsetX = textBoxX - tf.displayStartX
-        proc calcDisplayStart(fromPos: Natural): (Natural, float) =
-          let x0 = glyphs[fromPos].maxX
-          var p = fromPos
-          while p > 0 and x0 - glyphs[p].minX < textBoxW:
-            dec(p)
-          let
-            displayStartPos = p
-            textW = x0 - glyphs[p].minX
-            startOffsetX = textW - textBoxW
-            displayStartX = min(textBoxX - startOffsetX, textBoxX)
-          (displayStartPos, displayStartX)
-
-        if glyphs[p].maxX - glyphs[tf.displayStartPos].minX - startOffsetX > textBoxW:
-          (tf.displayStartPos, tf.displayStartX) = calcDisplayStart(p)
-        elif glyphs[textLen - 1].maxX - glyphs[tf.displayStartPos].minX - startOffsetX <
-            textBoxW:
-          (tf.displayStartPos, tf.displayStartX) = calcDisplayStart(textLen - 1)
-        elif glyphs[p].minX < glyphs[tf.displayStartPos].minX + startOffsetX:
-          tf.displayStartX = textBoxX
-          tf.displayStartPos = min(tf.displayStartPos, p)
+        let view = textFieldViewForCursor(
+          glyphs,
+          textLen.Natural,
+          tf.cursorPos,
+          textBoxX,
+          textBoxW,
+          TextFieldView(
+            displayStartPos: tf.displayStartPos, displayStartX: tf.displayStartX
+          ),
+        )
+        tf.displayStartPos = view.displayStartPos
+        tf.displayStartX = view.displayStartX
 
   text_out = text
   let editing = tf.activeItem == id

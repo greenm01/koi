@@ -1,6 +1,97 @@
 import std/math
 
+import nanovg
+
 import koi/utils
+
+type TextFieldView* = object
+  displayStartPos*: Natural
+  displayStartX*: float
+
+func textFieldGlyphCount(glyphs: openArray[GlyphPosition], textLen: Natural): Natural =
+  min(textLen, glyphs.len.Natural)
+
+func textFieldCaretOffset(
+    glyphs: openArray[GlyphPosition], textLen, cursorPos: Natural
+): float =
+  let glyphCount = textFieldGlyphCount(glyphs, textLen)
+  if glyphCount == 0 or cursorPos == 0:
+    return 0.0
+
+  if cursorPos >= glyphCount:
+    glyphs[glyphCount - 1].maxX.float
+  else:
+    glyphs[cursorPos].x.float
+
+func textFieldCursorX*(
+    glyphs: openArray[GlyphPosition], textLen, cursorPos: Natural, view: TextFieldView
+): float =
+  let glyphCount = textFieldGlyphCount(glyphs, textLen)
+  if glyphCount == 0:
+    return view.displayStartX
+
+  let startPos = min(view.displayStartPos, glyphCount - 1)
+  view.displayStartX + textFieldCaretOffset(glyphs, glyphCount, cursorPos) -
+    glyphs[startPos].x.float
+
+func textFieldCursorPosAt*(
+    glyphs: openArray[GlyphPosition],
+    textLen, displayStartPos: Natural,
+    displayStartX, mouseX: float,
+): Natural =
+  let glyphCount = textFieldGlyphCount(glyphs, textLen)
+  if glyphCount == 0:
+    return 0.Natural
+
+  let startPos = min(displayStartPos, glyphCount - 1)
+  for p in startPos ..< glyphCount:
+    let midX =
+      glyphs[p].minX.float + (glyphs[p].maxX.float - glyphs[p].minX.float) * 0.5
+    if mouseX < displayStartX + midX - glyphs[startPos].x.float:
+      return p.Natural
+  glyphCount
+
+func textFieldViewForCursor*(
+    glyphs: openArray[GlyphPosition],
+    textLen, cursorPos: Natural,
+    textBoxX, textBoxW: float,
+    currentView: TextFieldView,
+): TextFieldView =
+  let glyphCount = textFieldGlyphCount(glyphs, textLen)
+  if glyphCount == 0:
+    return TextFieldView(displayStartPos: 0, displayStartX: textBoxX)
+
+  if glyphs[glyphCount - 1].maxX.float <= textBoxW:
+    return TextFieldView(displayStartPos: 0, displayStartX: textBoxX)
+
+  result = currentView
+  result.displayStartPos = min(result.displayStartPos, glyphCount - 1)
+
+  let cursorPos = min(cursorPos, glyphCount)
+  let caretOffset = textFieldCaretOffset(glyphs, glyphCount, cursorPos)
+  let startOffset = glyphs[result.displayStartPos].x.float
+  let cursorX = result.displayStartX + caretOffset - startOffset
+
+  if cursorX > textBoxX + textBoxW:
+    var startPos =
+      if cursorPos >= glyphCount:
+        glyphCount - 1
+      else:
+        cursorPos
+    while startPos > 0 and caretOffset - glyphs[startPos].x.float < textBoxW:
+      dec(startPos)
+    result.displayStartPos = startPos
+    result.displayStartX =
+      textBoxX + textBoxW - (caretOffset - glyphs[result.displayStartPos].x.float)
+  elif cursorX < textBoxX:
+    result.displayStartPos =
+      if cursorPos >= glyphCount:
+        glyphCount - 1
+      else:
+        cursorPos
+    result.displayStartX = textBoxX
+  elif result.displayStartX > textBoxX:
+    result.displayStartX = textBoxX
 
 func dropDownHoverItem*(
     mouseY, itemListY, itemListPadVert, itemHeight: float,

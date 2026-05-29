@@ -3,6 +3,7 @@ import std/options
 import std/unittest
 
 import glfw
+import nanovg
 
 import koi/core
 import koi/defaults
@@ -22,6 +23,16 @@ proc resetLayout(params: AutoLayoutParams = DefaultAutoLayoutParams) =
   g_uiState.winHeight = 1000
   g_uiState.drawOffsetStack = @[DrawOffset(ox: 0, oy: 0)]
   initAutoLayout(params)
+
+func fixedGlyphs(count: Natural, advance: float): seq[GlyphPosition] =
+  for i in 0 ..< count:
+    result.add(
+      GlyphPosition(
+        x: (i.float * advance).cfloat,
+        minX: (i.float * advance).cfloat,
+        maxX: ((i.float + 1.0) * advance).cfloat,
+      )
+    )
 
 suite "layout algorithms":
   test "itemsPerRow zero falls back to one column":
@@ -83,3 +94,78 @@ suite "text editing algorithms":
     check res.get.text == "abc"
     check res.get.cursorPos == 3
     check not hasSelection(res.get.selection)
+
+suite "text field view algorithms":
+  test "empty text keeps the view at the text box origin":
+    let glyphs = fixedGlyphs(0, 10)
+    let view = textFieldViewForCursor(
+      glyphs,
+      0.Natural,
+      0.Natural,
+      100,
+      50,
+      TextFieldView(displayStartPos: 3, displayStartX: 12),
+    )
+
+    check view.displayStartPos == 0
+    checkClose(view.displayStartX, 100)
+    checkClose(textFieldCursorX(glyphs, 0.Natural, 0.Natural, view), 100)
+
+  test "fully visible text stays unscrolled":
+    let glyphs = fixedGlyphs(4, 10)
+    let view = textFieldViewForCursor(
+      glyphs,
+      4.Natural,
+      4.Natural,
+      100,
+      50,
+      TextFieldView(displayStartPos: 2, displayStartX: 80),
+    )
+
+    check view.displayStartPos == 0
+    checkClose(view.displayStartX, 100)
+    checkClose(textFieldCursorX(glyphs, 4.Natural, 4.Natural, view), 140)
+
+  test "long text keeps the end cursor at the right edge":
+    let glyphs = fixedGlyphs(10, 10)
+    let view = textFieldViewForCursor(
+      glyphs,
+      10.Natural,
+      10.Natural,
+      100,
+      50,
+      TextFieldView(displayStartPos: 0, displayStartX: 100),
+    )
+
+    check view.displayStartPos == 5
+    checkClose(view.displayStartX, 100)
+    checkClose(textFieldCursorX(glyphs, 10.Natural, 10.Natural, view), 150)
+
+  test "moving left scrolls only enough to reveal the cursor":
+    let glyphs = fixedGlyphs(10, 10)
+    let view = textFieldViewForCursor(
+      glyphs,
+      10.Natural,
+      2.Natural,
+      100,
+      50,
+      TextFieldView(displayStartPos: 5, displayStartX: 100),
+    )
+
+    check view.displayStartPos == 2
+    checkClose(view.displayStartX, 100)
+    checkClose(textFieldCursorX(glyphs, 10.Natural, 2.Natural, view), 100)
+
+  test "mouse position maps to visible cursor positions":
+    let glyphs = fixedGlyphs(10, 10)
+    let view = TextFieldView(displayStartPos: 5, displayStartX: 100)
+
+    check textFieldCursorPosAt(
+      glyphs, 10.Natural, view.displayStartPos, view.displayStartX, 101
+    ) == 5
+    check textFieldCursorPosAt(
+      glyphs, 10.Natural, view.displayStartPos, view.displayStartX, 116
+    ) == 7
+    check textFieldCursorPosAt(
+      glyphs, 10.Natural, view.displayStartPos, view.displayStartX, 500
+    ) == 10
