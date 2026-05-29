@@ -11,6 +11,13 @@ extern "C" {
 typedef struct KoiWaylandDisplay KoiWaylandDisplay;
 typedef struct KoiWaylandWindow KoiWaylandWindow;
 
+enum {
+  KOI_WAYLAND_MOD_SHIFT = 1u << 0,
+  KOI_WAYLAND_MOD_CTRL = 1u << 1,
+  KOI_WAYLAND_MOD_ALT = 1u << 2,
+  KOI_WAYLAND_MOD_SUPER = 1u << 3,
+};
+
 typedef struct {
   void (*on_close)(void* userdata);
   void (*on_resize)(uint32_t w, uint32_t h, void* userdata);

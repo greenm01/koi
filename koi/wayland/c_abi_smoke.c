@@ -5,6 +5,11 @@ static void on_close(void* userdata) {
 }
 
 int main(void) {
+  if ((KOI_WAYLAND_MOD_SHIFT | KOI_WAYLAND_MOD_CTRL |
+       KOI_WAYLAND_MOD_ALT | KOI_WAYLAND_MOD_SUPER) != 15u) {
+    return 1;
+  }
+
   KoiWaylandCallbacks callbacks = {0};
   callbacks.on_close = on_close;
   koi_wayland_set_callbacks(0, &callbacks);

@@ -1,10 +1,17 @@
 const std = @import("std");
 const c = @cImport({
+    @cInclude("unistd.h");
     @cInclude("wayland-client.h");
+    @cInclude("xkbcommon/xkbcommon.h");
     @cInclude("xdg-shell-client-protocol.h");
 });
 
 const allocator = std.heap.c_allocator;
+
+const KoiWaylandModShift: u32 = 1 << 0;
+const KoiWaylandModCtrl: u32 = 1 << 1;
+const KoiWaylandModAlt: u32 = 1 << 2;
+const KoiWaylandModSuper: u32 = 1 << 3;
 
 const KoiWaylandCallbacks = extern struct {
     on_close: ?*const fn (?*anyopaque) callconv(.c) void,
@@ -24,9 +31,19 @@ const KoiWaylandDisplay = extern struct {
     wl_compositor: ?*c.struct_wl_compositor,
     wl_seat: ?*c.struct_wl_seat,
     wl_pointer: ?*c.struct_wl_pointer,
+    wl_keyboard: ?*c.struct_wl_keyboard,
     xdg_wm_base: ?*c.struct_xdg_wm_base,
+    xkb_context: ?*c.struct_xkb_context,
+    xkb_keymap: ?*c.struct_xkb_keymap,
+    xkb_state: ?*c.struct_xkb_state,
+    mod_shift: c.xkb_mod_index_t,
+    mod_ctrl: c.xkb_mod_index_t,
+    mod_alt: c.xkb_mod_index_t,
+    mod_super: c.xkb_mod_index_t,
+    mods: u32,
     active_window: ?*KoiWaylandWindow,
     pointer_window: ?*KoiWaylandWindow,
+    keyboard_window: ?*KoiWaylandWindow,
 };
 
 const KoiWaylandWindow = extern struct {
@@ -128,6 +145,7 @@ fn wlSeatCapabilities(
     const display: *KoiWaylandDisplay = @ptrCast(@alignCast(data orelse return));
     const seat = wl_seat orelse return;
     const has_pointer = (capabilities & @as(u32, c.WL_SEAT_CAPABILITY_POINTER)) != 0;
+    const has_keyboard = (capabilities & @as(u32, c.WL_SEAT_CAPABILITY_KEYBOARD)) != 0;
 
     if (has_pointer and display.wl_pointer == null) {
         display.wl_pointer = c.wl_seat_get_pointer(seat);
@@ -138,6 +156,17 @@ fn wlSeatCapabilities(
         c.wl_pointer_destroy(display.wl_pointer.?);
         display.wl_pointer = null;
         display.pointer_window = null;
+    }
+
+    if (has_keyboard and display.wl_keyboard == null) {
+        display.wl_keyboard = c.wl_seat_get_keyboard(seat);
+        if (display.wl_keyboard) |keyboard| {
+            _ = c.wl_keyboard_add_listener(keyboard, &wl_keyboard_listener, display);
+        }
+    } else if (!has_keyboard and display.wl_keyboard != null) {
+        c.wl_keyboard_destroy(display.wl_keyboard.?);
+        display.wl_keyboard = null;
+        display.keyboard_window = null;
     }
 }
 
@@ -345,6 +374,229 @@ const wl_pointer_listener = c.struct_wl_pointer_listener{
     .axis_relative_direction = wlPointerAxisRelativeDirection,
 };
 
+fn resetXkbState(display: *KoiWaylandDisplay) void {
+    if (display.xkb_state) |state| {
+        c.xkb_state_unref(state);
+        display.xkb_state = null;
+    }
+    if (display.xkb_keymap) |keymap| {
+        c.xkb_keymap_unref(keymap);
+        display.xkb_keymap = null;
+    }
+    display.mod_shift = c.XKB_MOD_INVALID;
+    display.mod_ctrl = c.XKB_MOD_INVALID;
+    display.mod_alt = c.XKB_MOD_INVALID;
+    display.mod_super = c.XKB_MOD_INVALID;
+    display.mods = 0;
+}
+
+fn readKeymapFd(fd: i32, size: u32) ?[:0]u8 {
+    const len: usize = @intCast(size);
+    const keymap = allocator.allocSentinel(u8, len, 0) catch return null;
+
+    var offset: usize = 0;
+    while (offset < len) {
+        const n = std.posix.read(fd, keymap[offset..len]) catch {
+            allocator.free(keymap);
+            return null;
+        };
+        if (n == 0) {
+            break;
+        }
+        offset += n;
+    }
+
+    if (offset == 0) {
+        allocator.free(keymap);
+        return null;
+    }
+    return keymap;
+}
+
+fn updateModifierNames(display: *KoiWaylandDisplay) void {
+    const keymap = display.xkb_keymap orelse return;
+    display.mod_shift = c.xkb_keymap_mod_get_index(keymap, "Shift");
+    display.mod_ctrl = c.xkb_keymap_mod_get_index(keymap, "Control");
+    display.mod_alt = c.xkb_keymap_mod_get_index(keymap, "Mod1");
+    display.mod_super = c.xkb_keymap_mod_get_index(keymap, "Mod4");
+}
+
+fn modifierActive(
+    state: *c.struct_xkb_state,
+    index: c.xkb_mod_index_t,
+) bool {
+    if (index == c.XKB_MOD_INVALID) {
+        return false;
+    }
+    return c.xkb_state_mod_index_is_active(
+        state,
+        index,
+        c.XKB_STATE_MODS_EFFECTIVE,
+    ) != 0;
+}
+
+fn updateModifiers(display: *KoiWaylandDisplay) void {
+    const state = display.xkb_state orelse {
+        display.mods = 0;
+        return;
+    };
+
+    var mods: u32 = 0;
+    if (modifierActive(state, display.mod_shift)) {
+        mods |= KoiWaylandModShift;
+    }
+    if (modifierActive(state, display.mod_ctrl)) {
+        mods |= KoiWaylandModCtrl;
+    }
+    if (modifierActive(state, display.mod_alt)) {
+        mods |= KoiWaylandModAlt;
+    }
+    if (modifierActive(state, display.mod_super)) {
+        mods |= KoiWaylandModSuper;
+    }
+    display.mods = mods;
+}
+
+fn wlKeyboardKeymap(
+    data: ?*anyopaque,
+    wl_keyboard: ?*c.struct_wl_keyboard,
+    format: u32,
+    fd: i32,
+    size: u32,
+) callconv(.c) void {
+    _ = wl_keyboard;
+    defer _ = c.close(fd);
+
+    const display: *KoiWaylandDisplay = @ptrCast(@alignCast(data orelse return));
+    const context = display.xkb_context orelse return;
+    if (format != @as(u32, c.WL_KEYBOARD_KEYMAP_FORMAT_XKB_V1)) {
+        return;
+    }
+
+    const keymap_data = readKeymapFd(fd, size) orelse return;
+    defer allocator.free(keymap_data);
+
+    const keymap = c.xkb_keymap_new_from_string(
+        context,
+        keymap_data.ptr,
+        c.XKB_KEYMAP_FORMAT_TEXT_V1,
+        c.XKB_KEYMAP_COMPILE_NO_FLAGS,
+    ) orelse return;
+    const state = c.xkb_state_new(keymap) orelse {
+        c.xkb_keymap_unref(keymap);
+        return;
+    };
+
+    resetXkbState(display);
+    display.xkb_keymap = keymap;
+    display.xkb_state = state;
+    updateModifierNames(display);
+    updateModifiers(display);
+}
+
+fn wlKeyboardEnter(
+    data: ?*anyopaque,
+    wl_keyboard: ?*c.struct_wl_keyboard,
+    serial: u32,
+    surface: ?*c.struct_wl_surface,
+    keys: ?*c.struct_wl_array,
+) callconv(.c) void {
+    _ = wl_keyboard;
+    _ = serial;
+    _ = keys;
+    const display: *KoiWaylandDisplay = @ptrCast(@alignCast(data orelse return));
+    display.keyboard_window = pointerWindowForSurface(display, surface);
+}
+
+fn wlKeyboardLeave(
+    data: ?*anyopaque,
+    wl_keyboard: ?*c.struct_wl_keyboard,
+    serial: u32,
+    surface: ?*c.struct_wl_surface,
+) callconv(.c) void {
+    _ = wl_keyboard;
+    _ = serial;
+    const display: *KoiWaylandDisplay = @ptrCast(@alignCast(data orelse return));
+    if (display.keyboard_window) |window| {
+        if (window.wl_surface == surface) {
+            display.keyboard_window = null;
+        }
+    }
+}
+
+fn wlKeyboardKey(
+    data: ?*anyopaque,
+    wl_keyboard: ?*c.struct_wl_keyboard,
+    serial: u32,
+    time: u32,
+    key: u32,
+    state: u32,
+) callconv(.c) void {
+    _ = wl_keyboard;
+    _ = serial;
+    _ = time;
+    const display: *KoiWaylandDisplay = @ptrCast(@alignCast(data orelse return));
+    const xkb_state = display.xkb_state orelse return;
+    const window = display.keyboard_window orelse display.active_window orelse return;
+    const sym = c.xkb_state_key_get_one_sym(xkb_state, key + 8);
+
+    if (state == @as(u32, c.WL_KEYBOARD_KEY_STATE_PRESSED)) {
+        if (window.callbacks.on_key_down) |on_key_down| {
+            on_key_down(sym, display.mods, window.callbacks.userdata);
+        }
+    } else if (state == @as(u32, c.WL_KEYBOARD_KEY_STATE_RELEASED)) {
+        if (window.callbacks.on_key_up) |on_key_up| {
+            on_key_up(sym, display.mods, window.callbacks.userdata);
+        }
+    }
+}
+
+fn wlKeyboardModifiers(
+    data: ?*anyopaque,
+    wl_keyboard: ?*c.struct_wl_keyboard,
+    serial: u32,
+    mods_depressed: u32,
+    mods_latched: u32,
+    mods_locked: u32,
+    group: u32,
+) callconv(.c) void {
+    _ = wl_keyboard;
+    _ = serial;
+    const display: *KoiWaylandDisplay = @ptrCast(@alignCast(data orelse return));
+    const state = display.xkb_state orelse return;
+    _ = c.xkb_state_update_mask(
+        state,
+        mods_depressed,
+        mods_latched,
+        mods_locked,
+        0,
+        0,
+        group,
+    );
+    updateModifiers(display);
+}
+
+fn wlKeyboardRepeatInfo(
+    data: ?*anyopaque,
+    wl_keyboard: ?*c.struct_wl_keyboard,
+    rate: i32,
+    delay: i32,
+) callconv(.c) void {
+    _ = data;
+    _ = wl_keyboard;
+    _ = rate;
+    _ = delay;
+}
+
+const wl_keyboard_listener = c.struct_wl_keyboard_listener{
+    .keymap = wlKeyboardKeymap,
+    .enter = wlKeyboardEnter,
+    .leave = wlKeyboardLeave,
+    .key = wlKeyboardKey,
+    .modifiers = wlKeyboardModifiers,
+    .repeat_info = wlKeyboardRepeatInfo,
+};
+
 fn xdgWmBasePing(
     data: ?*anyopaque,
     xdg_wm_base: ?*c.struct_xdg_wm_base,
@@ -438,6 +690,9 @@ const xdg_toplevel_listener = c.struct_xdg_toplevel_listener{
 };
 
 fn destroyDisplayResources(display: *KoiWaylandDisplay) void {
+    if (display.wl_keyboard) |keyboard| {
+        c.wl_keyboard_destroy(keyboard);
+    }
     if (display.wl_pointer) |pointer| {
         c.wl_pointer_destroy(pointer);
     }
@@ -456,6 +711,11 @@ fn destroyDisplayResources(display: *KoiWaylandDisplay) void {
     if (display.wl_display) |wl_display| {
         c.wl_display_disconnect(wl_display);
     }
+    resetXkbState(display);
+    if (display.xkb_context) |context| {
+        c.xkb_context_unref(context);
+        display.xkb_context = null;
+    }
 }
 
 export fn koi_wayland_init() ?*KoiWaylandDisplay {
@@ -466,11 +726,24 @@ export fn koi_wayland_init() ?*KoiWaylandDisplay {
         .wl_compositor = null,
         .wl_seat = null,
         .wl_pointer = null,
+        .wl_keyboard = null,
         .xdg_wm_base = null,
+        .xkb_context = c.xkb_context_new(c.XKB_CONTEXT_NO_FLAGS),
+        .xkb_keymap = null,
+        .xkb_state = null,
+        .mod_shift = c.XKB_MOD_INVALID,
+        .mod_ctrl = c.XKB_MOD_INVALID,
+        .mod_alt = c.XKB_MOD_INVALID,
+        .mod_super = c.XKB_MOD_INVALID,
+        .mods = 0,
         .active_window = null,
         .pointer_window = null,
+        .keyboard_window = null,
     };
     if (display.wl_display == null) {
+        if (display.xkb_context) |context| {
+            c.xkb_context_unref(context);
+        }
         allocator.destroy(display);
         return null;
     }
@@ -605,6 +878,9 @@ export fn koi_wayland_destroy_window(window: ?*KoiWaylandWindow) void {
     if (win.display) |display| {
         if (display.pointer_window == win) {
             display.pointer_window = null;
+        }
+        if (display.keyboard_window == win) {
+            display.keyboard_window = null;
         }
         if (display.active_window == win) {
             display.active_window = null;

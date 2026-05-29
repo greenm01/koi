@@ -5,8 +5,8 @@ to the deferred candidates that still look useful.
 
 ## Backend And Rendering
 
-- Complete broader Wayland input support, especially keyboard/xkb mapping,
-  modifiers, repeat, cursor shape, output scale, and robust close/resize flow.
+- Complete remaining Wayland polish: key repeat, cursor shape, output scale, and
+  robust close/resize flow.
 
 ## Text And Editing
 

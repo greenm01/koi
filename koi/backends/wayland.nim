@@ -3,21 +3,26 @@ type
 
   KoiWaylandWindow* {.importc, incompleteStruct, header: "koi_wayland.h".} = object
 
-  KoiWaylandCallbacks* {.bycopy, importc, header: "koi_wayland.h".} = object
-    onClose* {.importc: "on_close".}: proc(userdata: pointer) {.cdecl.}
-    onResize* {.importc: "on_resize".}: proc(w, h: uint32, userdata: pointer) {.cdecl.}
-    onKeyDown* {.importc: "on_key_down".}:
-      proc(sym, mods: uint32, userdata: pointer) {.cdecl.}
-    onKeyUp* {.importc: "on_key_up".}:
-      proc(sym, mods: uint32, userdata: pointer) {.cdecl.}
-    onMouseMove* {.importc: "on_mouse_move".}:
-      proc(x, y: cdouble, userdata: pointer) {.cdecl.}
-    onMouseButton* {.importc: "on_mouse_button".}:
-      proc(btn: uint32, pressed: bool, userdata: pointer) {.cdecl.}
-    onScroll* {.importc: "on_scroll".}:
-      proc(dx, dy: cdouble, userdata: pointer) {.cdecl.}
-    onScale* {.importc: "on_scale".}: proc(scale: cdouble, userdata: pointer) {.cdecl.}
-    userdata*: pointer
+const
+  koiWaylandModShift* = 1'u32 shl 0
+  koiWaylandModCtrl* = 1'u32 shl 1
+  koiWaylandModAlt* = 1'u32 shl 2
+  koiWaylandModSuper* = 1'u32 shl 3
+
+type KoiWaylandCallbacks* {.bycopy, importc, header: "koi_wayland.h".} = object
+  onClose* {.importc: "on_close".}: proc(userdata: pointer) {.cdecl.}
+  onResize* {.importc: "on_resize".}: proc(w, h: uint32, userdata: pointer) {.cdecl.}
+  onKeyDown* {.importc: "on_key_down".}:
+    proc(sym, mods: uint32, userdata: pointer) {.cdecl.}
+  onKeyUp* {.importc: "on_key_up".}:
+    proc(sym, mods: uint32, userdata: pointer) {.cdecl.}
+  onMouseMove* {.importc: "on_mouse_move".}:
+    proc(x, y: cdouble, userdata: pointer) {.cdecl.}
+  onMouseButton* {.importc: "on_mouse_button".}:
+    proc(btn: uint32, pressed: bool, userdata: pointer) {.cdecl.}
+  onScroll* {.importc: "on_scroll".}: proc(dx, dy: cdouble, userdata: pointer) {.cdecl.}
+  onScale* {.importc: "on_scale".}: proc(scale: cdouble, userdata: pointer) {.cdecl.}
+  userdata*: pointer
 
 proc koiWaylandInit*(): ptr KoiWaylandDisplay {.
   cdecl, importc: "koi_wayland_init", header: "koi_wayland.h"
