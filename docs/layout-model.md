@@ -129,6 +129,14 @@ known. Only `fit` (and text-wrapped height) requires bottom-up measurement of
 content; that is the source of the ordering problem the execution model below
 solves.
 
+Aspect ratio is an optional node constraint. If one axis is fixed or already
+resolved and the other axis is flexible, the solver derives the flexible axis
+from `aspectRatio`. If both axes are fixed, the explicit sizes win.
+
+```nim
+let preview = layoutNode(width = fixed(160), height = fit(), aspectRatio = 16 / 9)
+```
+
 ## Common Layout Shapes
 
 These examples show the shipped solver behavior in the terms application code
@@ -232,6 +240,44 @@ next row starts here                      │ rows / color picker  │
 ```nim
 dropDown("Mode", @["Edit", "Preview", "Export"], mode)
 colorPicker(accentColor)
+```
+
+Followers are the compatibility layer for a more general attach model. New
+floating UI can attach any point on itself to any point on a parent, root, or
+target node.
+
+```nim
+layoutNode(
+  width = fixed(240),
+  height = fit(),
+  placement = attach(buttonNode, lapBottomLeft, lapTopLeft, windowPad = 10),
+)
+```
+
+The attach config stores `zIndex` and `capturePointer` so popup-style widgets
+can converge on one placement primitive while Koi keeps its existing draw
+layers.
+
+### Layout Diagnostics
+
+Layout diagnostics are recoverable. The arena records errors for duplicate item
+ids, invalid percent values, missing attach targets, node-capacity overflow, and
+internal layout failures. Invalid percents are clamped; missing floating targets
+leave the node at its fallback rect.
+
+```nim
+arena.setLayoutErrorHandler(proc(error: LayoutError) =
+  echo error.kind, ": ", error.message
+)
+```
+
+The built-in inspector is opt-in and drawn on `layerGlobalOverlay` after the
+frame is solved. It visualizes solved node rectangles and shows the hovered
+node's sizing, intrinsic, placement, and aspect-ratio data.
+
+```nim
+setLayoutInspectorEnabled(true)
+toggleLayoutInspector()
 ```
 
 ## Execution Model

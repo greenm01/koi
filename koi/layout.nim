@@ -1,5 +1,6 @@
 import std/math
 import std/options
+import std/strformat
 import std/strutils
 import std/tables
 import std/unicode
@@ -586,6 +587,42 @@ proc textLayoutSlot*(
     parent,
   )
 
+proc layoutAspectSlot*(
+    id: ItemId, fallback: Rect, aspectRatio: float, minHeight: float = 0.0
+): LayoutSlot =
+  alias(ui, g_uiState)
+  let parent = ui.activeAutoSlotParent()
+  var node = layoutNode(
+    kind = lnkWidget,
+    itemId = id,
+    width = fixed(fallback.w),
+    height = fit(min = minHeight),
+    aspectRatio = aspectRatio,
+    placement =
+      if parent.isNull:
+        layoutPlacement(fallback)
+      else:
+        flow(),
+  )
+  node.intrinsicMin = size(fallback.w, minHeight)
+  node.intrinsicPref = size(fallback.w, minHeight)
+  node.rect = fallback
+
+  let nodeId =
+    if parent.isNull:
+      ui.layoutArena.addLayoutNode(node)
+    else:
+      ui.layoutArena.addLayoutNode(node, parent)
+  ui.markAutoSlotUsed(parent)
+  ui.markPresetSlotUsed()
+
+  result = LayoutSlot(
+    itemId: id,
+    nodeId: nodeId,
+    bounds: fallback,
+    previousBounds: previousLayoutRect(id, fallback),
+  )
+
 proc textLayoutChildSlot*(
     parent: LayoutNodeId,
     id: ItemId,
@@ -601,9 +638,105 @@ template addLayoutDrawLayer*(
     layer: DrawLayer, nodeId: LayoutNodeId, vg, bounds, body: untyped
 ) =
   let capturedNodeId = nodeId
-  addDrawLayer(layer, vg):
+  addDrawLayerZ(layer, g_uiState.layoutArena.layoutZIndex(capturedNodeId), vg):
     let bounds {.inject.} = g_uiState.layoutArena.layoutRect(capturedNodeId)
     body
+
+func contains(r: Rect, x, y: float): bool =
+  x >= r.x and y >= r.y and x <= r.x + r.w and y <= r.y + r.h
+
+proc setLayoutInspectorEnabled*(enabled: bool) =
+  g_uiState.layoutDebug.enabled = enabled
+  if g_uiState.layoutDebug.panelWidth <= 0.0:
+    g_uiState.layoutDebug.panelWidth = 360.0
+  if enabled:
+    g_uiState.layoutDebug.hoveredNode = NullLayoutNodeId
+    g_uiState.layoutDebug.selectedNode = NullLayoutNodeId
+
+proc layoutInspectorEnabled*(): bool =
+  g_uiState.layoutDebug.enabled
+
+proc toggleLayoutInspector*() =
+  setLayoutInspectorEnabled(not layoutInspectorEnabled())
+
+proc layoutInspectorHoveredNode*(): LayoutNodeId =
+  g_uiState.layoutDebug.hoveredNode
+
+proc layoutInspectorSelectedNode*(): LayoutNodeId =
+  g_uiState.layoutDebug.selectedNode
+
+proc queueLayoutInspectorDraw() =
+  alias(ui, g_uiState)
+  if not ui.layoutDebug.enabled:
+    return
+
+  ui.layoutDebug.hoveredNode = NullLayoutNodeId
+  for i in countdown(ui.layoutArena.nodes.high, 0):
+    let node = ui.layoutArena.nodes[i]
+    if node.rect.contains(ui.mx, ui.my):
+      ui.layoutDebug.hoveredNode = node.id
+      break
+  if ui.mbLeftDown and not ui.layoutDebug.hoveredNode.isNull:
+    ui.layoutDebug.selectedNode = ui.layoutDebug.hoveredNode
+
+  let capturedHover = ui.layoutDebug.hoveredNode
+  let capturedSelected = ui.layoutDebug.selectedNode
+  let capturedPanelWidth =
+    if ui.layoutDebug.panelWidth > 0.0: ui.layoutDebug.panelWidth else: 360.0
+
+  addDrawLayer(layerGlobalOverlay, vg):
+    for node in g_uiState.layoutArena.nodes:
+      let isHover = int32(node.id) == int32(capturedHover)
+      let isSelected = int32(node.id) == int32(capturedSelected)
+      vg.beginPath()
+      vg.rect(node.rect.x, node.rect.y, node.rect.w, node.rect.h)
+      vg.strokeWidth(if isHover or isSelected: 2.0 else: 1.0)
+      vg.strokeColor(
+        if isHover:
+          rgba(255, 190, 0, 220)
+        elif isSelected:
+          rgba(255, 255, 255, 180)
+        else:
+          rgba(0, 180, 255, 110)
+      )
+      vg.stroke()
+
+    let
+      panelW = min(capturedPanelWidth, max(160.0, g_uiState.winWidth))
+      panelX = max(0.0, g_uiState.winWidth - panelW)
+      panelH = g_uiState.winHeight
+    vg.beginPath()
+    vg.rect(panelX, 0, panelW, panelH)
+    vg.fillColor(rgba(20, 22, 24, 230))
+    vg.fill()
+
+    vg.useFont(12.0, "sans", haLeft, vaTop)
+    vg.fillColor(rgba(235, 235, 235, 255))
+    var y = 12.0
+    discard vg.text(panelX + 12, y, "Layout Inspector")
+    y += 22.0
+
+    let hoveredIndex = int32(capturedHover)
+    let selectedIndex = int32(capturedSelected)
+    discard vg.text(panelX + 12, y, &"selected: {selectedIndex}")
+    y += 17.0
+    if hoveredIndex >= 0 and hoveredIndex < g_uiState.layoutArena.nodes.len.int32:
+      let node = g_uiState.layoutArena.nodes[hoveredIndex]
+      let lines = [
+        &"node: {int32(node.id)} item: {node.itemId}",
+        &"parent: {int32(node.parent)} kind: {node.kind}",
+        &"rect: {node.rect.x:.1f}, {node.rect.y:.1f}, {node.rect.w:.1f}, {node.rect.h:.1f}",
+        &"intrinsic min: {node.intrinsicMin.w:.1f}, {node.intrinsicMin.h:.1f}",
+        &"intrinsic pref: {node.intrinsicPref.w:.1f}, {node.intrinsicPref.h:.1f}",
+        &"size: {node.width.kind} x {node.height.kind}",
+        &"placement: {node.placement.kind}",
+        &"aspect: {node.aspectRatio:.3f}",
+      ]
+      for line in lines:
+        discard vg.text(panelX + 12, y, line)
+        y += 17.0
+    else:
+      discard vg.text(panelX + 12, y, "No node hovered")
 
 proc finishFrameLayout*() =
   alias(ui, g_uiState)
@@ -621,6 +754,7 @@ proc finishFrameLayout*() =
       solvedContentSizes[node.itemId] = node.contentSize
   ui.layoutRects = solvedRects
   ui.layoutContentSizes = solvedContentSizes
+  queueLayoutInspectorDraw()
 
 func col*(width: float): LayoutColumn =
   LayoutColumn(mode: cmStatic, value: width)

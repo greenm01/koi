@@ -1,4 +1,5 @@
 import std/math
+import std/strformat
 
 import nanovg
 
@@ -57,6 +58,114 @@ func follow*(
     followInset: followInset,
     windowPad: windowPad,
   )
+
+func attachNode*(
+    target: LayoutNodeId,
+    targetPoint, selfPoint: LayoutAttachPoint,
+    offset: Size = Size(),
+    windowPad: float = 0.0,
+    clipToRoot: bool = false,
+    zIndex: int = 0,
+    capturePointer: bool = false,
+): LayoutPlacement =
+  LayoutPlacement(
+    kind: lpkAttach,
+    attach: LayoutAttach(
+      targetKind: latNode,
+      targetNode: target,
+      targetPoint: targetPoint,
+      selfPoint: selfPoint,
+      offset: offset,
+      windowPad: windowPad,
+      clipToRoot: clipToRoot,
+      zIndex: zIndex,
+      capturePointer: capturePointer,
+    ),
+  )
+
+func attachParent*(
+    targetPoint, selfPoint: LayoutAttachPoint,
+    offset: Size = Size(),
+    windowPad: float = 0.0,
+    clipToRoot: bool = false,
+    zIndex: int = 0,
+    capturePointer: bool = false,
+): LayoutPlacement =
+  LayoutPlacement(
+    kind: lpkAttach,
+    attach: LayoutAttach(
+      targetKind: latParent,
+      targetNode: NullLayoutNodeId,
+      targetPoint: targetPoint,
+      selfPoint: selfPoint,
+      offset: offset,
+      windowPad: windowPad,
+      clipToRoot: clipToRoot,
+      zIndex: zIndex,
+      capturePointer: capturePointer,
+    ),
+  )
+
+func attachRoot*(
+    targetPoint, selfPoint: LayoutAttachPoint,
+    offset: Size = Size(),
+    windowPad: float = 0.0,
+    clipToRoot: bool = false,
+    zIndex: int = 0,
+    capturePointer: bool = false,
+): LayoutPlacement =
+  LayoutPlacement(
+    kind: lpkAttach,
+    attach: LayoutAttach(
+      targetKind: latRoot,
+      targetNode: NullLayoutNodeId,
+      targetPoint: targetPoint,
+      selfPoint: selfPoint,
+      offset: offset,
+      windowPad: windowPad,
+      clipToRoot: clipToRoot,
+      zIndex: zIndex,
+      capturePointer: capturePointer,
+    ),
+  )
+
+func attach*(
+    target: LayoutNodeId,
+    targetPoint, selfPoint: LayoutAttachPoint,
+    offset: Size = Size(),
+    windowPad: float = 0.0,
+    clipToRoot: bool = false,
+    zIndex: int = 0,
+    capturePointer: bool = false,
+): LayoutPlacement =
+  attachNode(
+    target, targetPoint, selfPoint, offset, windowPad, clipToRoot, zIndex,
+    capturePointer,
+  )
+
+proc reportLayoutError*(
+    arena: var LayoutArena,
+    kind: LayoutErrorKind,
+    nodeId: LayoutNodeId = NullLayoutNodeId,
+    itemId: ItemId = 0,
+    message: string = "",
+) =
+  let error = LayoutError(kind: kind, itemId: itemId, nodeId: nodeId, message: message)
+  arena.errors.add(error)
+  if arena.errorHandler != nil:
+    arena.errorHandler(error)
+
+proc setLayoutErrorHandler*(arena: var LayoutArena, handler: LayoutErrorHandler) =
+  arena.errorHandler = handler
+
+proc clearLayoutErrors*(arena: var LayoutArena) =
+  arena.errors.setLen(0)
+
+func layoutErrors*(arena: LayoutArena): seq[LayoutError] =
+  arena.errors
+
+proc setLayoutMaxNodes*(arena: var LayoutArena, maxNodes: int) =
+  arena.maxNodes = max(0, maxNodes)
 
 func clampSize(value: float, spec: LayoutSize): float =
   case spec.kind
@@ -122,11 +231,18 @@ iterator children*(arena: LayoutArena, node: LayoutNode): LayoutNodeId =
     yield arena.childIndices[start + i]
 
 proc initLayoutArena*(arena: var LayoutArena, measureText: MeasureTextProc = nil) =
+  let
+    errorHandler = arena.errorHandler
+    maxNodes = arena.maxNodes
   arena.nodes.setLen(0)
   arena.childIndices.setLen(0)
   arena.childLists.setLen(0)
   arena.nodeStack.setLen(0)
+  arena.errors.setLen(0)
+  arena.seenItemIds.setLen(0)
   arena.measureText = measureText
+  arena.errorHandler = errorHandler
+  arena.maxNodes = maxNodes
 
 proc clearLayoutArena*(arena: var LayoutArena) =
   let measureText = arena.measureText
@@ -136,13 +252,50 @@ proc appendToParent(arena: var LayoutArena, parent, child: LayoutNodeId) =
   if not parent.isNull:
     arena.childLists[parent.toIndex].add(child)
 
+func sanitizePercent(value: float): float =
+  clamp(value, 0.0, 1.0)
+
+proc validateSize(arena: var LayoutArena, node: var LayoutNode, horizontal: bool) =
+  var spec = if horizontal: node.width else: node.height
+  if spec.kind == lskPercent and (spec.percent < 0.0 or spec.percent > 1.0):
+    arena.reportLayoutError(
+      lekInvalidPercent,
+      node.id,
+      node.itemId,
+      &"layout percent {spec.percent} outside 0..1; clamped",
+    )
+    spec.percent = spec.percent.sanitizePercent
+    if horizontal:
+      node.width = spec
+    else:
+      node.height = spec
+
 proc addLayoutNode*(
     arena: var LayoutArena, node: LayoutNode, parent: LayoutNodeId
 ): LayoutNodeId =
+  if arena.maxNodes > 0 and arena.nodes.len >= arena.maxNodes:
+    arena.reportLayoutError(
+      lekExceededMaxNodes,
+      NullLayoutNodeId,
+      node.itemId,
+      &"layout node capacity {arena.maxNodes} exceeded",
+    )
+    return NullLayoutNodeId
+
   result = LayoutNodeId(arena.nodes.len.int32)
   var n = node
   n.id = result
   n.parent = parent
+  arena.validateSize(n, horizontal = true)
+  arena.validateSize(n, horizontal = false)
+  if n.itemId != 0:
+    for seen in arena.seenItemIds:
+      if seen == n.itemId:
+        arena.reportLayoutError(
+          lekDuplicateItemId, result, n.itemId, &"duplicate layout item id {n.itemId}"
+        )
+        break
+    arena.seenItemIds.add(n.itemId)
   n.firstChild = 0
   n.childCount = 0
   arena.nodes.add(n)
@@ -164,7 +317,8 @@ proc beginLayoutNode*(arena: var LayoutArena, node: LayoutNode): LayoutNodeId =
     else:
       NullLayoutNodeId
   result = arena.addLayoutNode(node, parent)
-  arena.nodeStack.add(result)
+  if not result.isNull:
+    arena.nodeStack.add(result)
 
 proc endLayoutNode*(arena: var LayoutArena): LayoutNodeId =
   if arena.nodeStack.len == 0:
@@ -191,6 +345,7 @@ func layoutNode*(
     childGap: float = 0,
     alignMain: LayoutAlign = laStart,
     alignCross: LayoutCrossAlign = lcaStart,
+    aspectRatio: float = 0.0,
     placement: LayoutPlacement = flow(),
     itemId: ItemId = 0,
     scrollOffset: Size = size(0, 0),
@@ -211,6 +366,7 @@ func layoutNode*(
     childGap: childGap,
     alignMain: alignMain,
     alignCross: alignCross,
+    aspectRatio: max(0.0, aspectRatio),
     scrollOffset: scrollOffset,
     text: text,
     fontSize: fontSize,
@@ -229,7 +385,27 @@ func resolvedOwnSize(node: LayoutNode, horizontal: bool, parentInner: float): fl
     clampSize(node.intrinsicPref.axis(horizontal), spec)
 
 func contributesToLayout(node: LayoutNode): bool =
-  node.placement.kind != lpkFollow
+  node.placement.kind notin {lpkFollow, lpkAttach}
+
+func canAspectDeriveWidth(node: LayoutNode): bool =
+  node.aspectRatio > 0.0 and node.width.kind != lskFixed and node.height.kind == lskFixed
+
+func canAspectDeriveHeight(node: LayoutNode): bool =
+  node.aspectRatio > 0.0 and node.height.kind != lskFixed
+
+proc applyIntrinsicAspect(node: var LayoutNode) =
+  if node.aspectRatio <= 0.0:
+    return
+  if node.height.kind != lskFixed:
+    let width = max(node.intrinsicPref.w, node.intrinsicMin.w)
+    if width > 0.0:
+      let height = clampSize(width / node.aspectRatio, node.height)
+      node.intrinsicMin.h = max(node.intrinsicMin.h, height)
+      node.intrinsicPref.h = max(node.intrinsicPref.h, height)
+  if node.width.kind != lskFixed and node.height.kind == lskFixed:
+    let width = clampSize(max(0.0, node.height.value) * node.aspectRatio, node.width)
+    node.intrinsicMin.w = max(node.intrinsicMin.w, width)
+    node.intrinsicPref.w = max(node.intrinsicPref.w, width)
 
 proc measureNode(arena: var LayoutArena, id: LayoutNodeId) =
   let i = id.toIndex
@@ -294,6 +470,7 @@ proc measureNode(arena: var LayoutArena, id: LayoutNodeId) =
 
   node.intrinsicMin = minSize
   node.intrinsicPref = prefSize
+  node.applyIntrinsicAspect()
   arena.nodes[i] = node
 
 func resolvedChildSizes(
@@ -328,34 +505,39 @@ func resolvedChildSizes(
     let child = arena.nodes[childId.toIndex]
     let spec = if horizontal: child.width else: child.height
     let value =
-      if horizontal != parent.mainIsHorizontal:
-        case spec.kind
-        of lskFixed:
-          max(0.0, spec.value)
-        of lskPercent:
-          clamp(inner * spec.percent, spec.min, spec.max)
-        of lskFit:
-          clampSize(child.intrinsicPref.axis(horizontal), spec)
-        of lskGrow:
-          clampSize(inner, spec)
+      if horizontal and child.canAspectDeriveWidth:
+        clampSize(max(0.0, child.height.value) * child.aspectRatio, child.width)
+      elif not horizontal and child.canAspectDeriveHeight and child.rect.w > 0.0:
+        clampSize(child.rect.w / child.aspectRatio, child.height)
       else:
-        case spec.kind
-        of lskFixed:
-          max(0.0, spec.value)
-        of lskPercent:
-          clamp(inner * spec.percent, spec.min, spec.max)
-        of lskFit:
-          let preferred = clampSize(child.intrinsicPref.axis(horizontal), spec)
-          if child.placement.kind == lpkFlow:
-            shrinkIndices.add(pos)
-            shrinkFloors[pos] = max(spec.min, child.intrinsicMin.axis(horizontal))
-          preferred
-        of lskGrow:
-          if child.placement.kind == lpkFlow:
-            growIndices.add(pos)
-            shrinkIndices.add(pos)
-            shrinkFloors[pos] = spec.min
-          max(spec.min, child.intrinsicMin.axis(horizontal))
+        if horizontal != parent.mainIsHorizontal:
+          case spec.kind
+          of lskFixed:
+            max(0.0, spec.value)
+          of lskPercent:
+            clamp(inner * spec.percent, spec.min, spec.max)
+          of lskFit:
+            clampSize(child.intrinsicPref.axis(horizontal), spec)
+          of lskGrow:
+            clampSize(inner, spec)
+        else:
+          case spec.kind
+          of lskFixed:
+            max(0.0, spec.value)
+          of lskPercent:
+            clamp(inner * spec.percent, spec.min, spec.max)
+          of lskFit:
+            let preferred = clampSize(child.intrinsicPref.axis(horizontal), spec)
+            if child.placement.kind == lpkFlow:
+              shrinkIndices.add(pos)
+              shrinkFloors[pos] = max(spec.min, child.intrinsicMin.axis(horizontal))
+            preferred
+          of lskGrow:
+            if child.placement.kind == lpkFlow:
+              growIndices.add(pos)
+              shrinkIndices.add(pos)
+              shrinkFloors[pos] = spec.min
+            max(spec.min, child.intrinsicMin.axis(horizontal))
     result[pos] = value
     if child.contributesToLayout and
         (horizontal != parent.mainIsHorizontal or child.placement.kind == lpkFlow):
@@ -479,9 +661,110 @@ proc refreshFitIntrinsic(arena: var LayoutArena, id: LayoutNodeId) =
 
     node.intrinsicMin = minSize
     node.intrinsicPref = prefSize
+    node.applyIntrinsicAspect()
     if node.height.kind == lskFit:
       node.rect.h = clampSize(node.intrinsicPref.h, node.height)
     arena.nodes[i] = node
+
+proc applyResolvedAspect(arena: var LayoutArena, id: LayoutNodeId) =
+  let i = id.toIndex
+  var node = arena.nodes[i]
+  if node.aspectRatio > 0.0:
+    if node.width.kind != lskFixed and node.height.kind == lskFixed:
+      node.rect.w = clampSize(max(0.0, node.rect.h) * node.aspectRatio, node.width)
+    elif node.height.kind != lskFixed and node.rect.w > 0.0:
+      node.rect.h = clampSize(node.rect.w / node.aspectRatio, node.height)
+      node.intrinsicMin.h = max(node.intrinsicMin.h, node.rect.h)
+      node.intrinsicPref.h = max(node.intrinsicPref.h, node.rect.h)
+    arena.nodes[i] = node
+
+  for childId in arena.children(arena.nodes[i]):
+    arena.applyResolvedAspect(childId)
+
+func pointOffset(r: Rect, point: LayoutAttachPoint): Size =
+  case point
+  of lapTopLeft:
+    size(0, 0)
+  of lapTopCenter:
+    size(r.w * 0.5, 0)
+  of lapTopRight:
+    size(r.w, 0)
+  of lapCenterLeft:
+    size(0, r.h * 0.5)
+  of lapCenter:
+    size(r.w * 0.5, r.h * 0.5)
+  of lapCenterRight:
+    size(r.w, r.h * 0.5)
+  of lapBottomLeft:
+    size(0, r.h)
+  of lapBottomCenter:
+    size(r.w * 0.5, r.h)
+  of lapBottomRight:
+    size(r.w, r.h)
+
+func validNode(arena: LayoutArena, id: LayoutNodeId): bool =
+  not id.isNull and id.toIndex >= 0 and id.toIndex < arena.nodes.len
+
+func rootRectFor(arena: LayoutArena, id: LayoutNodeId): Rect =
+  var cursor = id
+  var last = id
+  while arena.validNode(cursor):
+    last = cursor
+    let parent = arena.nodes[cursor.toIndex].parent
+    if parent.isNull:
+      break
+    cursor = parent
+  if arena.validNode(last):
+    arena.nodes[last.toIndex].rect
+  elif arena.nodes.len > 0:
+    arena.nodes[0].rect
+  else:
+    rect(0, 0, 0, 0)
+
+proc clampToRoot(child: var LayoutNode, root: Rect, pad: float) =
+  let
+    pad = max(pad, 0.0)
+    minX = root.x + pad
+    minY = root.y + pad
+    maxX = root.x + root.w - pad
+    maxY = root.y + root.h - pad
+  if child.rect.x < minX:
+    child.rect.x = minX
+  elif child.rect.x + child.rect.w > maxX:
+    child.rect.x = maxX - child.rect.w
+  if child.rect.y < minY:
+    child.rect.y = minY
+  elif child.rect.y + child.rect.h > maxY:
+    child.rect.y = maxY - child.rect.h
+
+proc placeAttachedNode(
+    arena: var LayoutArena, child: var LayoutNode, parent: LayoutNode
+) =
+  let attach = child.placement.attach
+  let target =
+    case attach.targetKind
+    of latParent:
+      parent.rect
+    of latRoot:
+      arena.rootRectFor(parent.id)
+    of latNode:
+      if arena.validNode(attach.targetNode):
+        arena.nodes[attach.targetNode.toIndex].rect
+      else:
+        arena.reportLayoutError(
+          lekMissingAttachTarget,
+          child.id,
+          child.itemId,
+          &"attach target {int32(attach.targetNode)} not found",
+        )
+        return
+  let
+    targetOffset = target.pointOffset(attach.targetPoint)
+    selfOffset = child.rect.pointOffset(attach.selfPoint)
+  child.rect.x = target.x + targetOffset.w - selfOffset.w + attach.offset.w
+  child.rect.y = target.y + targetOffset.h - selfOffset.h + attach.offset.h
+  if attach.clipToRoot or attach.windowPad > 0.0:
+    child.clampToRoot(arena.rootRectFor(parent.id), attach.windowPad)
 
 proc placeChildren(arena: var LayoutArena, id: LayoutNodeId) =
   var parent = arena.nodes[id.toIndex]
@@ -540,6 +823,15 @@ proc placeChildren(arena: var LayoutArena, id: LayoutNodeId) =
     of lpkFollow:
       contributesContent = false
       if not child.placement.target.isNull:
+        if not arena.validNode(child.placement.target):
+          arena.reportLayoutError(
+            lekMissingAttachTarget,
+            child.id,
+            child.itemId,
+            &"follower target {int32(child.placement.target)} not found",
+          )
+          arena.nodes[childIndex] = child
+          continue
         let target = arena.nodes[child.placement.target.toIndex].rect
         let inset = child.placement.followInset
         let insetTarget = rect(
@@ -590,6 +882,9 @@ proc placeChildren(arena: var LayoutArena, id: LayoutNodeId) =
             child.rect.y = minY
           elif child.rect.y + child.rect.h > maxY:
             child.rect.y = maxY - child.rect.h
+    of lpkAttach:
+      contributesContent = false
+      arena.placeAttachedNode(child, parent)
     of lpkFlow:
       let crossSize = child.rect.axis(not mainHorizontal)
       let crossExtra = max(0.0, innerCross - crossSize)
@@ -644,8 +939,10 @@ proc solveLayout*(arena: var LayoutArena, root: LayoutNodeId = LayoutNodeId(0'i3
   arena.measureNode(root)
   arena.resolveAxis(root, horizontal = true)
   arena.wrapTextNodes(root)
+  arena.applyResolvedAspect(root)
   arena.refreshFitIntrinsic(root)
   arena.resolveAxis(root, horizontal = false)
+  arena.applyResolvedAspect(root)
   arena.placeChildren(root)
 
 proc solveLayout*(
@@ -662,3 +959,10 @@ func layoutRect*(arena: LayoutArena, id: LayoutNodeId): Rect =
     rect(0, 0, 0, 0)
   else:
     arena.nodes[id.toIndex].rect
+
+func layoutZIndex*(arena: LayoutArena, id: LayoutNodeId): int =
+  if id.isNull or id.toIndex < 0 or id.toIndex >= arena.nodes.len:
+    0
+  else:
+    let node = arena.nodes[id.toIndex]
+    if node.placement.kind == lpkAttach: node.placement.attach.zIndex else: 0

@@ -1,3 +1,4 @@
+import std/algorithm
 import std/math
 import std/sequtils
 import std/strutils
@@ -18,9 +19,15 @@ import koi/input
 type
   DrawProc* = proc(vg: NVGContext)
 
+  DrawEntry* = object
+    zIndex*: int
+    order*: int
+    draw*: DrawProc
+
   DrawLayers* = object
-    layers*: array[0 .. ord(DrawLayer.high), seq[DrawProc]]
+    layers*: array[0 .. ord(DrawLayer.high), seq[DrawEntry]]
     lastUsedLayer*: Natural
+    nextOrder*: int
 
 proc pxRatio*(): float =
   let win = activeWindow()
@@ -90,9 +97,11 @@ proc createCheckeredImage*(vg: NVGContext) =
 func init*(dl: var DrawLayers) =
   for i in 0 .. dl.layers.high:
     dl.layers[i] = @[]
+  dl.nextOrder = 0
 
-func add*(dl: var DrawLayers, layer: Natural, p: DrawProc) =
-  dl.layers[layer].add(p)
+func add*(dl: var DrawLayers, layer: Natural, p: DrawProc, zIndex: int = 0) =
+  dl.layers[layer].add(DrawEntry(zIndex: zIndex, order: dl.nextOrder, draw: p))
+  inc dl.nextOrder
   dl.lastUsedLayer = layer
 
 template addDrawLayer*(layer: DrawLayer, vg, body: untyped) =
@@ -102,14 +111,29 @@ template addDrawLayer*(layer: DrawLayer, vg, body: untyped) =
       body,
   )
 
+template addDrawLayerZ*(layer: DrawLayer, zIndex: int, vg, body: untyped) =
+  g_drawLayers.add(
+    ord(layer),
+    proc(vg: NVGContext) =
+      body,
+    zIndex,
+  )
+
 template addDrawStateLayer*(layer: DrawLayer, vg, body: untyped) =
   addDrawLayer(layer, vg):
     body
 
 proc draw*(dl: DrawLayers, vg: NVGContext) =
   for layer in dl.layers:
-    for drawProc in layer:
-      drawProc(vg)
+    var sortedLayer = layer
+    sortedLayer.sort(
+      proc(a, b: DrawEntry): int =
+        result = cmp(a.zIndex, b.zIndex)
+        if result == 0:
+          result = cmp(a.order, b.order)
+    )
+    for entry in sortedLayer:
+      entry.draw(vg)
 
 proc currentLayer*(): DrawLayer =
   g_uiState.currentLayer

@@ -213,7 +213,8 @@ suite "text field editing edge cases":
 
 suite "text field double-click word selection":
   proc selText(text: string, sel: TextSelection): string =
-    if not hasSelection(sel): return ""
+    if not hasSelection(sel):
+      return ""
     let ns = normaliseSelection(sel)
     text.runeSubStr(ns.startPos, ns.endPos - ns.startPos)
 

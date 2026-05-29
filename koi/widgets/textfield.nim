@@ -238,8 +238,7 @@ proc textFieldWithSlot*(
             # findNextWordEnd skips trailing whitespace/punctuation (it is a
             # cursor-nav helper); for word selection trim that back so a
             # double-click selects just the word, not the following space.
-            while endPos > startPos and
-                not text.runeAtPos(endPos - 1).isAlphanumeric:
+            while endPos > startPos and not text.runeAtPos(endPos - 1).isAlphanumeric:
               dec endPos
             tf.selection.startPos = startPos.int
             tf.selection.endPos = endPos.Natural

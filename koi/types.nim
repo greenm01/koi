@@ -305,6 +305,7 @@ type
     lpkFlow
     lpkManual
     lpkFollow
+    lpkAttach
 
   LayoutFollowerKind* = enum
     lfkVerticalScrollBar
@@ -312,6 +313,33 @@ type
     lfkMatchTarget
     lfkDropdownPopup
     lfkInsetFixed
+
+  LayoutAttachPoint* = enum
+    lapTopLeft
+    lapTopCenter
+    lapTopRight
+    lapCenterLeft
+    lapCenter
+    lapCenterRight
+    lapBottomLeft
+    lapBottomCenter
+    lapBottomRight
+
+  LayoutAttachTarget* = enum
+    latParent
+    latRoot
+    latNode
+
+  LayoutAttach* = object
+    targetKind*: LayoutAttachTarget
+    targetNode*: LayoutNodeId
+    targetPoint*: LayoutAttachPoint
+    selfPoint*: LayoutAttachPoint
+    offset*: Size
+    windowPad*: float
+    clipToRoot*: bool
+    zIndex*: int
+    capturePointer*: bool
 
   LayoutPlacement* = object
     case kind*: LayoutPlacementKind
@@ -325,6 +353,8 @@ type
       followAlign*: HorizontalAlign
       followInset*: Padding
       windowPad*: float
+    of lpkAttach:
+      attach*: LayoutAttach
 
   TextMeasure* = object
     minWidth*: float
@@ -351,6 +381,7 @@ type
     childGap*: float
     alignMain*: LayoutAlign
     alignCross*: LayoutCrossAlign
+    aspectRatio*: float
     intrinsicMin*: Size
     intrinsicPref*: Size
     rect*: Rect
@@ -360,18 +391,44 @@ type
     fontSize*: float
     fontFace*: string
 
+  LayoutErrorKind* = enum
+    lekDuplicateItemId
+    lekInvalidPercent
+    lekMissingAttachTarget
+    lekExceededMaxNodes
+    lekUnbalancedLayoutStack
+    lekInternal
+
+  LayoutError* = object
+    kind*: LayoutErrorKind
+    itemId*: ItemId
+    nodeId*: LayoutNodeId
+    message*: string
+
+  LayoutErrorHandler* = proc(error: LayoutError) {.closure.}
+
   LayoutArena* = object
     nodes*: seq[LayoutNode]
     childIndices*: seq[LayoutNodeId]
     childLists*: seq[seq[LayoutNodeId]]
     nodeStack*: seq[LayoutNodeId]
     measureText*: MeasureTextProc
+    errors*: seq[LayoutError]
+    errorHandler*: LayoutErrorHandler
+    maxNodes*: int
+    seenItemIds*: seq[ItemId]
 
   LayoutSlot* = object
     itemId*: ItemId
     nodeId*: LayoutNodeId
     bounds*: Rect
     previousBounds*: Rect
+
+  LayoutDebugState* = object
+    enabled*: bool
+    hoveredNode*: LayoutNodeId
+    selectedNode*: LayoutNodeId
+    panelWidth*: float
 
   ColMode* = enum
     cmStatic

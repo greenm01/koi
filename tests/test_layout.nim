@@ -817,6 +817,118 @@ suite "unified layout solver":
     checkClose(arena.nodes[root.int].contentSize.w, 90)
     checkClose(arena.nodes[root.int].contentSize.h, 70)
 
+  test "attach placement supports node parent and root targets":
+    var arena: LayoutArena
+    arena.initLayoutArena()
+
+    let root = arena.beginLayoutNode(layoutNode(width = fixed(100), height = fixed(80)))
+    let target = arena.addLayoutNode(
+      layoutNode(width = fixed(40), height = fixed(20), placement = manual(20, 20))
+    )
+    let nodeAttached = arena.addLayoutNode(
+      layoutNode(
+        width = fixed(10),
+        height = fixed(6),
+        placement = attach(target, lapBottomRight, lapTopLeft, offset = size(3, 4)),
+      )
+    )
+    let parentAttached = arena.addLayoutNode(
+      layoutNode(
+        width = fixed(20),
+        height = fixed(10),
+        placement = attachParent(lapCenter, lapCenter),
+      )
+    )
+    let rootAttached = arena.addLayoutNode(
+      layoutNode(
+        width = fixed(10),
+        height = fixed(10),
+        placement = attachRoot(
+          lapBottomRight,
+          lapBottomRight,
+          offset = size(50, 0),
+          windowPad = 5,
+          clipToRoot = true,
+        ),
+      )
+    )
+    discard arena.endLayoutNode()
+
+    arena.solveLayout(rect(0, 0, 100, 80), root)
+
+    checkRect(arena.layoutRect(nodeAttached), rect(63, 44, 10, 6))
+    checkRect(arena.layoutRect(parentAttached), rect(40, 35, 20, 10))
+    checkRect(arena.layoutRect(rootAttached), rect(85, 65, 10, 10))
+    checkClose(arena.nodes[root.int].contentSize.w, 60)
+    checkClose(arena.nodes[root.int].contentSize.h, 40)
+
+  test "aspect ratio derives flexible axes from the resolved opposite axis":
+    var arena: LayoutArena
+    arena.initLayoutArena()
+
+    let root =
+      arena.beginLayoutNode(layoutNode(width = fixed(200), height = fixed(200)))
+    let widthDerived = arena.addLayoutNode(
+      layoutNode(width = fixed(160), height = fit(), aspectRatio = 16.0 / 9.0)
+    )
+    let heightDerived = arena.addLayoutNode(
+      layoutNode(width = fit(), height = fixed(30), aspectRatio = 2.0)
+    )
+    let fixedBoth = arena.addLayoutNode(
+      layoutNode(width = fixed(100), height = fixed(20), aspectRatio = 1.0)
+    )
+    discard arena.endLayoutNode()
+
+    arena.solveLayout(rect(0, 0, 200, 200), root)
+
+    checkRect(arena.layoutRect(widthDerived), rect(0, 0, 160, 90))
+    checkRect(arena.layoutRect(heightDerived), rect(0, 90, 60, 30))
+    checkRect(arena.layoutRect(fixedBoth), rect(0, 120, 100, 20))
+
+  test "layout errors report duplicates invalid percents and missing targets":
+    var arena: LayoutArena
+    arena.initLayoutArena()
+
+    let root = arena.beginLayoutNode(
+      layoutNode(width = fixed(100), height = fixed(40), direction = ldLeftToRight)
+    )
+    let percentChild = arena.addLayoutNode(
+      layoutNode(itemId = 7, width = percent(1.5), height = fixed(10))
+    )
+    discard
+      arena.addLayoutNode(layoutNode(itemId = 7, width = fixed(10), height = fixed(10)))
+    discard arena.addLayoutNode(
+      layoutNode(
+        itemId = 8,
+        width = fixed(10),
+        height = fixed(10),
+        placement = attach(LayoutNodeId(999), lapTopLeft, lapTopLeft),
+      )
+    )
+    discard arena.endLayoutNode()
+
+    arena.solveLayout(rect(0, 0, 100, 40), root)
+
+    checkRect(arena.layoutRect(percentChild), rect(0, 0, 100, 10))
+    check arena.errors.len == 3
+    check arena.errors[0].kind == lekInvalidPercent
+    check arena.errors[1].kind == lekDuplicateItemId
+    check arena.errors[2].kind == lekMissingAttachTarget
+
+  test "layout max node capacity reports and rejects overflow nodes":
+    var arena: LayoutArena
+    arena.initLayoutArena()
+    arena.setLayoutMaxNodes(1)
+
+    let root = arena.beginLayoutNode(layoutNode(width = fixed(100), height = fixed(40)))
+    let overflow =
+      arena.addLayoutNode(layoutNode(width = fixed(10), height = fixed(10)))
+
+    check not root.isNull
+    check overflow.isNull
+    check arena.errors.len == 1
+    check arena.errors[0].kind == lekExceededMaxNodes
+
   test "fixed-width text wraps and updates a fit-height parent":
     proc measureText(
         text: string, fontSize: float, fontFace: string, maxWidth: float
@@ -896,6 +1008,36 @@ suite "unified layout solver":
     checkRect(arena.layoutRect(exact), rect(0, 0, 70, 20))
     checkRect(arena.layoutRect(fitted), rect(70, 0, 20, 20))
     checkRect(arena.layoutRect(grown), rect(90, 0, 10, 20))
+
+  test "layout inspector queues an overlay and tracks the hovered node":
+    resetLayout()
+    g_drawLayers.init()
+    g_uiState.mx = 12
+    g_uiState.my = 12
+    setLayoutInspectorEnabled(true)
+
+    beginFrameLayout()
+    discard layoutSlot(101, rect(10, 10, 20, 20))
+    finishFrameLayout()
+
+    check layoutInspectorEnabled()
+    check int32(layoutInspectorHoveredNode()) >= 0
+    check g_drawLayers.layers[ord(layerGlobalOverlay)].len == 1
+
+  test "draw layers render lower z-index entries first while preserving insertion order":
+    g_drawLayers.init()
+    var order: seq[int]
+
+    addDrawLayerZ(layerDefault, 10, vg):
+      order.add(10)
+    addDrawLayerZ(layerDefault, -1, vg):
+      order.add(-1)
+    addDrawLayerZ(layerDefault, 10, vg):
+      order.add(11)
+
+    g_drawLayers.draw(g_nvgContext)
+
+    check order == @[-1, 10, 11]
 
 suite "NEP1 naming aliases":
   test "style aliases and compatibility wrappers refer to the same defaults":
