@@ -13,7 +13,7 @@ renderer on all platforms.
 - The wgpu rendering layer must be platform-agnostic above the surface
   creation seam.
 - No double evaluation of widget bodies. Layout and rendering constraints from
-  `LAYOUT_MODEL.md` are unaffected by this spec.
+  `layout-model.md` are unaffected by this spec.
 - Gridmonger must continue to build against the GLFW path without changes.
 
 ## Layer overview

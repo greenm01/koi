@@ -1,10 +1,10 @@
 # Koi Refactor Direction
 
 This document records the direction of the Koi refactor. It folds in the engine
-intent from `ENGINE_SPEC.md` and adds direction for borrowing layout and widget
+intent from `engine-spec.md` and adds direction for borrowing layout and widget
 ideas from Nuklear without turning Koi into a Nuklear clone.
 
-The current layout direction is documented in `LAYOUT_MODEL.md`. That document
+The current layout direction is documented in `layout-model.md`. That document
 describes a single unified layout solver: Clay-inspired sizing
 (`fixed`/`grow`/`percent`/`fit`) drives one container model, and the row,
 vertical auto-layout, and manual-space APIs become presets over it rather than
@@ -60,7 +60,7 @@ to reuse, not hide it behind a second model.
 
 ## Layout Direction
 
-The target is one unified container solver (see `LAYOUT_MODEL.md`). Vertical
+The target is one unified container solver (see `layout-model.md`). Vertical
 auto-layout, rows, and manual spaces become presets over it rather than separate
 positioning layers. All of them feed widget bounds through the same widget
 execution cycle.
@@ -161,7 +161,7 @@ surface.
 1. Finish the current split-module refactor without changing behavior. (done)
 2. Stabilize the row/space/bounds-resolution layout core. (done — see the
    shipped sections above)
-3. Build the unified container solver and execution model per `LAYOUT_MODEL.md`:
+3. Build the unified container solver and execution model per `layout-model.md`:
    - frame-local arena with `fixed`/`grow`/`percent`/`fit` sizing;
    - solve at `endFrame`, draws deferred to solved rects, interaction read from
      previous-frame rects;
@@ -188,6 +188,6 @@ The unified layout refactor is accepted when:
 
 ## Assumptions
 
-- `ENGINE_SPEC.md` remains in place until a later cleanup pass decides whether
+- `engine-spec.md` remains in place until a later cleanup pass decides whether
   to remove or replace it.
 - The unified layout core comes before widget feature expansion.

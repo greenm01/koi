@@ -2,7 +2,7 @@
 
 This is a reference for Koi's layout and widget toolset: what is available today
 and how the pieces relate. For the design of the unified layout solver and its
-execution model, see `LAYOUT_MODEL.md`.
+execution model, see `layout-model.md`.
 
 Koi is a small immediate-mode UI library for Nim. UI is described by widget calls
 every frame; interaction, layout, style, focus, and drawing live in the central

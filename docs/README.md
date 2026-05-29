@@ -6,9 +6,11 @@
 
 GLFW is currently a hard requirement, but it should be easy to adapt it to other frameworks or backends.
 
-Layout and widget references live in [TOOLSET.md](./TOOLSET.md) and
-[LAYOUT_MODEL.md](./LAYOUT_MODEL.md). Check the [examples](/examples) and
+Layout and widget references live in [toolset.md](./toolset.md) and
+[layout-model.md](./layout-model.md). Check the [examples](/examples) and
 Gridmonger for complete usage.
+
+Current follow-up work is tracked in [todo.md](./todo.md).
 
 Support is currently *alpha level*, meaning that the API or the functionality might change without warning at any moment.
 
@@ -57,7 +59,7 @@ nimble tidy
 Copyright © 2019-2025 John Novak <<john@johnnovak.net>>
 
 This work is free. You can redistribute it and/or modify it under the terms of
-the [Do What The Fuck You Want To Public License, Version 2](http://www.wtfpl.net/), as published
-by Sam Hocevar. See the [COPYING](./COPYING) file for more details.
+the [Do What The Fuck You Want To Public License, Version 2](http://www.wtfpl.net/),
+as published by Sam Hocevar.
 
 

@@ -93,6 +93,14 @@ task testWidgetBehavior, "run headless widget behavior tests":
     nimcache = "/tmp/koi_test_widget_behavior_d",
   )
 
+task testMenuMacro, "compile menu macro syntax smoke":
+  nimCompile(
+    "tests/test_menu_macro",
+    CommonFlags & " -d:debug",
+    outPath = "/tmp/koi_test_menu_macro",
+    nimcache = "/tmp/koi_test_menu_macro_d",
+  )
+
 task testDrawState, "run headless draw-state tests":
   nimRun(
     "tests/test_draw_state",

@@ -1,7 +1,7 @@
 # Koi Layout Model
 
 This is the canonical layout design for Koi. It supersedes the earlier
-`LAYOUT_MODEL.md` and `LAYOUT_MODEL,rev1.md` drafts, which described the
+`layout-model.md` and `layout-model-rev1.md` drafts, which described the
 container layer as future work, under a Gridmonger backward-compatibility
 constraint that no longer applies.
 
@@ -9,6 +9,27 @@ Koi uses a single unified layout solver. Clay-inspired structural sizing
 (`fixed`, `grow`, `percent`, `fit`) drives one container model, and Koi's row,
 vertical auto-layout, and manual-space APIs are presets over that same model
 rather than separate systems.
+
+## Model At A Glance
+
+```mermaid
+flowchart TD
+  A[Immediate-mode widget calls] --> B[Frame-local layout arena]
+  B --> C[Unified container solver]
+  C --> D[Solved rectangles]
+  D --> E[Deferred draw closures]
+  D --> F[Next-frame interaction cache]
+  F --> A
+
+  G[Rows] --> B
+  H[Auto layout] --> B
+  I[Manual spaces] --> B
+  J[Scroll / popup / dialog slots] --> B
+```
+
+Widgets still execute immediately, but their final geometry is produced later in
+the frame. Draw commands are deferred until the solver has current rectangles;
+pointer interaction uses the previous frame's rectangles.
 
 ## Status & Context
 
@@ -70,6 +91,16 @@ Widgets (button, slider, text field, …) are not layout nodes themselves. They
 receive a solved rectangle and run their normal cycle inside it. Only
 containers, text nodes, scroll regions, and row blocks participate in the solve.
 
+```text
+Public API surface                    Unified representation
+
+menuBar / auto layout  ─────┐
+row / columns          ─────┼──▶  LayoutNode(direction, size, padding, gap)
+manual space           ─────┘
+
+button / slider / text field ─▶  normal widget behavior + deferred draw
+```
+
 ## Sizing
 
 Each axis of a container declares its sizing independently:
@@ -81,6 +112,17 @@ Each axis of a container declares its sizing independently:
 
 A sidebar can be `fixed(300)` wide and `grow()` tall. A main pane can `grow()`
 on both axes. A popup can `fit()` to its contents.
+
+```text
+Parent content width: 900
+
+┌──────────────┬────────────────────────┬────────────────────────┐
+│ fixed(220)   │ percent(0.30) = 270    │ grow() = remaining 390 │
+└──────────────┴────────────────────────┴────────────────────────┘
+       220                    270                      390
+
+Remaining space is assigned after fixed, percent, padding, and gaps.
+```
 
 `fixed`, `percent`, and `grow` are resolvable top-down once the parent size is
 known. Only `fit` (and text-wrapped height) requires bottom-up measurement of
@@ -146,12 +188,47 @@ work.
 The one-frame interaction-lag semantics must be documented at the call sites and
 in tests so they are not mistaken for a bug.
 
+```mermaid
+sequenceDiagram
+  participant W as Widget call
+  participant P as Previous rect cache
+  participant A as Layout arena
+  participant S as Solver at endFrame
+  participant D as Draw flush
+
+  W->>P: read rect for hit testing
+  W->>A: append layout node / slot
+  W->>D: queue draw closure by node ID
+  S->>A: solve current frame tree
+  S->>P: cache solved rects for next frame
+  D->>A: read current solved rects
+```
+
 ## Solve Algorithm
 
 The solver uses a frame-local layout tree, rebuilt every frame from
 immediate-mode declarations and solved at `endFrame`.
 
 Pass order:
+
+```text
+Build tree
+   │
+   ▼
+Measure intrinsic sizes  ◀──── text preferred/min width
+   │
+   ▼
+Resolve widths
+   │
+   ▼
+Wrap text and update fit heights
+   │
+   ▼
+Resolve heights
+   │
+   ▼
+Place children and compute content sizes
+```
 
 1. **Build the layout tree.**
    - Record containers, text, scroll regions, and row blocks.
