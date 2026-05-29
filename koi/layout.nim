@@ -70,6 +70,9 @@ proc autoLayoutNextBounds*(): Rect =
     autoLayoutNextItemHeight(),
   )
 
+func effectiveItemsPerRow(ap: AutoLayoutParams): Natural =
+  max(ap.itemsPerRow, 1)
+
 func resolvedRowWidths(
     columns: openArray[LayoutColumn],
     availableWidth, itemSpacing: float,
@@ -200,11 +203,12 @@ proc autoLayoutPre*(section: bool = false) =
   else:
     a.x += a.lastItemWidth + ap.rightPad + ap.leftPad
 
+  let itemsPerRow = ap.effectiveItemsPerRow()
   a.nextItemWidth =
     (
       a.rowWidth - ap.leftPad - ap.rightPad -
-      (ap.leftPad + ap.rightPad) * (ap.itemsPerRow - 1).float
-    ) / ap.itemsPerRow.float
+      (ap.leftPad + ap.rightPad) * (itemsPerRow - 1).float
+    ) / itemsPerRow.float
   a.nextItemHeight = ap.defaultItemHeight
   a.applyNextItemOverrides()
 
@@ -228,7 +232,7 @@ proc autoLayoutPost*(section: bool = false) =
     of lmNone:
       discard
 
-  let lastColumn = a.currColIndex == ap.itemsPerRow - 1
+  let lastColumn = a.currColIndex == ap.effectiveItemsPerRow() - 1
 
   if lastColumn or section:
     a.currColIndex = 0

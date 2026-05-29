@@ -247,9 +247,24 @@ func insertString*(
 
   if insertLen > 0:
     let textLen = text.runeLen
+    let selectedLen =
+      if hasSelection(selection):
+        let ns = normaliseSelection(selection)
+        ns.endPos - ns.startPos.Natural
+      else:
+        0.Natural
+    let baseLen = textLen - selectedLen
+    let insertLimit =
+      if maxLen.isSome:
+        if baseLen < maxLen.get:
+          maxLen.get - baseLen
+        else:
+          0.Natural
+      else:
+        insertLen
     let toInsert =
-      if maxLen.isSome and textLen + insertLen > maxLen.get:
-        toInsert.runeSubStr(0, maxLen.get - textLen)
+      if insertLen > insertLimit:
+        toInsert.runeSubStr(0, insertLimit)
       else:
         toInsert
 
@@ -362,7 +377,7 @@ proc handleCommonTextEditingShortcuts*(
   elif sc in shortcuts[tesDeleteOneCharRight]:
     if hasSelection(selection):
       res = deleteSelection(text, selection, cursorPos)
-    elif text.len > 0:
+    elif cursorPos < text.runeLen:
       res.text = text.runeSubStr(0, cursorPos) & text.runeSubStr(cursorPos + 1)
   elif sc in shortcuts[tesDeleteWordToRight]:
     if hasSelection(selection):

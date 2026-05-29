@@ -11,6 +11,7 @@ import koi/drawing
 import koi/layout
 import koi/input
 import koi/defaults
+import koi/internal/algorithms
 import koi/widgets/common
 import koi/widgets/scrollbar
 import koi/utils
@@ -126,21 +127,22 @@ proc dropDown*[T](
     let (itemListX, itemListY, itemListW, itemListH) =
       snapToGrid(itemListX, itemListY, itemListW, itemListH, s.itemListStrokeWidth)
 
+    # Hit testing
+    let
+      insideButton = mouseInside(x, y, w, h)
+      insideItemList = mouseInside(itemListX, itemListY, itemListW, itemListH)
+
     # Handle scrollwheel
     if scrollBarVisible:
       let scrollBarEndVal = max(items.len.float - maxDisplayItems.float, 0)
 
-      if ui.hasEvent and ui.currEvent.kind == ekScroll:
+      if insideItemList and ui.hasEvent and not ui.eventHandled and
+          ui.currEvent.kind == ekScroll:
         ds.displayStartItem =
           (ds.displayStartItem - ui.currEvent.oy).clamp(0, scrollBarEndVal)
         markEventHandled()
     else:
       ds.displayStartItem = 0
-
-    # Hit testing
-    let
-      insideButton = mouseInside(x, y, w, h)
-      insideItemList = mouseInside(itemListX, itemListY, itemListW, itemListH)
 
     if insideButton or insideItemList:
       markHot(id)
@@ -151,9 +153,10 @@ proc dropDown*[T](
     if insideItemList:
       if not scrollBarVisible or
           (scrollBarVisible and ui.mx < itemListX + itemListW - s.scrollBarWidth):
-        hoverItem =
-          min(((ui.my - itemListY - s.itemListPadVert) / itemHeight).int, numItems - 1) +
-          ds.displayStartItem.Natural
+        hoverItem = dropDownHoverItem(
+          ui.my, itemListY, s.itemListPadVert, itemHeight, ds.displayStartItem.Natural,
+          maxDisplayItems.Natural, numItems.Natural,
+        )
 
     # LMB released inside the box selects the item under the cursor and closes
     # the dropDown
@@ -266,8 +269,6 @@ proc dropDown*[T](
     ui.activeItem = 0
     ui.focusCaptured = false
     ui.currentLayer = layerPopup
-
-    let (xo, yo) = (0.0, 0.0) # We need to handle this correctly if needed
 
     vertScrollBar(
       sbId,

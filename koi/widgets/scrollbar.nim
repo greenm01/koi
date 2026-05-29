@@ -9,6 +9,7 @@ import koi/drawing
 import koi/layout
 import koi/input
 import koi/defaults
+import koi/internal/algorithms
 import koi/widgets/common
 import koi/utils
 
@@ -38,26 +39,22 @@ proc horizScrollBar*(
 
   var value = value_out.clampToRange(startVal, endVal)
 
-  var thumbSize = if thumbSize > abs(startVal - endVal): -1.0 else: thumbSize
-  let clickStep = if clickStep > abs(startVal - endVal): -1.0 else: clickStep
+  let valueRange = scrollBarRange(startVal, endVal)
+  let thumbSize = effectiveScrollBarThumbSize(thumbSize, startVal, endVal)
+  let clickStep = if clickStep > valueRange: -1.0 else: clickStep
 
   let (x, y) = addDrawOffset(x, y)
 
   # Calculate current thumb position
-  if thumbSize < 0:
-    thumbSize = 0.000001
-
   let
     thumbW =
-      max((w - s.thumbPad * 2) / (abs(startVal - endVal) / thumbSize), s.thumbMinSize)
-
+      scrollBarThumbLength(w, s.thumbPad, s.thumbMinSize, thumbSize, startVal, endVal)
     thumbH = h - s.thumbPad * 2
     thumbMinX = x + s.thumbPad
     thumbMaxX = x + w - s.thumbPad - thumbW
 
   func calcThumbX(val: float): float =
-    let t = invLerp(startVal, endVal, val)
-    lerp(thumbMinX, thumbMaxX, t)
+    scrollBarThumbFromValue(val, startVal, endVal, thumbMinX, thumbMaxX)
 
   let thumbX = calcThumbX(value)
 
@@ -75,22 +72,10 @@ proc horizScrollBar*(
     newValue = value
 
   func calcNewValue(newThumbX: float): float =
-    let t = invLerp(thumbMinX, thumbMaxX, newThumbX)
-    lerp(startVal, endVal, t)
+    scrollBarValueFromThumb(newThumbX, thumbMinX, thumbMaxX, startVal, endVal)
 
   proc calcNewValueTrackClick(newValue: float): float =
-    let clickStep =
-      if clickStep < 0:
-        abs(startVal - endVal) * 0.1
-      else:
-        clickStep
-
-    let (s, e) =
-      if startVal < endVal:
-        (startVal, endVal)
-      else:
-        (endVal, startVal)
-    clamp(newValue + sb.clickDir * clickStep, s, e)
+    scrollBarTrackClickValue(newValue, startVal, endVal, sb.clickDir, clickStep)
 
   if isActive(id):
     case sb.state
@@ -266,27 +251,22 @@ proc vertScrollBar*(
 
   var value = value_out.clampToRange(startVal, endVal)
 
-  var thumbSize = if thumbSize > abs(startVal - endVal): -1.0 else: thumbSize
-  let clickStep = if clickStep > abs(startVal - endVal): -1.0 else: clickStep
+  let valueRange = scrollBarRange(startVal, endVal)
+  let thumbSize = effectiveScrollBarThumbSize(thumbSize, startVal, endVal)
+  let clickStep = if clickStep > valueRange: -1.0 else: clickStep
 
   let (x, y) = addDrawOffset(x, y)
 
   # Calculate current thumb position
-  if thumbSize < 0:
-    thumbSize = 0.000001
-
   let
     thumbW = w - s.thumbPad * 2
-
     thumbH =
-      max((h - s.thumbPad * 2) / (abs(startVal - endVal) / thumbSize), s.thumbMinSize)
-
+      scrollBarThumbLength(h, s.thumbPad, s.thumbMinSize, thumbSize, startVal, endVal)
     thumbMinY = y + s.thumbPad
     thumbMaxY = y + h - s.thumbPad - thumbH
 
   func calcThumbY(value: float): float =
-    let t = invLerp(startVal, endVal, value)
-    lerp(thumbMinY, thumbMaxY, t)
+    scrollBarThumbFromValue(value, startVal, endVal, thumbMinY, thumbMaxY)
 
   let thumbY = calcThumbY(value)
 
@@ -304,22 +284,10 @@ proc vertScrollBar*(
     newValue = value
 
   func calcNewValue(newThumbY: float): float =
-    let t = invLerp(thumbMinY, thumbMaxY, newThumbY)
-    lerp(startVal, endVal, t)
+    scrollBarValueFromThumb(newThumbY, thumbMinY, thumbMaxY, startVal, endVal)
 
   proc calcNewValueTrackClick(): float =
-    let clickStep =
-      if clickStep < 0:
-        abs(startVal - endVal) * 0.1
-      else:
-        clickStep
-
-    let (s, e) =
-      if startVal < endVal:
-        (startVal, endVal)
-      else:
-        (endVal, startVal)
-    clamp(newValue + sb.clickDir * clickStep, s, e)
+    scrollBarTrackClickValue(newValue, startVal, endVal, sb.clickDir, clickStep)
 
   if isActive(id):
     case sb.state
