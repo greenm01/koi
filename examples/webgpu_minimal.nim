@@ -28,7 +28,7 @@ var
   backend: KoiWgpuBackend
   sliderValue = 42.0
   enabled = true
-  textValue = "WebGPU"
+  textValue = "WebGPU scissor clips this deliberately long text field value"
 
 proc createWindow(): Window =
   var cfg = DefaultOpenglWindowConfig
@@ -106,6 +106,52 @@ proc renderUi() =
     420,
     h,
     "Text, buttons, sliders, and input all use Koi APIs.",
+    style = labelStyle,
+  )
+
+  let
+    clipX = 360.0
+    clipY = 132.0
+    clipW = 260.0
+    clipH = 142.0
+
+  vg.beginPath()
+  vg.roundedRect(clipX - 6, clipY - 6, clipW + 12, clipH + 12, 4)
+  vg.fillColor(rgb(0.11, 0.12, 0.13))
+  vg.fill()
+
+  vg.save()
+  vg.intersectScissor(clipX, clipY, clipW, clipH)
+
+  vg.beginPath()
+  vg.rect(clipX - 80, clipY + 18, clipW + 180, 34)
+  vg.fillColor(rgb(0.82, 0.22, 0.20))
+  vg.fill()
+
+  vg.beginPath()
+  vg.rect(clipX + 42, clipY + 66, clipW + 130, 34)
+  vg.fillColor(rgb(0.95, 0.70, 0.20))
+  vg.fill()
+
+  vg.beginPath()
+  vg.circle(clipX + clipW + 4, clipY + 114, 38)
+  vg.fillColor(rgb(0.18, 0.58, 0.82))
+  vg.fill()
+
+  vg.restore()
+
+  vg.beginPath()
+  vg.roundedRect(clipX, clipY, clipW, clipH, 3)
+  vg.strokeWidth(1)
+  vg.strokeColor(rgb(0.68, 0.72, 0.76))
+  vg.stroke()
+
+  label(
+    clipX,
+    clipY + clipH + 12,
+    clipW,
+    h,
+    "Scissor: shapes should stop at the border.",
     style = labelStyle,
   )
 
