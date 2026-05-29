@@ -322,6 +322,10 @@ proc beginLayoutNode*(arena: var LayoutArena, node: LayoutNode): LayoutNodeId =
 
 proc endLayoutNode*(arena: var LayoutArena): LayoutNodeId =
   if arena.nodeStack.len == 0:
+    arena.reportLayoutError(
+      lekUnbalancedLayoutStack, NullLayoutNodeId, 0,
+      "endLayoutNode called with an empty layout stack",
+    )
     return NullLayoutNodeId
 
   result = arena.nodeStack.pop()

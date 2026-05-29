@@ -929,6 +929,14 @@ suite "unified layout solver":
     check arena.errors.len == 1
     check arena.errors[0].kind == lekExceededMaxNodes
 
+  test "ending an empty arena layout stack reports an imbalance":
+    var arena: LayoutArena
+    arena.initLayoutArena()
+
+    check arena.endLayoutNode().isNull
+    check arena.errors.len == 1
+    check arena.errors[0].kind == lekUnbalancedLayoutStack
+
   test "global layout error settings survive frame layout reset":
     resetLayout()
     var reported: seq[LayoutErrorKind]
@@ -948,6 +956,25 @@ suite "unified layout solver":
 
     clearLayoutErrors()
     check layoutErrors().len == 0
+
+  test "finishFrameLayout reports and clears unclosed preset frames":
+    resetLayout()
+    var reported: seq[LayoutErrorKind]
+    setLayoutErrorHandler(
+      proc(error: LayoutError) =
+        reported.add(error.kind)
+    )
+
+    beginFrameLayout()
+    beginSpaceLayout(40)
+    finishFrameLayout()
+
+    check reported == @[lekUnbalancedLayoutStack]
+    check layoutErrors().len == 1
+    check layoutErrors()[0].kind == lekUnbalancedLayoutStack
+    check g_uiState.layoutStack.len == 0
+    check g_uiState.layoutArena.nodeStack.len == 0
+    check drawOffset() == DrawOffset(ox: 0, oy: 0)
 
   test "fixed-width text wraps and updates a fit-height parent":
     proc measureText(

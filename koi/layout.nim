@@ -893,6 +893,20 @@ proc layoutErrors*(): seq[LayoutError] =
 proc setLayoutMaxNodes*(maxNodes: int) =
   g_uiState.layoutArena.setLayoutMaxNodes(maxNodes)
 
+proc clearUnbalancedLayoutPresetFrames(ui: var UIState) =
+  while ui.layoutStack.len > 0:
+    let frame = ui.layoutStack.pop()
+    if not frame.nodeId.isNull and ui.layoutArena.nodeStack.len > 0 and
+        int32(ui.layoutArena.nodeStack[^1]) == int32(frame.nodeId):
+      discard ui.layoutArena.endLayoutNode()
+    if frame.mode == lpmSpace:
+      popDrawOffset()
+    if frame.capturePointer:
+      ui.hitClipRect = frame.savedHitClip
+      ui.focusCaptured = frame.savedFocusCaptured
+  ui.autoLayoutState.activeSlotParent = NullLayoutNodeId
+  ui.autoLayoutState.activeSlotUsed = false
+
 proc queueLayoutInspectorDraw() =
   alias(ui, g_uiState)
   if not ui.layoutDebug.enabled:
@@ -968,6 +982,26 @@ proc queueLayoutInspectorDraw() =
 
 proc finishFrameLayout*() =
   alias(ui, g_uiState)
+
+  let expectedStackLen = if ui.layoutRoot.isNull: 0 else: 1
+  if ui.layoutStack.len > 0:
+    ui.layoutArena.reportLayoutError(
+      lekUnbalancedLayoutStack,
+      if ui.layoutArena.nodeStack.len > 0:
+        ui.layoutArena.nodeStack[^1]
+      else:
+        NullLayoutNodeId,
+      0,
+      &"layout preset stack has {ui.layoutStack.len} unclosed frame(s); clearing",
+    )
+    ui.clearUnbalancedLayoutPresetFrames()
+  if ui.layoutArena.nodeStack.len > expectedStackLen:
+    ui.layoutArena.reportLayoutError(
+      lekUnbalancedLayoutStack,
+      ui.layoutArena.nodeStack[^1],
+      0,
+      &"layout node stack has {ui.layoutArena.nodeStack.len - expectedStackLen} unclosed node(s); auto-closing",
+    )
 
   while ui.layoutArena.nodeStack.len > 0:
     discard ui.layoutArena.endLayoutNode()

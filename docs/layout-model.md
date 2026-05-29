@@ -261,9 +261,11 @@ layers.
 ### Layout Diagnostics
 
 Layout diagnostics are recoverable. The arena records errors for duplicate item
-ids, invalid percent values, missing attach targets, node-capacity overflow, and
-internal layout failures. Invalid percents are clamped; missing floating targets
-leave the node at its fallback rect.
+ids, invalid percent values, missing attach targets, node-capacity overflow,
+unbalanced layout stacks, and internal layout failures. Invalid percents are
+clamped; missing floating targets leave the node at its fallback rect. Unbalanced
+frame layout stacks are reported at `finishFrameLayout()` and then cleared so the
+next frame starts from clean layout state.
 
 ```nim
 arena.setLayoutErrorHandler(proc(error: LayoutError) =
