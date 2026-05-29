@@ -764,6 +764,40 @@ suite "unified layout solver":
     checkClose(arena.nodes[root.int].contentSize.w, 60)
     checkClose(arena.nodes[root.int].contentSize.h, 50)
 
+  test "dropdown popup followers clamp to root without contributing content size":
+    var arena: LayoutArena
+    arena.initLayoutArena()
+
+    let root = arena.beginLayoutNode(layoutNode(width = fixed(100), height = fixed(80)))
+    let belowTarget = arena.addLayoutNode(
+      layoutNode(width = fixed(20), height = fixed(10), placement = manual(20, 20))
+    )
+    let belowPopup = arena.addLayoutNode(
+      layoutNode(
+        width = fixed(30),
+        height = fixed(10),
+        placement = follow(belowTarget, lfkDropdownPopup, windowPad = 10),
+      )
+    )
+    let edgeTarget = arena.addLayoutNode(
+      layoutNode(width = fixed(20), height = fixed(10), placement = manual(70, 60))
+    )
+    let edgePopup = arena.addLayoutNode(
+      layoutNode(
+        width = fixed(40),
+        height = fixed(30),
+        placement = follow(edgeTarget, lfkDropdownPopup, windowPad = 10),
+      )
+    )
+    discard arena.endLayoutNode()
+
+    arena.solveLayout(rect(0, 0, 100, 80), root)
+
+    checkRect(arena.layoutRect(belowPopup), rect(20, 30, 30, 10))
+    checkRect(arena.layoutRect(edgePopup), rect(50, 30, 40, 30))
+    checkClose(arena.nodes[root.int].contentSize.w, 90)
+    checkClose(arena.nodes[root.int].contentSize.h, 70)
+
   test "fixed-width text wraps and updates a fit-height parent":
     proc measureText(
         text: string, fontSize: float, fontFace: string, maxWidth: float

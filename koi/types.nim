@@ -308,6 +308,7 @@ type
     lfkVerticalScrollBar
     lfkHorizontalScrollBar
     lfkMatchTarget
+    lfkDropdownPopup
 
   LayoutPlacement* = object
     case kind*: LayoutPlacementKind
@@ -318,6 +319,8 @@ type
     of lpkFollow:
       target*: LayoutNodeId
       followKind*: LayoutFollowerKind
+      followAlign*: HorizontalAlign
+      windowPad*: float
 
   TextMeasure* = object
     minWidth*: float

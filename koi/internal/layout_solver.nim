@@ -1,5 +1,7 @@
 import std/math
 
+import nanovg
+
 import koi/rect
 import koi/types
 
@@ -40,8 +42,19 @@ func flow*(): LayoutPlacement =
 func manual*(x, y: float): LayoutPlacement =
   LayoutPlacement(kind: lpkManual, x: x, y: y)
 
-func follow*(target: LayoutNodeId, followKind: LayoutFollowerKind): LayoutPlacement =
-  LayoutPlacement(kind: lpkFollow, target: target, followKind: followKind)
+func follow*(
+    target: LayoutNodeId,
+    followKind: LayoutFollowerKind,
+    followAlign: HorizontalAlign = haLeft,
+    windowPad: float = 10.0,
+): LayoutPlacement =
+  LayoutPlacement(
+    kind: lpkFollow,
+    target: target,
+    followKind: followKind,
+    followAlign: followAlign,
+    windowPad: windowPad,
+  )
 
 func clampSize(value: float, spec: LayoutSize): float =
   case spec.kind
@@ -538,6 +551,34 @@ proc placeChildren(arena: var LayoutArena, id: LayoutNodeId) =
           child.rect.w = target.w
         of lfkMatchTarget:
           child.rect = target
+        of lfkDropdownPopup:
+          let pad = max(child.placement.windowPad, 0.0)
+          let
+            minX = parent.rect.x + pad
+            minY = parent.rect.y + pad
+            maxX = parent.rect.x + parent.rect.w - pad
+            maxY = parent.rect.y + parent.rect.h - pad
+          child.rect.x =
+            case child.placement.followAlign
+            of haLeft:
+              target.x
+            of haCenter:
+              target.x + target.w * 0.5 - child.rect.w * 0.5
+            of haRight:
+              target.x + target.w
+          child.rect.y = target.y + target.h
+          if child.rect.x + child.rect.w > maxX:
+            child.rect.x = target.x + target.w - child.rect.w
+          if child.rect.y + child.rect.h > maxY:
+            child.rect.y = target.y - child.rect.h
+          if child.rect.x < minX:
+            child.rect.x = minX
+          elif child.rect.x + child.rect.w > maxX:
+            child.rect.x = maxX - child.rect.w
+          if child.rect.y < minY:
+            child.rect.y = minY
+          elif child.rect.y + child.rect.h > maxY:
+            child.rect.y = maxY - child.rect.h
     of lpkFlow:
       let crossSize = child.rect.axis(not mainHorizontal)
       let crossExtra = max(0.0, innerCross - crossSize)

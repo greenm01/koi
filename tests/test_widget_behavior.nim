@@ -1020,6 +1020,91 @@ suite "layout-integrated widget behavior":
 
     check int32(g_uiState.layoutArena.nodes[3].parent) == int32(dropdownRow)
 
+  test "open auto-layout dropdown overlay follows solved button rect":
+    resetUi()
+    type Choice = enum
+      choiceA
+      choiceB
+      choiceC
+      choiceD
+      choiceE
+      choiceF
+      choiceG
+      choiceH
+      choiceI
+      choiceJ
+      choiceK
+      choiceL
+
+    var params = DefaultAutoLayoutParams
+    params.itemsPerRow = 1
+    params.rowWidth = 40
+    params.leftPad = 10
+    params.rightPad = 0
+    params.rowPad = 0
+    params.sectionPad = 0
+    params.defaultRowHeight = 10
+    params.defaultItemHeight = 10
+    initAutoLayout(params)
+
+    let dropdownId: ItemId = 49
+    let popupListId = hashId($dropdownId & ":popupList")
+    let scrollBarId = hashId($dropdownId & ":scrollBar")
+    g_uiState.itemState[dropdownId] =
+      DropDownStateVars(state: dsOpen, activeItem: dropdownId, keyboardItem: 0)
+    openPopup(dropdownId)
+    beginFrameLayout()
+
+    var selected = choiceA
+    autoLayoutPre()
+    let dropdownRow = g_uiState.autoLayoutState.autoRow
+    dropDown(
+      dropdownId,
+      g_uiState.autoLayoutState.x,
+      autoLayoutNextY(),
+      autoLayoutNextItemWidth(),
+      autoLayoutNextItemHeight(),
+      @["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"],
+      selected,
+      "",
+      disabled = false,
+    )
+    autoLayoutPost()
+    finishFrameLayout()
+
+    var rowChildren = 0
+    var popupNode = NullLayoutNodeId
+    var scrollbarNode = NullLayoutNodeId
+    for node in g_uiState.layoutArena.nodes:
+      if int32(node.parent) == int32(dropdownRow):
+        inc rowChildren
+      if node.itemId == popupListId:
+        popupNode = node.id
+      if node.itemId == scrollBarId:
+        scrollbarNode = node.id
+
+    check rowChildren == 1
+    check not popupNode.isNull
+    check not scrollbarNode.isNull
+    check g_uiState.layoutArena.nodes[popupNode.int].placement.kind == lpkFollow
+    check g_uiState.layoutArena.nodes[popupNode.int].placement.followKind ==
+      lfkDropdownPopup
+    check g_uiState.layoutArena.nodes[scrollbarNode.int].placement.kind == lpkFollow
+    check g_uiState.layoutArena.nodes[scrollbarNode.int].placement.followKind ==
+      lfkVerticalScrollBar
+    check int32(g_uiState.layoutArena.nodes[scrollbarNode.int].placement.target) ==
+      int32(popupNode)
+
+    let
+      buttonRect = g_uiState.layoutRects[dropdownId]
+      popupRect = g_uiState.layoutRects[popupListId]
+      scrollbarRect = g_uiState.layoutRects[scrollBarId]
+    check popupRect.x == buttonRect.x
+    check popupRect.y == buttonRect.y + buttonRect.h
+    check scrollbarRect.x == popupRect.x + popupRect.w - scrollbarRect.w
+    check scrollbarRect.y == popupRect.y
+    check scrollbarRect.h == popupRect.h
+
   test "auto-layout label registers a fit-height text node under the active row":
     resetUi()
     var params = DefaultAutoLayoutParams

@@ -292,7 +292,12 @@ proc layoutDrawSlot*(id: ItemId, fallback: Rect): LayoutSlot =
   )
 
 proc layoutFollowerSlot*(
-    id: ItemId, fallback: Rect, target: LayoutNodeId, followKind: LayoutFollowerKind
+    id: ItemId,
+    fallback: Rect,
+    target: LayoutNodeId,
+    followKind: LayoutFollowerKind,
+    followAlign: HorizontalAlign = haLeft,
+    windowPad: float = 10.0,
 ): LayoutSlot =
   alias(ui, g_uiState)
 
@@ -301,7 +306,7 @@ proc layoutFollowerSlot*(
     itemId = id,
     width = fixed(fallback.w),
     height = fixed(fallback.h),
-    placement = follow(target, followKind),
+    placement = follow(target, followKind, followAlign, windowPad),
   )
   node.intrinsicMin = size(fallback.w, fallback.h)
   node.intrinsicPref = size(fallback.w, fallback.h)

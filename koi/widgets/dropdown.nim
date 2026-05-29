@@ -54,6 +54,8 @@ proc dropDown*[T](
   let
     numItems = items.len
     itemHeight = h # TODO just temporarily
+    popupListId = hashId($id & ":popupList")
+    scrollBarId = hashId($id & ":scrollBar")
 
   proc closeDropDown() =
     ds.state = dsClosed
@@ -103,10 +105,9 @@ proc dropDown*[T](
     # Calculate the position of the box around the drop-down items
     var maxItemWidth = 0.0
 
-    g_nvgContext.useFont(s.item.fontSize)
-
     for i in items:
-      let tw = g_nvgContext.textWidth(i)
+      let tw =
+        measureLayoutText(i, s.item.fontSize, s.item.fontFace, LayoutInfinity).prefWidth
       maxItemWidth = max(tw, maxItemWidth)
 
     itemListW = max(maxItemWidth + s.itemListPadHoriz * 2, w)
@@ -155,8 +156,13 @@ proc dropDown*[T](
       snapToGrid(itemListX, itemListY, itemListW, itemListH, s.itemListStrokeWidth)
     let
       itemListSlot =
-        layoutSlot(
-          hashId($id & ":popupList"), rect(itemListX, itemListY, itemListW, itemListH)
+        layoutFollowerSlot(
+          popupListId,
+          rect(itemListX, itemListY, itemListW, itemListH),
+          buttonSlot.nodeId,
+          lfkDropdownPopup,
+          s.itemListAlign,
+          WindowEdgePad,
         )
       itemListBounds = itemListSlot.previousBounds
     itemListNodeId = itemListSlot.nodeId
@@ -341,8 +347,6 @@ proc dropDown*[T](
   # Scrollbar
   if isActive(id) and isPopupOpen(id) and scrollBarVisible:
     # Display scroll bar
-    let sbId = hashId(lastIdString() & ":scrollBar")
-
     let endVal = max(items.len.float - maxDisplayItems.float, 0)
     let thumbSize =
       maxDisplayItems.float *
@@ -357,27 +361,35 @@ proc dropDown*[T](
     ui.focusCaptured = false
     ui.currentLayer = layerPopup
 
-    vertScrollBar(
-      sbId,
-      x = (itemListX + itemListW - s.scrollBarWidth),
-      y = itemListY,
-      w = s.scrollBarWidth,
-      h = itemListH,
-      startVal = 0,
-      endVal = endVal,
+    let scrollSlot = layoutFollowerSlot(
+      scrollBarId,
+      rect(
+        itemListX + itemListW - s.scrollBarWidth,
+        itemListY,
+        s.scrollBarWidth,
+        itemListH,
+      ),
+      itemListNodeId,
+      lfkVerticalScrollBar,
+    )
+    vertScrollBarWithSlot(
+      scrollSlot,
+      scrollBarId,
+      0,
+      endVal,
       ds.displayStartItem,
       thumbSize = thumbSize,
       clickStep = 2,
       style = s.scrollBarStyle,
     )
 
-    if ui.hotItem == sbId:
-      ui.hotItem = sbId
+    if ui.hotItem == scrollBarId:
+      ui.hotItem = scrollBarId
     else:
       ui.hotItem = oldHotItem
 
-    if ui.activeItem == sbId:
-      ui.activeItem = sbId
+    if ui.activeItem == scrollBarId:
+      ui.activeItem = scrollBarId
     else:
       ui.activeItem = oldActiveItem
 
