@@ -5,8 +5,7 @@ to the deferred candidates that still look useful.
 
 ## Backend And Rendering
 
-- Complete remaining Wayland polish: key repeat, cursor shape, and robust
-  close/resize flow.
+- Complete remaining Wayland polish: cursor shape and robust close/resize flow.
 
 ## Text And Editing
 

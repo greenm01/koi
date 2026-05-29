@@ -4,6 +4,12 @@ static void on_close(void* userdata) {
   (void)userdata;
 }
 
+static void on_key_repeat(uint32_t sym, uint32_t mods, void* userdata) {
+  (void)sym;
+  (void)mods;
+  (void)userdata;
+}
+
 int main(void) {
   if ((KOI_WAYLAND_MOD_SHIFT | KOI_WAYLAND_MOD_CTRL |
        KOI_WAYLAND_MOD_ALT | KOI_WAYLAND_MOD_SUPER) != 15u) {
@@ -12,6 +18,7 @@ int main(void) {
 
   KoiWaylandCallbacks callbacks = {0};
   callbacks.on_close = on_close;
+  callbacks.on_key_repeat = on_key_repeat;
   koi_wayland_set_callbacks(0, &callbacks);
 
   KoiWaylandDisplay* display = koi_wayland_init();

@@ -97,6 +97,7 @@ typedef struct {
   void (*on_close)       (void* ud);
   void (*on_resize)      (uint32_t w, uint32_t h, void* ud);
   void (*on_key_down)    (uint32_t sym, uint32_t mods, void* ud);
+  void (*on_key_repeat)  (uint32_t sym, uint32_t mods, void* ud);
   void (*on_key_up)      (uint32_t sym, uint32_t mods, void* ud);
   void (*on_mouse_move)  (double x, double y, void* ud);
   void (*on_mouse_button)(uint32_t btn, bool pressed, void* ud);

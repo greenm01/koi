@@ -1,5 +1,6 @@
 const std = @import("std");
 const c = @cImport({
+    @cInclude("time.h");
     @cInclude("unistd.h");
     @cInclude("wayland-client.h");
     @cInclude("xkbcommon/xkbcommon.h");
@@ -17,6 +18,7 @@ const KoiWaylandCallbacks = extern struct {
     on_close: ?*const fn (?*anyopaque) callconv(.c) void,
     on_resize: ?*const fn (u32, u32, ?*anyopaque) callconv(.c) void,
     on_key_down: ?*const fn (u32, u32, ?*anyopaque) callconv(.c) void,
+    on_key_repeat: ?*const fn (u32, u32, ?*anyopaque) callconv(.c) void,
     on_key_up: ?*const fn (u32, u32, ?*anyopaque) callconv(.c) void,
     on_mouse_move: ?*const fn (f64, f64, ?*anyopaque) callconv(.c) void,
     on_mouse_button: ?*const fn (u32, bool, ?*anyopaque) callconv(.c) void,
@@ -43,6 +45,13 @@ const KoiWaylandDisplay = extern struct {
     mod_super: c.xkb_mod_index_t,
     mods: u32,
     output_scale: f64,
+    repeat_rate: i32,
+    repeat_delay: i32,
+    repeat_key: u32,
+    repeat_sym: u32,
+    repeat_mods: u32,
+    repeat_next_ms: i64,
+    repeat_window: ?*KoiWaylandWindow,
     active_window: ?*KoiWaylandWindow,
     pointer_window: ?*KoiWaylandWindow,
     keyboard_window: ?*KoiWaylandWindow,
@@ -80,6 +89,14 @@ fn bindGlobal(
 
 fn fixedToDouble(value: c.wl_fixed_t) f64 {
     return @as(f64, @floatFromInt(value)) / 256.0;
+}
+
+fn nowMs() i64 {
+    var ts: c.struct_timespec = undefined;
+    if (c.clock_gettime(c.CLOCK_MONOTONIC, &ts) != 0) {
+        return 0;
+    }
+    return @as(i64, @intCast(ts.tv_sec)) * 1000 + @divTrunc(@as(i64, @intCast(ts.tv_nsec)), 1_000_000);
 }
 
 fn registryGlobal(
@@ -551,6 +568,50 @@ fn updateModifiers(display: *KoiWaylandDisplay) void {
     display.mods = mods;
 }
 
+fn stopKeyRepeat(display: *KoiWaylandDisplay) void {
+    display.repeat_key = 0;
+    display.repeat_sym = 0;
+    display.repeat_mods = 0;
+    display.repeat_next_ms = 0;
+    display.repeat_window = null;
+}
+
+fn startKeyRepeat(
+    display: *KoiWaylandDisplay,
+    window: *KoiWaylandWindow,
+    key: u32,
+    sym: u32,
+    mods: u32,
+) void {
+    if (display.repeat_rate <= 0) {
+        stopKeyRepeat(display);
+        return;
+    }
+
+    display.repeat_key = key;
+    display.repeat_sym = sym;
+    display.repeat_mods = mods;
+    display.repeat_next_ms = nowMs() + @as(i64, @intCast(@max(display.repeat_delay, 0)));
+    display.repeat_window = window;
+}
+
+fn dispatchKeyRepeats(display: *KoiWaylandDisplay) void {
+    const window = display.repeat_window orelse return;
+    const on_key_repeat = window.callbacks.on_key_repeat orelse return;
+    if (display.repeat_rate <= 0 or display.repeat_key == 0 or display.repeat_next_ms <= 0) {
+        return;
+    }
+
+    const interval_ms = @max(@divTrunc(1000, display.repeat_rate), 1);
+    var next = display.repeat_next_ms;
+    const now = nowMs();
+    while (now >= next) {
+        on_key_repeat(display.repeat_sym, display.repeat_mods, window.callbacks.userdata);
+        next += @as(i64, @intCast(interval_ms));
+    }
+    display.repeat_next_ms = next;
+}
+
 fn wlKeyboardKeymap(
     data: ?*anyopaque,
     wl_keyboard: ?*c.struct_wl_keyboard,
@@ -638,7 +699,11 @@ fn wlKeyboardKey(
         if (window.callbacks.on_key_down) |on_key_down| {
             on_key_down(sym, display.mods, window.callbacks.userdata);
         }
+        startKeyRepeat(display, window, key, sym, display.mods);
     } else if (state == @as(u32, c.WL_KEYBOARD_KEY_STATE_RELEASED)) {
+        if (display.repeat_key == key) {
+            stopKeyRepeat(display);
+        }
         if (window.callbacks.on_key_up) |on_key_up| {
             on_key_up(sym, display.mods, window.callbacks.userdata);
         }
@@ -676,10 +741,13 @@ fn wlKeyboardRepeatInfo(
     rate: i32,
     delay: i32,
 ) callconv(.c) void {
-    _ = data;
     _ = wl_keyboard;
-    _ = rate;
-    _ = delay;
+    const display: *KoiWaylandDisplay = @ptrCast(@alignCast(data orelse return));
+    display.repeat_rate = rate;
+    display.repeat_delay = delay;
+    if (rate <= 0) {
+        stopKeyRepeat(display);
+    }
 }
 
 const wl_keyboard_listener = c.struct_wl_keyboard_listener{
@@ -835,6 +903,13 @@ export fn koi_wayland_init() ?*KoiWaylandDisplay {
         .mod_super = c.XKB_MOD_INVALID,
         .mods = 0,
         .output_scale = 1.0,
+        .repeat_rate = 0,
+        .repeat_delay = 0,
+        .repeat_key = 0,
+        .repeat_sym = 0,
+        .repeat_mods = 0,
+        .repeat_next_ms = 0,
+        .repeat_window = null,
         .active_window = null,
         .pointer_window = null,
         .keyboard_window = null,
@@ -941,6 +1016,7 @@ export fn koi_wayland_poll_events(display: ?*KoiWaylandDisplay) void {
     const d = display orelse return;
     const wl_display = d.wl_display orelse return;
     _ = c.wl_display_dispatch_pending(wl_display);
+    dispatchKeyRepeats(d);
     _ = c.wl_display_flush(wl_display);
 }
 
@@ -985,6 +1061,9 @@ export fn koi_wayland_destroy_window(window: ?*KoiWaylandWindow) void {
         }
         if (display.keyboard_window == win) {
             display.keyboard_window = null;
+        }
+        if (display.repeat_window == win) {
+            stopKeyRepeat(display);
         }
         if (display.active_window == win) {
             display.active_window = null;
