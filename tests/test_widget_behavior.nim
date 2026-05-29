@@ -702,6 +702,80 @@ suite "layout-integrated widget behavior":
     check g_uiState.layoutArena.nodes.len == 1
     check g_drawLayers.layers[ord(layerDefault)].len == 2
 
+  test "view scopes child layout nodes":
+    resetUi()
+    beginFrameLayout()
+
+    beginView(80, 10, 20, 100, 50)
+    let viewNode = g_uiState.layoutArena.nodes.high
+    let (childX, childY) = addDrawOffset(15, 20)
+    let childSlot = layoutSlot(81, rect(childX, childY, 30, 10))
+    endView()
+    finishFrameLayout()
+
+    check int32(g_uiState.layoutArena.nodes[childSlot.nodeId.int].parent) ==
+      int32(g_uiState.layoutArena.nodes[viewNode].id)
+    checkRect(g_uiState.layoutRects[81], rect(25, 40, 30, 10))
+    checkRect(
+      rect(
+        0,
+        0,
+        g_uiState.layoutArena.nodes[viewNode].contentSize.w,
+        g_uiState.layoutArena.nodes[viewNode].contentSize.h,
+      ),
+      rect(0, 0, 45, 30),
+    )
+
+  test "scroll view scopes content without parenting scrollbars":
+    resetUi()
+    beginFrameLayout()
+
+    beginScrollView(82, 10, 10, 50, 30)
+    let scrollNode = g_uiState.layoutArena.nodes.high
+    let (childX, childY) = addDrawOffset(0, 50)
+    let childSlot = layoutSlot(83, rect(childX, childY, 20, 10))
+    endScrollView(100)
+    finishFrameLayout()
+
+    var scrollChildren = 0
+    for node in g_uiState.layoutArena.nodes:
+      if int32(node.parent) == int32(g_uiState.layoutArena.nodes[scrollNode].id):
+        inc scrollChildren
+
+    check int32(g_uiState.layoutArena.nodes[childSlot.nodeId.int].parent) ==
+      int32(g_uiState.layoutArena.nodes[scrollNode].id)
+    check scrollChildren == 1
+    check g_uiState.layoutArena.nodes[scrollNode].contentSize.h == 60
+
+  test "scroll view contains auto-layout roots declared inside it":
+    resetUi()
+    beginFrameLayout()
+
+    beginScrollView(84, 10, 10, 100, 80)
+    let scrollNode = g_uiState.layoutArena.nodes.high
+
+    var params = DefaultAutoLayoutParams
+    params.itemsPerRow = 1
+    params.rowWidth = 80
+    params.leftPad = 0
+    params.rightPad = 0
+    params.rowPad = 0
+    params.sectionPad = 0
+    params.defaultRowHeight = 20
+    params.defaultItemHeight = 10
+    initAutoLayout(params)
+
+    autoLayoutPre()
+    let childSlot = layoutSlot(85, autoLayoutNextBounds())
+    autoLayoutPost()
+    endScrollView()
+    finishFrameLayout()
+
+    let rowNode = g_uiState.layoutArena.nodes[childSlot.nodeId.int].parent
+    let autoRoot = g_uiState.layoutArena.nodes[rowNode.int].parent
+    check int32(g_uiState.layoutArena.nodes[autoRoot.int].parent) ==
+      int32(g_uiState.layoutArena.nodes[scrollNode].id)
+
   test "auto-layout views register under active rows":
     resetUi()
     var params = DefaultAutoLayoutParams

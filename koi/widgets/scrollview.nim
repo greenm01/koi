@@ -65,7 +65,7 @@ proc getScrollViewStartY*(id: ItemId): float =
 proc beginView*(id: ItemId, x, y, w, h: float) =
   alias(ui, g_uiState)
   let (x, y) = addDrawOffset(x, y)
-  let slot = layoutSlot(id, rect(x, y, w, h))
+  let slot = beginLayoutContainerSlot(id, rect(x, y, w, h))
 
   addLayoutDrawLayer(ui.currentLayer, slot.nodeId, vg, bounds):
     vg.save()
@@ -87,6 +87,7 @@ proc endView*() =
   addDrawStateLayer(ui.currentLayer, vg):
     vg.restore()
   popDrawOffset()
+  endLayoutContainerSlot()
   autoLayoutFinal()
   resetHitClip()
 
@@ -97,7 +98,7 @@ proc beginScrollView*(
 ) =
   alias(ui, g_uiState)
   let (x, y) = addDrawOffset(x, y)
-  let slot = layoutSlot(id, rect(x, y, w, h))
+  let slot = beginLayoutContainerSlot(id, rect(x, y, w, h))
   let hitBounds = slot.previousBounds
 
   addLayoutDrawLayer(ui.currentLayer, slot.nodeId, vg, bounds):
@@ -154,6 +155,13 @@ proc endScrollView*(contentW, contentH: float) =
     visibleHeight = ss.h
     contentWidth = max(if contentW < 0: ss.w else: contentW, ss.w)
     contentHeight = if autoLayout: a.y else: height
+
+  endLayoutContainerSlot()
+  let
+    savedActiveSlotParent = a.activeSlotParent
+    savedActiveSlotUsed = a.activeSlotUsed
+  a.activeSlotParent = NullLayoutNodeId
+  a.activeSlotUsed = false
 
   if contentHeight > visibleHeight:
     let
@@ -213,6 +221,8 @@ proc endScrollView*(contentW, contentH: float) =
   ss.contentWidth = contentWidth
   ss.contentHeight = contentHeight
   ui.itemState[id] = ss
+  a.activeSlotParent = savedActiveSlotParent
+  a.activeSlotUsed = savedActiveSlotUsed
 
   ui.scrollViewState.activeItem = 0
   ui.sectionHeaderState.openSubHeaders = false

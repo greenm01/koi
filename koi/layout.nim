@@ -124,7 +124,7 @@ proc layoutPlacement(fallback: Rect): LayoutPlacement =
     case frame.mode
     of lpmRow:
       result = flow()
-    of lpmSpace:
+    of lpmSpace, lpmViewport:
       result = manual(fallback.x - frame.x, fallback.y - frame.y)
 
 proc previousLayoutRect*(id: ItemId, fallback: Rect): Rect =
@@ -201,6 +201,77 @@ proc layoutSlot*(id: ItemId, fallback: Rect): LayoutSlot =
   if parent.isNull and ui.layoutStack.len > 0 and ui.layoutStack[^1].mode == lpmRow:
     width = ui.layoutStack[^1].currentRowLayoutSize(ui.autoLayoutParams)
   layoutSlotWithSizing(id, fallback, width, fixed(fallback.h), parent)
+
+proc beginLayoutContainerSlot*(id: ItemId, fallback: Rect): LayoutSlot =
+  alias(ui, g_uiState)
+  alias(a, ui.autoLayoutState)
+
+  let parent = ui.activeAutoSlotParent()
+  var width = fixed(fallback.w)
+  if parent.isNull and ui.layoutStack.len > 0 and ui.layoutStack[^1].mode == lpmRow:
+    width = ui.layoutStack[^1].currentRowLayoutSize(ui.autoLayoutParams)
+
+  var node = layoutNode(
+    kind = lnkContainer,
+    itemId = id,
+    width = width,
+    height = fixed(fallback.h),
+    placement =
+      if parent.isNull:
+        layoutPlacement(fallback)
+      else:
+        flow(),
+  )
+  node.intrinsicMin = size(fallback.w, fallback.h)
+  node.intrinsicPref = size(fallback.w, fallback.h)
+  if width.kind == lskGrow:
+    node.intrinsicMin.w = width.min
+    node.intrinsicPref.w = width.min
+  node.rect = fallback
+
+  let nodeId =
+    if parent.isNull:
+      ui.layoutArena.beginLayoutNode(node)
+    else:
+      let child = ui.layoutArena.addLayoutNode(node, parent)
+      ui.layoutArena.nodeStack.add(child)
+      child
+
+  ui.markAutoSlotUsed(parent)
+  ui.markPresetSlotUsed()
+
+  ui.layoutStack.add(
+    LayoutPresetFrame(
+      mode: lpmViewport,
+      x: fallback.x,
+      y: fallback.y,
+      w: fallback.w,
+      h: fallback.h,
+      nodeId: nodeId,
+      savedActiveSlotParent: a.activeSlotParent,
+      savedActiveSlotUsed: a.activeSlotUsed,
+    )
+  )
+  a.activeSlotParent = NullLayoutNodeId
+  a.activeSlotUsed = false
+
+  result = LayoutSlot(
+    itemId: id,
+    nodeId: nodeId,
+    bounds: fallback,
+    previousBounds: previousLayoutRect(id, fallback),
+  )
+
+proc endLayoutContainerSlot*() =
+  alias(ui, g_uiState)
+  if ui.layoutStack.len == 0 or ui.layoutStack[^1].mode != lpmViewport:
+    return
+
+  let frame = ui.layoutStack.pop()
+  if not frame.nodeId.isNull:
+    discard ui.layoutArena.endLayoutNode()
+  ui.autoLayoutState.activeSlotParent = frame.savedActiveSlotParent
+  ui.autoLayoutState.activeSlotUsed = frame.savedActiveSlotUsed
 
 proc layoutDrawSlot*(id: ItemId, fallback: Rect): LayoutSlot =
   layoutSlotWithSizing(
@@ -489,14 +560,19 @@ proc ensureAutoLayoutRoot(ui: var UIState): LayoutNodeId =
     return a.autoRoot
 
   let offset = drawOffset()
+  let parent =
+    if ui.layoutArena.nodeStack.len > 0:
+      ui.layoutArena.nodeStack[^1]
+    else:
+      ui.layoutRoot
   a.autoRoot = ui.layoutArena.addLayoutNode(
     layoutNode(
       width = fixed(a.rowWidth),
       height = fit(),
       direction = ldTopToBottom,
-      placement = manual(offset.ox, offset.oy),
+      placement = layoutPlacement(rect(offset.ox, offset.oy, a.rowWidth, 0)),
     ),
-    ui.layoutRoot,
+    parent,
   )
   a.autoRoot
 
@@ -540,7 +616,7 @@ proc prepareAutoLayoutSlot(ui: var UIState) =
   alias(a, ui.autoLayoutState)
   alias(ap, ui.autoLayoutParams)
 
-  if ui.layoutStack.len != 0:
+  if ui.layoutStack.len != 0 and ui.layoutStack[^1].mode != lpmViewport:
     a.activeSlotParent = NullLayoutNodeId
     a.activeSlotUsed = false
     return
@@ -614,6 +690,8 @@ proc autoLayoutPre*(section: bool = false) =
       a.nextItemHeight = node.h
       a.applyNextItemOverrides()
       return
+    of lpmViewport:
+      discard
 
   let firstColumn = a.currColIndex == 0
 
@@ -659,6 +737,8 @@ proc autoLayoutPost*(section: bool = false) =
       return
     of lpmSpace:
       return
+    of lpmViewport:
+      discard
 
   let lastColumn = a.currColIndex == ap.effectiveItemsPerRow() - 1
   ui.addEmptyAutoSlot()

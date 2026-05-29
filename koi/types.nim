@@ -369,6 +369,7 @@ type
   LayoutPresetMode* = enum
     lpmRow
     lpmSpace
+    lpmViewport
 
   LayoutPresetFrame* = object
     mode*: LayoutPresetMode
@@ -385,6 +386,8 @@ type
     hasCurrentColumn*: bool
     nodeId*: LayoutNodeId
     rowSlotOwned*: bool
+    savedActiveSlotParent*: LayoutNodeId
+    savedActiveSlotUsed*: bool
 
 type
   DrawOffset* = object
