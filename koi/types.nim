@@ -424,11 +424,25 @@ type
     bounds*: Rect
     previousBounds*: Rect
 
+  LayoutInspectorTreeRow* = object
+    nodeId*: LayoutNodeId
+    depth*: int
+    label*: string
+    hasChildren*: bool
+    collapsed*: bool
+    selected*: bool
+    hovered*: bool
+    errorCount*: int
+    collapseKey*: string
+
   LayoutDebugState* = object
     enabled*: bool
     hoveredNode*: LayoutNodeId
     selectedNode*: LayoutNodeId
     panelWidth*: float
+    treeScroll*: float
+    treeHoveredNode*: LayoutNodeId
+    collapsedNodes*: seq[string]
 
   ColMode* = enum
     cmStatic

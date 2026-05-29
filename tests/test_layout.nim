@@ -3,6 +3,7 @@ import std/strutils
 import std/tables
 import std/unittest
 
+import glfw
 import nanovg
 
 import koi/core
@@ -1221,6 +1222,114 @@ suite "unified layout solver":
     let lines = layoutInspectorErrorLines()
     check lines.hasLineContaining("errors: 1")
     check lines.hasLineContaining("lekUnbalancedLayoutStack")
+
+  test "layout inspector tree rows expose depth selection badges and errors":
+    resetLayout()
+    g_drawLayers.init()
+    setLayoutInspectorEnabled(true)
+
+    beginFrameLayout()
+    let anchor = layoutSlot(601, rect(0, 0, 10, 10))
+    let attached = layoutAttachSlot(
+      602, rect(0, 0, 10, 10), anchor.nodeId, lapBottomLeft, lapTopLeft, zIndex = 3
+    )
+    discard g_uiState.layoutArena.addLayoutNode(
+      layoutNode(itemId = 603, width = percent(1.5), height = fixed(10)),
+      g_uiState.layoutRoot,
+    )
+    finishFrameLayout()
+
+    g_uiState.layoutDebug.selectedNode = attached.nodeId
+    g_uiState.layoutDebug.treeHoveredNode = anchor.nodeId
+    let rows = layoutInspectorTreeRows()
+
+    check rows.len >= 4
+    check int32(rows[0].nodeId) == 0
+    check rows[0].depth == 0
+    check rows[0].hasChildren
+
+    var foundAnchor = false
+    var foundAttach = false
+    var foundError = false
+    for row in rows:
+      if int32(row.nodeId) == int32(anchor.nodeId):
+        foundAnchor = true
+        check row.depth == 1
+        check row.hovered
+        check row.collapseKey == "item:601"
+      if int32(row.nodeId) == int32(attached.nodeId):
+        foundAttach = true
+        check row.selected
+        check "attach" in row.label
+      if row.errorCount > 0:
+        foundError = true
+        check "!1" in row.label
+
+    check foundAnchor
+    check foundAttach
+    check foundError
+
+  test "layout inspector tree hover selection and collapse use row clicks":
+    resetLayout()
+    g_drawLayers.init()
+    setLayoutInspectorEnabled(true)
+    g_uiState.mx = 671
+    g_uiState.my = 75
+    g_uiState.hasEvent = true
+    g_uiState.currEvent =
+      Event(kind: ekMouseButton, button: mbLeft, pressed: true, x: 671, y: 75, mods: {})
+
+    beginFrameLayout()
+    let container =
+      beginLayoutContainerSlotAt(611, rect(10, 10, 40, 20), rect(10, 10, 40, 20))
+    discard layoutSlot(612, rect(12, 12, 10, 10))
+    endLayoutContainerSlot()
+    finishFrameLayout()
+
+    check eventHandled()
+    check int32(layoutInspectorSelectedNode()) == int32(container.nodeId)
+    check int32(layoutInspectorHoveredNode()) == int32(container.nodeId)
+
+    let rows = layoutInspectorTreeRows()
+    var sawContainer = false
+    for row in rows:
+      check row.collapseKey != "item:612"
+      if int32(row.nodeId) == int32(container.nodeId):
+        sawContainer = true
+        check row.collapsed
+    check sawContainer
+
+  test "layout inspector tree scroll clamps and consumes wheel events":
+    resetLayout()
+    g_drawLayers.init()
+    setLayoutInspectorEnabled(true)
+    g_uiState.mx = 660
+    g_uiState.my = 60
+    g_uiState.hasEvent = true
+    g_uiState.currEvent = Event(kind: ekScroll, ox: 0, oy: -20, mods: {})
+
+    beginFrameLayout()
+    for i in 0 ..< 30:
+      discard layoutSlot(700 + i, rect(0, i.float * 10, 10, 10))
+    finishFrameLayout()
+
+    check eventHandled()
+    check g_uiState.layoutDebug.treeScroll > 0
+    let firstScroll = g_uiState.layoutDebug.treeScroll
+
+    g_drawLayers.init()
+    g_uiState.eventHandled = false
+    g_uiState.hasEvent = true
+    g_uiState.currEvent = Event(kind: ekScroll, ox: 0, oy: 20, mods: {})
+
+    beginFrameLayout()
+    for i in 0 ..< 30:
+      discard layoutSlot(700 + i, rect(0, i.float * 10, 10, 10))
+    finishFrameLayout()
+
+    check eventHandled()
+    check g_uiState.layoutDebug.treeScroll < firstScroll
+    check g_uiState.layoutDebug.treeScroll >= 0
 
   test "attached slots follow frame-local targets and expose z-index to draws":
     resetLayout()

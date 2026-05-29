@@ -289,7 +289,10 @@ aspect-ratio data. When rectangles overlap, hover selection follows layout
 z-index first and insertion order second, matching draw-layer ordering. Clicked
 selection persists as the detail node when the cursor is hovering only the root
 rectangle. The panel also includes current layout diagnostics, with errors
-related to the detail node listed before recent global errors.
+related to the detail node listed before recent global errors. A tree browser at
+the top of the panel lists visible layout nodes in solve order; rows can be
+selected, container subtrees can be collapsed, and mouse wheel input scrolls long
+trees without affecting application scroll views.
 
 ```nim
 setLayoutInspectorEnabled(true)
@@ -297,6 +300,7 @@ toggleLayoutInspector()
 let detailNode = layoutInspectorDetailNode()
 let detailLines = layoutInspectorDetailLines()
 let errorLines = layoutInspectorErrorLines()
+let rows = layoutInspectorTreeRows()
 ```
 
 ## Execution Model

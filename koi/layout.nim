@@ -5,6 +5,7 @@ import std/strutils
 import std/tables
 import std/unicode
 
+import glfw
 import nanovg
 import koi/core
 import koi/drawing
@@ -1052,6 +1053,147 @@ proc layoutInspectorErrorLines*(): seq[string] =
     result.add(layoutErrorDebugText(i, g_uiState.layoutArena.errors[i]))
     inc globalCount
 
+const
+  LayoutInspectorTreeRowHeight = 18.0
+  LayoutInspectorTreeIndent = 14.0
+  LayoutInspectorTreeDisclosureWidth = 14.0
+
+func hasCollapsedLayoutNode(debug: LayoutDebugState, key: string): bool =
+  for collapsed in debug.collapsedNodes:
+    if collapsed == key:
+      return true
+
+proc toggleCollapsedLayoutNode(debug: var LayoutDebugState, key: string) =
+  for i, collapsed in debug.collapsedNodes:
+    if collapsed == key:
+      debug.collapsedNodes.delete(i)
+      return
+  debug.collapsedNodes.add(key)
+
+func layoutInspectorErrorCountFor(arena: LayoutArena, node: LayoutNode): int =
+  for error in arena.errors:
+    let matchesNode = int32(error.nodeId) >= 0 and int32(error.nodeId) == int32(node.id)
+    let matchesItem = node.itemId != 0 and error.itemId == node.itemId
+    if matchesNode or matchesItem:
+      inc result
+
+func layoutInspectorCollapseKey(node: LayoutNode, path: string): string =
+  if node.itemId != 0:
+    "item:" & $node.itemId
+  else:
+    "path:" & path
+
+func layoutInspectorNodeLabel(node: LayoutNode, errorCount: int): string =
+  result = &"#{int32(node.id)} {node.kind}"
+  if node.itemId != 0:
+    result.add(&" item={node.itemId}")
+  if node.kind == lnkText:
+    result.add(" text")
+  if node.placement.kind == lpkAttach:
+    result.add(" attach")
+  elif node.placement.kind == lpkFollow:
+    result.add(" follow")
+  if node.aspectRatio > 0:
+    result.add(" aspect")
+  if errorCount > 0:
+    result.add(&" !{errorCount}")
+
+proc layoutInspectorTreeRows(
+    arena: LayoutArena, debug: LayoutDebugState
+): seq[LayoutInspectorTreeRow] =
+  var stack: seq[tuple[id: LayoutNodeId, depth: int, path: string]]
+  var roots: seq[LayoutNodeId]
+  for node in arena.nodes:
+    if node.parent.isNull:
+      roots.add(node.id)
+
+  for i in countdown(roots.high, 0):
+    stack.add((roots[i], 0, $i))
+
+  while stack.len > 0:
+    let entry = stack.pop()
+    if not arena.validLayoutInspectorNode(entry.id):
+      continue
+
+    let node = arena.nodes[int32(entry.id)]
+    let errorCount = arena.layoutInspectorErrorCountFor(node)
+    let collapseKey = node.layoutInspectorCollapseKey(entry.path)
+    let collapsed = debug.hasCollapsedLayoutNode(collapseKey)
+    result.add(
+      LayoutInspectorTreeRow(
+        nodeId: entry.id,
+        depth: entry.depth,
+        label: node.layoutInspectorNodeLabel(errorCount),
+        hasChildren: node.childCount > 0,
+        collapsed: collapsed,
+        selected: int32(entry.id) == int32(debug.selectedNode),
+        hovered: int32(entry.id) == int32(debug.treeHoveredNode),
+        errorCount: errorCount,
+        collapseKey: collapseKey,
+      )
+    )
+
+    if collapsed:
+      continue
+
+    for i in countdown(int(node.childCount) - 1, 0):
+      let childId = arena.childIndices[int(node.firstChild) + i]
+      stack.add((childId, entry.depth + 1, entry.path & "." & $i))
+
+proc layoutInspectorTreeRows*(): seq[LayoutInspectorTreeRow] =
+  g_uiState.layoutArena.layoutInspectorTreeRows(g_uiState.layoutDebug)
+
+func clampLayoutInspectorTreeScroll(scroll, treeHeight: float, rowCount: int): float =
+  let maxScroll = max(0.0, rowCount.float * LayoutInspectorTreeRowHeight - treeHeight)
+  scroll.clamp(0.0, maxScroll)
+
+func layoutInspectorTreeAreaHeight(panelHeight: float): float =
+  let preferred = max(120.0, panelHeight * 0.4)
+  min(preferred, max(0.0, panelHeight - 120.0))
+
+proc updateLayoutInspectorTreeInteraction(
+    ui: var UIState, treeX, treeY, treeW, treeH: float
+) =
+  if treeH <= 0:
+    ui.layoutDebug.treeHoveredNode = NullLayoutNodeId
+    return
+
+  let insideTree =
+    ui.mx >= treeX and ui.mx <= treeX + treeW and ui.my >= treeY and
+    ui.my <= treeY + treeH
+  var rows = ui.layoutArena.layoutInspectorTreeRows(ui.layoutDebug)
+  ui.layoutDebug.treeScroll =
+    clampLayoutInspectorTreeScroll(ui.layoutDebug.treeScroll, treeH, rows.len)
+
+  ui.layoutDebug.treeHoveredNode = NullLayoutNodeId
+  if insideTree:
+    let rowIndex = floor(
+      (ui.my - treeY + ui.layoutDebug.treeScroll) / LayoutInspectorTreeRowHeight
+    ).int
+    if rowIndex >= 0 and rowIndex < rows.len:
+      let row = rows[rowIndex]
+      ui.layoutDebug.treeHoveredNode = row.nodeId
+      ui.layoutDebug.hoveredNode = row.nodeId
+
+      if ui.hasEvent and not ui.eventHandled and ui.currEvent.kind == ekScroll:
+        ui.layoutDebug.treeScroll = clampLayoutInspectorTreeScroll(
+          ui.layoutDebug.treeScroll -
+            ui.currEvent.oy.float * LayoutInspectorTreeRowHeight * 3,
+          treeH,
+          rows.len,
+        )
+        markEventHandled()
+      elif ui.hasEvent and not ui.eventHandled and ui.currEvent.kind == ekMouseButton and
+          ui.currEvent.button == mbLeft and ui.currEvent.pressed:
+        let disclosureX = treeX + 4.0 + row.depth.float * LayoutInspectorTreeIndent
+        if row.hasChildren and ui.mx >= disclosureX and
+            ui.mx <= disclosureX + LayoutInspectorTreeDisclosureWidth:
+          ui.layoutDebug.toggleCollapsedLayoutNode(row.collapseKey)
+        ui.layoutDebug.selectedNode = row.nodeId
+        markEventHandled()
+  elif ui.hasEvent and not ui.eventHandled and ui.currEvent.kind == ekScroll:
+    discard
+
 proc setLayoutErrorHandler*(handler: LayoutErrorHandler) =
   g_uiState.layoutArena.setLayoutErrorHandler(handler)
 
@@ -1099,14 +1241,28 @@ proc queueLayoutInspectorDraw() =
   if ui.mbLeftDown and not ui.layoutDebug.hoveredNode.isNull:
     ui.layoutDebug.selectedNode = ui.layoutDebug.hoveredNode
 
+  let
+    panelW = min(
+      if ui.layoutDebug.panelWidth > 0.0: ui.layoutDebug.panelWidth else: 360.0,
+      max(160.0, ui.winWidth),
+    )
+    panelX = max(0.0, ui.winWidth - panelW)
+    panelH = ui.winHeight
+    treeX = panelX + 12.0
+    treeY = 55.0
+    treeW = max(0.0, panelW - 24.0)
+    treeH = layoutInspectorTreeAreaHeight(panelH)
+
+  ui.updateLayoutInspectorTreeInteraction(treeX, treeY, treeW, treeH)
+
   let capturedHover = ui.layoutDebug.hoveredNode
   let capturedSelected = ui.layoutDebug.selectedNode
   let capturedDetail =
     ui.layoutArena.layoutInspectorDetailNode(capturedHover, capturedSelected)
   let capturedDetailLines = ui.layoutArena.layoutInspectorNodeLines(capturedDetail)
   let capturedErrorLines = layoutInspectorErrorLines()
-  let capturedPanelWidth =
-    if ui.layoutDebug.panelWidth > 0.0: ui.layoutDebug.panelWidth else: 360.0
+  let capturedTreeRows = ui.layoutArena.layoutInspectorTreeRows(ui.layoutDebug)
+  let capturedTreeScroll = ui.layoutDebug.treeScroll
 
   addDrawLayer(layerGlobalOverlay, vg):
     for node in g_uiState.layoutArena.nodes:
@@ -1125,10 +1281,6 @@ proc queueLayoutInspectorDraw() =
       )
       vg.stroke()
 
-    let
-      panelW = min(capturedPanelWidth, max(160.0, g_uiState.winWidth))
-      panelX = max(0.0, g_uiState.winWidth - panelW)
-      panelH = g_uiState.winHeight
     vg.beginPath()
     vg.rect(panelX, 0, panelW, panelH)
     vg.fillColor(rgba(20, 22, 24, 230))
@@ -1140,6 +1292,51 @@ proc queueLayoutInspectorDraw() =
     discard vg.text(panelX + 12, y, "Layout Inspector")
     y += 22.0
 
+    vg.beginPath()
+    vg.rect(treeX, treeY, treeW, treeH)
+    vg.fillColor(rgba(15, 17, 19, 210))
+    vg.fill()
+
+    vg.save()
+    vg.intersectScissor(treeX, treeY, treeW, treeH)
+    for i, row in capturedTreeRows:
+      let rowY = treeY + i.float * LayoutInspectorTreeRowHeight - capturedTreeScroll
+      if rowY + LayoutInspectorTreeRowHeight < treeY or rowY > treeY + treeH:
+        continue
+
+      if row.selected or row.hovered:
+        vg.beginPath()
+        vg.rect(treeX, rowY, treeW, LayoutInspectorTreeRowHeight)
+        vg.fillColor(
+          if row.selected:
+            rgba(90, 105, 120, 180)
+          else:
+            rgba(70, 80, 90, 130)
+        )
+        vg.fill()
+
+      let textX = treeX + 4.0 + row.depth.float * LayoutInspectorTreeIndent
+      let disclosure =
+        if row.hasChildren:
+          if row.collapsed: "+" else: "-"
+        else:
+          "."
+      discard vg.text(textX, rowY + 2.0, disclosure)
+      vg.fillColor(
+        if row.errorCount > 0:
+          rgba(255, 190, 90, 255)
+        elif row.selected:
+          rgba(255, 255, 255, 255)
+        elif row.hovered:
+          rgba(230, 235, 240, 255)
+        else:
+          rgba(200, 205, 210, 255)
+      )
+      discard vg.text(textX + LayoutInspectorTreeDisclosureWidth, rowY + 2.0, row.label)
+      vg.fillColor(rgba(235, 235, 235, 255))
+    vg.restore()
+
+    y = treeY + treeH + 12.0
     var lines =
       @[
         &"hovered: {int32(capturedHover)}",
