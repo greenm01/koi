@@ -141,6 +141,16 @@ suite "text editing algorithms":
     check filterTextInput("0x1afZ", tffHex) == "01af"
     check filterTextInput("01029", tffBinary) == "010"
 
+  test "filtered insertion rejects invalid sign and decimal positions":
+    check filterTextInputForInsert("12", 2.Natural, NoSelection, "-3", tffInteger) == "3"
+    check filterTextInputForInsert("", 0.Natural, NoSelection, "-12", tffInteger) ==
+      "-12"
+    check filterTextInputForInsert("1.2", 3.Natural, NoSelection, ".3e-4", tffFloat) ==
+      "3e-4"
+    check filterTextInputForInsert(
+      "abc", 1.Natural, TextSelection(startPos: 0, endPos: 3), "0x1f", tffHex
+    ) == "01f"
+
   test "insert max length accounts for replaced selection":
     let res = insertString(
       "abcde", 4.Natural, TextSelection(startPos: 1, endPos: 4), "XYZ", 5.Natural.some
@@ -269,6 +279,24 @@ suite "chart and table algorithms":
     checkClose(widths[0], 40)
     checkClose(widths[1], 30)
     checkClose(widths[2], 30)
+
+  test "table sort state cycles by clicked column":
+    var state = TableSortState(column: -1, direction: tsdNone)
+    state = nextTableSortState(state, 1)
+    check state.column == 1
+    check state.direction == tsdAsc
+    state = nextTableSortState(state, 1)
+    check state.column == 1
+    check state.direction == tsdDesc
+    state = nextTableSortState(state, 1)
+    check state.column == -1
+    check state.direction == tsdNone
+
+  test "resized table widths preserve total width and clamp neighbors":
+    let widths = resizedTableColumnWidths([50.0, 50.0, 25.0], 0, 40, 24)
+    checkClose(widths[0], 76)
+    checkClose(widths[1], 24)
+    checkClose(widths[2], 25)
 
 suite "text area view algorithms":
   test "empty text maps cursor and clicks to the first row":

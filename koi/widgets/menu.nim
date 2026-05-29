@@ -30,7 +30,22 @@ var
   menuItemW = 0.0
   menuItemIndex = 0
   menuKeyboardActivate = false
+  menuItemsOwnerId: ItemId = 0
+  menuItemDisabledPrevByMenu: Table[ItemId, seq[bool]]
+  menuItemDisabledCurr: seq[bool]
   activeMenuStyle = borrowDefaultMenuStyle()
+
+func nextFocusableMenuItem(disabled: openArray[bool], start, step: int): int =
+  if disabled.len == 0:
+    return 0
+
+  var item = start + step
+  while item >= 0 and item <= disabled.high:
+    if not disabled[item]:
+      return item
+    item += step
+
+  start.clamp(0, disabled.high)
 
 proc beginMenuItems(popupW: float, style: MenuStyle) =
   alias(mt, g_uiState.menuTraversalState)
@@ -41,15 +56,18 @@ proc beginMenuItems(popupW: float, style: MenuStyle) =
   menuItemW = max(0.0, popupW - style.popupPad * 2)
   menuItemIndex = 0
   menuKeyboardActivate = false
+  menuItemDisabledCurr = @[]
+  menuItemsOwnerId = g_uiState.popupState.activeItem
   activeMenuStyle = style
+  let menuItemDisabledPrev = menuItemDisabledPrevByMenu.getOrDefault(menuItemsOwnerId)
   if g_uiState.hasEvent and not g_uiState.eventHandled and
       g_uiState.currEvent.kind == ekKey and g_uiState.currEvent.action in {kaDown}:
     case g_uiState.currEvent.key
     of keyUp, keyKp8:
-      mt.activeItem = max(mt.activeItem - 1, 0)
+      mt.activeItem = nextFocusableMenuItem(menuItemDisabledPrev, mt.activeItem, -1)
       markEventHandled()
     of keyDown, keyKp2:
-      mt.activeItem = mt.activeItem + 1
+      mt.activeItem = nextFocusableMenuItem(menuItemDisabledPrev, mt.activeItem, 1)
       markEventHandled()
     of keyEnter, keyKpEnter:
       menuKeyboardActivate = true
@@ -62,8 +80,14 @@ proc endMenuItems() =
   mt.itemCount = menuItemIndex.Natural
   if menuItemIndex > 0:
     mt.activeItem = mt.activeItem.clamp(0, menuItemIndex - 1)
+    if menuItemDisabledCurr.len == menuItemIndex and menuItemDisabledCurr[mt.activeItem]:
+      let nextItem = nextFocusableMenuItem(menuItemDisabledCurr, -1, 1)
+      mt.activeItem =
+        if nextItem >= 0 and nextItem <= menuItemDisabledCurr.high and
+            not menuItemDisabledCurr[nextItem]: nextItem else: 0
   else:
     mt.activeItem = 0
+  menuItemDisabledPrevByMenu[menuItemsOwnerId] = menuItemDisabledCurr
 
 proc beginMenuBar*(x, y, w, h: float, style: MenuStyle = borrowDefaultMenuStyle()) =
   alias(ui, g_uiState)
@@ -133,6 +157,7 @@ proc menuItem*(
 ): bool =
   alias(mt, g_uiState.menuTraversalState)
   let itemIndex = menuItemIndex
+  menuItemDisabledCurr.add(disabled)
   var selected = itemIndex == mt.activeItem
   result = selectable(
     id,
@@ -169,6 +194,7 @@ proc menuItemImageLabel*(
 ): bool =
   alias(mt, g_uiState.menuTraversalState)
   let itemIndex = menuItemIndex
+  menuItemDisabledCurr.add(disabled)
   var selected = itemIndex == mt.activeItem
   result = selectableImageLabel(
     id,
@@ -199,6 +225,36 @@ proc menuItemImage*(
     style: MenuStyle = activeMenuStyle,
 ): bool =
   menuItemImageLabel(id, paint, "", disabled, tooltip, style)
+
+proc menuSeparator*(style: MenuStyle = activeMenuStyle) =
+  alias(ui, g_uiState)
+  let
+    h = max(6.0, style.menuItemHeight * 0.35)
+    (sx, sy) = addDrawOffset(menuItemX, menuItemY)
+  menuItemDisabledCurr.add(true)
+
+  addDrawLayer(ui.currentLayer, vg):
+    vg.strokeColor(style.item.strokeColorHover)
+    vg.strokeWidth(1)
+    vg.beginPath()
+    vg.horizLine(sx + 6, sy + h * 0.5, max(0.0, menuItemW - 12))
+    vg.stroke()
+
+  menuItemY += h
+  inc(menuItemIndex)
+
+proc menuLabel*(label: string, style: MenuStyle = activeMenuStyle) =
+  alias(ui, g_uiState)
+  let (sx, sy) = addDrawOffset(menuItemX, menuItemY)
+  menuItemDisabledCurr.add(true)
+
+  addDrawLayer(ui.currentLayer, vg):
+    vg.drawLabel(
+      sx, sy, menuItemW, style.menuItemHeight, label, wsDisabled, style.item.label
+    )
+
+  menuItemY += style.menuItemHeight
+  inc(menuItemIndex)
 
 template menuItemImageLabel*(
     paint: Paint, label: string, disabled: bool = false, tooltip: string = ""
@@ -275,6 +331,7 @@ proc beginContextMenu*(
     result = true
 
 proc endContextMenu*() =
+  endMenuItems()
   endPopup()
 
 template contextMenu*(id: ItemId, x, y, w, h, popupW, popupH: float, body: untyped) =

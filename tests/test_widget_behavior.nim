@@ -10,10 +10,13 @@ import koi/internal/widget_behavior
 import koi/rect
 import koi/types
 import koi/widgets/button
+import koi/widgets/colorpicker
+import koi/widgets/groupbox
 import koi/widgets/menu
 import koi/widgets/popup
 import koi/widgets/selectable
 import koi/widgets/scrollview
+import koi/widgets/table
 
 template checkRect(actual, expected: Rect) =
   check actual.x == expected.x
@@ -142,6 +145,28 @@ suite "menu behavior":
 
     check beginContextMenu(40, 0, 0, 30, 30, 100, 60)
     check menuItem(41, "Action")
+    check eventHandled()
+    check not isPopupOpen(40)
+    endContextMenu()
+
+  test "menu keyboard traversal skips disabled and separator rows":
+    resetUi()
+
+    openPopup(40)
+    g_uiState.mbLeftDown = false
+    check beginContextMenu(40, 0, 0, 30, 30, 100, 80)
+    discard menuItem(41, "Disabled", disabled = true)
+    menuSeparator()
+    check not menuItem(42, "Action")
+    endContextMenu()
+    check g_uiState.menuTraversalState.activeItem == 2
+
+    g_uiState.hasEvent = true
+    g_uiState.currEvent = Event(kind: ekKey, key: keyEnter, action: kaDown, mods: {})
+    check beginContextMenu(40, 0, 0, 30, 30, 100, 80)
+    discard menuItem(41, "Disabled", disabled = true)
+    menuSeparator()
+    check menuItem(42, "Action")
     check eventHandled()
     check not isPopupOpen(40)
     endContextMenu()
@@ -300,6 +325,51 @@ suite "scroll view behavior":
     beginScrollView(70, 0, 0, 50, 30)
     check drawOffset().ox == -25
     endScrollView(100, 20)
+
+suite "feature widget behavior":
+  test "color combo opens its popup from button click":
+    resetUi()
+    var color = rgb(0.2, 0.4, 0.8)
+
+    g_uiState.mx = 5
+    g_uiState.my = 5
+    g_uiState.mbLeftDown = true
+    check not colorCombo(80, 0, 0, 60, 20, color, "Accent")
+    check isActive(80)
+
+    g_uiState.hotItem = 0
+    g_uiState.mbLeftDown = false
+    discard colorCombo(80, 0, 0, 60, 20, color, "Accent")
+    check isPopupOpen(80)
+
+  test "group box content rect becomes the active draw offset":
+    resetUi()
+
+    let r = beginGroupBox(90, 10, 20, 100, 80, "Group")
+    checkRect(r, rect(16, 50, 88, 44))
+    check drawOffset().ox == 16
+    check drawOffset().oy == 50
+    endGroupBox()
+
+  test "interactive table header updates caller-owned sort state":
+    resetUi()
+    let columns =
+      [TableColumn(label: "A", width: 50), TableColumn(label: "B", width: 50)]
+    var
+      widths: seq[float]
+      sortState = TableSortState(column: -1, direction: tsdNone)
+
+    g_uiState.mx = 10
+    g_uiState.my = 10
+    g_uiState.mbLeftDown = true
+    drawTableHeader(100, 0, 0, 100, columns, widths, sortState)
+
+    g_uiState.hotItem = 0
+    g_uiState.mbLeftDown = false
+    drawTableHeader(100, 0, 0, 100, columns, widths, sortState)
+
+    check sortState.column == 0
+    check sortState.direction == tsdAsc
 
 suite "drag widget behavior":
   test "capture requires a hit":

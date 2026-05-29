@@ -13,6 +13,7 @@ import koi/types
 import koi/core
 import koi/rect
 import koi/ringbuffer
+import koi/internal/algorithms
 
 # Input handling: keyboard, mouse, shortcuts, and clipboard
 
@@ -299,6 +300,7 @@ proc handleCommonTextEditingShortcuts*(
     cursorPos: Natural,
     selection: TextSelection,
     maxLen: Option[Natural],
+    filter: TextFieldFilterKind = tffAny,
 ): Option[TextEditResult] =
   alias(shortcuts, g_textFieldEditShortcuts)
 
@@ -405,7 +407,8 @@ proc handleCommonTextEditingShortcuts*(
       toClipboard(text.runeSubStr(ns.startPos, ns.endPos - ns.startPos))
   elif sc in shortcuts[tesPasteText]:
     try:
-      let toInsert = fromClipboard()
+      let toInsert =
+        filterTextInputForInsert(text, cursorPos, selection, fromClipboard(), filter)
       res = insertString(text, cursorPos, selection, toInsert, maxLen)
     except GLFWError:
       # attempting to retrieve non-text data raises an exception

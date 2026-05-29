@@ -1,5 +1,6 @@
 import std/math
 import std/strutils
+import std/unicode
 
 import nanovg
 
@@ -23,6 +24,100 @@ func filterTextInput*(text: string, filter: TextFieldFilterKind): string =
         ch in {'0', '1'}
     if keep:
       result.add(ch)
+
+func textWithoutSelection(
+    text: string, cursorPos: Natural, selection: TextSelection
+): tuple[text: string, cursorPos: Natural] =
+  if selection.startPos > -1 and selection.startPos != selection.endPos:
+    let startPos = min(selection.startPos, selection.endPos.int).Natural
+    let endPos = max(selection.startPos, selection.endPos.int).Natural
+    (text.runeSubStr(0, startPos) & text.runeSubStr(endPos), startPos)
+  else:
+    (text, cursorPos)
+
+func isPartialInteger(text: string): bool =
+  if text.len == 0:
+    return true
+
+  for i, ch in text:
+    if ch in {'-', '+'}:
+      if i != 0:
+        return false
+    elif not ch.isDigit:
+      return false
+  true
+
+func isPartialFloat(text: string): bool =
+  if text.len == 0:
+    return true
+
+  var
+    hasDot = false
+    hasExp = false
+    hasMantissaDigit = false
+    expDigitCount = 0
+
+  for i, ch in text:
+    case ch
+    of '0' .. '9':
+      if hasExp:
+        inc(expDigitCount)
+      else:
+        hasMantissaDigit = true
+    of '+', '-':
+      if i == 0:
+        discard
+      elif text[i - 1] notin {'e', 'E'}:
+        return false
+    of '.':
+      if hasDot or hasExp:
+        return false
+      hasDot = true
+    of 'e', 'E':
+      if hasExp or not hasMantissaDigit:
+        return false
+      hasExp = true
+    else:
+      return false
+
+  if hasExp:
+    let last = text[^1]
+    expDigitCount > 0 or last in {'e', 'E', '+', '-'}
+  else:
+    true
+
+func isValidFilteredText(text: string, filter: TextFieldFilterKind): bool =
+  case filter
+  of tffAny:
+    true
+  of tffInteger:
+    isPartialInteger(text)
+  of tffFloat:
+    isPartialFloat(text)
+  of tffHex:
+    filterTextInput(text, filter) == text
+  of tffBinary:
+    filterTextInput(text, filter) == text
+
+func filterTextInputForInsert*(
+    text: string,
+    cursorPos: Natural,
+    selection: TextSelection,
+    toInsert: string,
+    filter: TextFieldFilterKind,
+): string =
+  if filter == tffAny:
+    return toInsert
+
+  var base = textWithoutSelection(text, cursorPos, selection)
+  var insertPos = base.cursorPos
+  for ch in toInsert:
+    let candidate =
+      base.text.runeSubStr(0, insertPos) & $ch & base.text.runeSubStr(insertPos)
+    if isValidFilteredText(candidate, filter):
+      result.add(ch)
+      base.text = candidate
+      inc(insertPos)
 
 func chartValueY*(value, minValue, maxValue, y, h: float): float =
   if maxValue <= minValue or h <= 0:
@@ -74,6 +169,34 @@ func tableColumnWidths*(
 
   for i, column in columns:
     result[i] = if column.width > 0: column.width else: autoWidth
+
+func nextTableSortState*(state: TableSortState, column: int): TableSortState =
+  if state.column != column:
+    TableSortState(column: column, direction: tsdAsc)
+  else:
+    case state.direction
+    of tsdNone:
+      TableSortState(column: column, direction: tsdAsc)
+    of tsdAsc:
+      TableSortState(column: column, direction: tsdDesc)
+    of tsdDesc:
+      TableSortState(column: -1, direction: tsdNone)
+
+func resizedTableColumnWidths*(
+    widths: openArray[float], column: int, delta, minWidth: float
+): seq[float] =
+  result = @widths
+  if column < 0 or column + 1 > result.high:
+    return
+
+  let
+    left = max(result[column] + delta, minWidth)
+    appliedDelta = left - result[column]
+    right = max(result[column + 1] - appliedDelta, minWidth)
+    rightDelta = result[column + 1] - right
+
+  result[column] += rightDelta
+  result[column + 1] = right
 
 type TextFieldView* = object
   displayStartPos*: Natural

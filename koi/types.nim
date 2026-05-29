@@ -639,6 +639,12 @@ type ChartKind* = enum
   ckLine
   ckColumns
 
+type ChartSeries* = object
+  label*: string
+  values*: seq[float]
+  kind*: ChartKind
+  color*: Color
+
 type ChartStyle* = ref object
   backgroundColor*: Color
   strokeColor*: Color
@@ -649,6 +655,15 @@ type ChartStyle* = ref object
   lineWidth*: float
   columnGap*: float
   label*: LabelStyle
+
+type TableSortDirection* = enum
+  tsdNone
+  tsdAsc
+  tsdDesc
+
+type TableSortState* = object
+  column*: int
+  direction*: TableSortDirection
 
 type TableColumn* = object
   label*: string
@@ -665,6 +680,26 @@ type TableStyle* = ref object
   strokeWidth*: float
   headerLabel*: LabelStyle
   rowLabel*: LabelStyle
+
+type ColorComboStyle* = ref object
+  popupWidth*: float
+  popupHeight*: float
+  popupPad*: float
+  swatchSize*: float
+  swatchGap*: float
+  button*: ButtonStyle
+  popup*: PopupStyle
+  label*: LabelStyle
+
+type GroupBoxStyle* = ref object
+  titleHeight*: float
+  pad*: float
+  cornerRadius*: float
+  strokeWidth*: float
+  strokeColor*: Color
+  fillColor*: Color
+  titleFillColor*: Color
+  titleLabel*: LabelStyle
 
 type SectionHeaderStyle* = ref object
   label*: LabelStyle

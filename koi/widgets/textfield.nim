@@ -234,7 +234,7 @@ proc textField*(
       let sc = mkKeyShortcut(ui.currEvent.key, ui.currEvent.mods)
       markEventHandled()
       let res = handleCommonTextEditingShortcuts(
-        sc, text, tf.cursorPos, tf.selection, maxLenOpt
+        sc, text, tf.cursorPos, tf.selection, maxLenOpt, filter
       )
       if res.isSome:
         text = res.get.text
@@ -286,7 +286,9 @@ proc textField*(
           exitEditMode()
 
     if not charBufEmpty():
-      var newChars = filterTextInput(consumeCharBuf(), filter)
+      let newChars = filterTextInputForInsert(
+        text, tf.cursorPos, tf.selection, consumeCharBuf(), filter
+      )
       let res = insertString(text, tf.cursorPos, tf.selection, newChars, maxLenOpt)
       text = res.text
       tf.cursorPos = res.cursorPos

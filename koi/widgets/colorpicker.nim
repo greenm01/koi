@@ -6,19 +6,21 @@ import koi/drawing
 import koi/layout
 import koi/input
 import koi/defaults
-import koi/widgets/common
+import koi/internal/widget_behavior
+import koi/widgets/button
+import koi/widgets/popup
 import koi/utils
 
-proc color*(id: ItemId, x, y, w, h: float, color_out: var Color) =
+proc drawColorSwatch(id: ItemId, x, y, w, h: float, color: Color): bool =
   alias(ui, g_uiState)
   let (x, y) = addDrawOffset(x, y)
 
   if isHit(x, y, w, h):
-    markHot(id)
-    if ui.mbLeftDown and hasNoActiveItem():
-      markActive(id)
+    captureSimpleWidget(id, disabled = false)
 
-  let color = color_out
+  let behavior = simpleWidgetBehavior(id, disabled = false)
+  result = behavior.clicked
+
   addDrawLayer(ui.currentLayer, vg):
     let
       sw = 1.0
@@ -42,8 +44,70 @@ proc color*(id: ItemId, x, y, w, h: float, color_out: var Color) =
     vg.roundedRect(rx, ry, rw, rh, cr)
     vg.stroke()
 
+proc color*(id: ItemId, x, y, w, h: float, color_out: var Color) =
+  discard drawColorSwatch(id, x, y, w, h, color_out)
+
 proc colorPicker*(id: ItemId, x, y, w, h: float, color: var Color) =
   color(id, x, y, w, h, color)
+
+proc colorCombo*(
+    id: ItemId,
+    x, y, w, h: float,
+    color: var Color,
+    label: string = "",
+    style: ColorComboStyle = borrowDefaultColorComboStyle(),
+): bool =
+  let oldColor = color
+  if button(id, x, y, w, h, label, "", false, style = style.button):
+    openPopup(id)
+
+  let swatchPad = max(3.0, h * 0.18)
+  discard drawColorSwatch(
+    hashId($id & ":preview"),
+    x + swatchPad,
+    y + swatchPad,
+    max(0.0, h - swatchPad * 2),
+    max(0.0, h - swatchPad * 2),
+    color,
+  )
+
+  if beginPopup(id, x, y + h, style.popupWidth, style.popupHeight, style.popup):
+    try:
+      let presets = [
+        gray(0.0),
+        gray(1.0),
+        rgb(0.88, 0.18, 0.16),
+        rgb(0.95, 0.63, 0.12),
+        rgb(0.95, 0.86, 0.20),
+        rgb(0.18, 0.62, 0.24),
+        rgb(0.16, 0.45, 0.82),
+        rgb(0.55, 0.22, 0.78),
+        gray(0.0, 0.0),
+      ]
+      var
+        px = style.popupPad
+        py = style.popupPad
+      for i, preset in presets:
+        if px + style.swatchSize > style.popupWidth - style.popupPad:
+          px = style.popupPad
+          py += style.swatchSize + style.swatchGap
+        if drawColorSwatch(
+          hashId($id & ":preset:" & $i),
+          px,
+          py,
+          style.swatchSize,
+          style.swatchSize,
+          preset,
+        ):
+          color = preset
+          closePopup()
+        px += style.swatchSize + style.swatchGap
+    finally:
+      endPopup()
+
+  result =
+    color.r != oldColor.r or color.g != oldColor.g or color.b != oldColor.b or
+    color.a != oldColor.a
 
 template color*(x, y, w, h: float, color: var Color) =
   let i = instantiationInfo(fullPaths = true)
@@ -82,3 +146,34 @@ template colorPicker*(color: var Color) =
     color,
   )
   autoLayoutPost()
+
+template colorCombo*(
+    x, y, w, h: float,
+    color: var Color,
+    label: string = "",
+    style: ColorComboStyle = borrowDefaultColorComboStyle(),
+): bool =
+  let i = instantiationInfo(fullPaths = true)
+  let id = nextId(i.filename, i.line, label)
+  colorCombo(id, x, y, w, h, color, label, style)
+
+template colorCombo*(
+    color: var Color,
+    label: string = "",
+    style: ColorComboStyle = borrowDefaultColorComboStyle(),
+): bool =
+  let i = instantiationInfo(fullPaths = true)
+  let id = nextId(i.filename, i.line, label)
+  autoLayoutPre()
+  let changed = colorCombo(
+    id,
+    g_uiState.autoLayoutState.x,
+    autoLayoutNextY(),
+    autoLayoutNextItemWidth(),
+    autoLayoutNextItemHeight(),
+    color,
+    label,
+    style,
+  )
+  autoLayoutPost()
+  changed

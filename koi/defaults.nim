@@ -808,6 +808,70 @@ proc defaultTableStyle*(style: TableStyle) =
 proc setDefaultTableStyle*(style: TableStyle) =
   defaultTableStyle(style)
 
+# ColorCombo
+var DefaultColorComboStyle = ColorComboStyle(
+  popupWidth: 176.0,
+  popupHeight: 88.0,
+  popupPad: 6.0,
+  swatchSize: 22.0,
+  swatchGap: 4.0,
+  button: defaultButtonStyle(),
+  popup: defaultPopupStyle(),
+  label: defaultLabelStyle(),
+)
+
+with DefaultColorComboStyle.label:
+  align = haLeft
+  padHoriz = 6.0
+  color = gray(0.9)
+
+proc defaultColorComboStyle*(): ColorComboStyle =
+  DefaultColorComboStyle.deepCopy
+
+proc borrowDefaultColorComboStyle*(): ColorComboStyle =
+  DefaultColorComboStyle
+
+proc getDefaultColorComboStyle*(): ColorComboStyle =
+  defaultColorComboStyle()
+
+proc defaultColorComboStyle*(style: ColorComboStyle) =
+  DefaultColorComboStyle = style.deepCopy
+
+proc setDefaultColorComboStyle*(style: ColorComboStyle) =
+  defaultColorComboStyle(style)
+
+# GroupBox
+var DefaultGroupBoxStyle = GroupBoxStyle(
+  titleHeight: 24.0,
+  pad: 6.0,
+  cornerRadius: 5.0,
+  strokeWidth: 1.0,
+  strokeColor: gray(0.32),
+  fillColor: gray(0.12),
+  titleFillColor: gray(0.18),
+  titleLabel: defaultLabelStyle(),
+)
+
+with DefaultGroupBoxStyle.titleLabel:
+  align = haLeft
+  padHoriz = 8.0
+  color = gray(0.9)
+
+proc defaultGroupBoxStyle*(): GroupBoxStyle =
+  DefaultGroupBoxStyle.deepCopy
+
+proc borrowDefaultGroupBoxStyle*(): GroupBoxStyle =
+  DefaultGroupBoxStyle
+
+proc getDefaultGroupBoxStyle*(): GroupBoxStyle =
+  defaultGroupBoxStyle()
+
+proc defaultGroupBoxStyle*(style: GroupBoxStyle) =
+  DefaultGroupBoxStyle = style.deepCopy
+
+proc setDefaultGroupBoxStyle*(style: GroupBoxStyle) =
+  defaultGroupBoxStyle(style)
+
 # ScrollView
 var DefaultScrollViewStyle = ScrollViewStyle(
   vertScrollBarWidth: 12.0,

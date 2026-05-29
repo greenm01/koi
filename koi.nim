@@ -28,6 +28,7 @@ import koi/widgets/menu as menuModule
 import koi/widgets/chart as chartModule
 import koi/widgets/table as tableModule
 import koi/widgets/scrollview as scrollViewModule
+import koi/widgets/groupbox as groupBoxModule
 import koi/widgets/dialog as dialogModule
 
 export types, core, lifecycle, defaults, drawing, layout, input
@@ -36,4 +37,4 @@ export toggleButtonModule
 export checkBoxModule, radioButtonsModule, scrollBarModule, dropDownModule
 export textFieldModule, textAreaModule, sliderModule, progressModule, propertyModule
 export colorPickerModule, sectionModule, treeModule, listViewModule, scrollViewModule
-export menuModule, chartModule, tableModule, dialogModule
+export groupBoxModule, menuModule, chartModule, tableModule, dialogModule
