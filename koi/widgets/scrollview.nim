@@ -20,6 +20,8 @@ type ScrollViewState = ref object of RootObj
   viewStartY: float
   contentWidth: float
   contentHeight: float
+  autoContentWidth: bool
+  autoContentHeight: bool
   style: ScrollViewStyle
 
 proc clampedStartX(ss: ScrollViewState): float =
@@ -98,8 +100,39 @@ proc beginScrollView*(
 ) =
   alias(ui, g_uiState)
   let (x, y) = addDrawOffset(x, y)
-  let slot = beginLayoutContainerSlot(id, rect(x, y, w, h))
-  let hitBounds = slot.previousBounds
+
+  discard
+    ui.itemState.hasKeyOrPut(
+      id,
+      ScrollViewState(
+        x: x, y: y, w: w, h: h, hitBounds: rect(x, y, w, h), style: style
+      ),
+    )
+
+  var ss = cast[ScrollViewState](ui.itemState[id])
+  ss.x = x
+  ss.y = y
+  ss.w = w
+  ss.h = h
+  ss.style = style
+
+  let previousContent =
+    previousLayoutContentSize(id, size(ss.contentWidth, ss.contentHeight))
+  if ss.autoContentWidth:
+    ss.contentWidth = max(previousContent.w, w)
+  if ss.autoContentHeight:
+    ss.contentHeight = max(previousContent.h, h)
+
+  let
+    scrollX = ss.clampedStartX()
+    scrollY = ss.clampedStartY()
+    slot = beginLayoutContainerSlotAt(
+      id,
+      rect(x, y, w, h),
+      rect(x - scrollX, y - scrollY, w, h),
+      size(scrollX, scrollY),
+    )
+    hitBounds = slot.previousBounds
 
   addLayoutDrawLayer(ui.currentLayer, slot.nodeId, vg, bounds):
     vg.save()
@@ -108,20 +141,8 @@ proc beginScrollView*(
   ui.scrollViewState.activeItem = id
   hitClip(hitBounds.x, hitBounds.y, hitBounds.w, hitBounds.h)
 
-  discard
-    ui.itemState.hasKeyOrPut(
-      id,
-      ScrollViewState(x: x, y: y, w: w, h: h, hitBounds: hitBounds, style: style),
-    )
-
-  var ss = cast[ScrollViewState](ui.itemState[id])
-  ss.x = x
-  ss.y = y
-  ss.w = w
-  ss.h = h
   ss.hitBounds = hitBounds
-  ss.style = style
-  pushDrawOffset(DrawOffset(ox: x - ss.clampedStartX(), oy: y - ss.clampedStartY()))
+  pushDrawOffset(DrawOffset(ox: x - scrollX, oy: y - scrollY))
   ui.itemState[id] = ss
 
 template beginScrollView*(
@@ -150,11 +171,13 @@ proc endScrollView*(contentW, contentH: float) =
 
   var viewStartX = ss.clampedStartX()
   var viewStartY = ss.clampedStartY()
+  let previousContent =
+    previousLayoutContentSize(id, size(ss.contentWidth, ss.contentHeight))
   let
     visibleWidth = ss.w
     visibleHeight = ss.h
-    contentWidth = max(if contentW < 0: ss.w else: contentW, ss.w)
-    contentHeight = if autoLayout: a.y else: height
+    contentWidth = max(if contentW < 0: previousContent.w else: contentW, ss.w)
+    contentHeight = if autoLayout: max(previousContent.h, a.y) else: height
 
   endLayoutContainerSlot()
   let
@@ -220,6 +243,8 @@ proc endScrollView*(contentW, contentH: float) =
   ss.viewStartY = viewStartY
   ss.contentWidth = contentWidth
   ss.contentHeight = contentHeight
+  ss.autoContentWidth = contentW < 0
+  ss.autoContentHeight = autoLayout
   ui.itemState[id] = ss
   a.activeSlotParent = savedActiveSlotParent
   a.activeSlotUsed = savedActiveSlotUsed

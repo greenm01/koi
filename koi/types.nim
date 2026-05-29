@@ -339,6 +339,7 @@ type
     intrinsicPref*: Size
     rect*: Rect
     contentSize*: Size
+    scrollOffset*: Size
     text*: string
     fontSize*: float
     fontFace*: string

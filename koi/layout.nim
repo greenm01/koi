@@ -134,6 +134,13 @@ proc previousLayoutRect*(id: ItemId, fallback: Rect): Rect =
   else:
     fallback
 
+proc previousLayoutContentSize*(id: ItemId, fallback: Size): Size =
+  alias(ui, g_uiState)
+  if ui.layoutContentSizes.hasKey(id):
+    ui.layoutContentSizes[id]
+  else:
+    fallback
+
 func frameLayoutActive(ui: UIState): bool =
   ui.layoutArena.nodes.len > 0 and not ui.layoutRoot.isNull
 
@@ -202,7 +209,9 @@ proc layoutSlot*(id: ItemId, fallback: Rect): LayoutSlot =
     width = ui.layoutStack[^1].currentRowLayoutSize(ui.autoLayoutParams)
   layoutSlotWithSizing(id, fallback, width, fixed(fallback.h), parent)
 
-proc beginLayoutContainerSlot*(id: ItemId, fallback: Rect): LayoutSlot =
+proc beginLayoutContainerSlotAt*(
+    id: ItemId, fallback, frameBounds: Rect, scrollOffset: Size = size(0, 0)
+): LayoutSlot =
   alias(ui, g_uiState)
   alias(a, ui.autoLayoutState)
 
@@ -216,6 +225,7 @@ proc beginLayoutContainerSlot*(id: ItemId, fallback: Rect): LayoutSlot =
     itemId = id,
     width = width,
     height = fixed(fallback.h),
+    scrollOffset = scrollOffset,
     placement =
       if parent.isNull:
         layoutPlacement(fallback)
@@ -243,10 +253,10 @@ proc beginLayoutContainerSlot*(id: ItemId, fallback: Rect): LayoutSlot =
   ui.layoutStack.add(
     LayoutPresetFrame(
       mode: lpmViewport,
-      x: fallback.x,
-      y: fallback.y,
-      w: fallback.w,
-      h: fallback.h,
+      x: frameBounds.x,
+      y: frameBounds.y,
+      w: frameBounds.w,
+      h: frameBounds.h,
       nodeId: nodeId,
       savedActiveSlotParent: a.activeSlotParent,
       savedActiveSlotUsed: a.activeSlotUsed,
@@ -261,6 +271,9 @@ proc beginLayoutContainerSlot*(id: ItemId, fallback: Rect): LayoutSlot =
     bounds: fallback,
     previousBounds: previousLayoutRect(id, fallback),
   )
+
+proc beginLayoutContainerSlot*(id: ItemId, fallback: Rect): LayoutSlot =
+  beginLayoutContainerSlotAt(id, fallback, fallback)
 
 proc endLayoutContainerSlot*() =
   alias(ui, g_uiState)
@@ -357,10 +370,13 @@ proc finishFrameLayout*() =
   ui.layoutArena.solveLayout(rect(0, 0, ui.winWidth, ui.winHeight), ui.layoutRoot)
 
   var solvedRects: Table[ItemId, Rect]
+  var solvedContentSizes: Table[ItemId, Size]
   for node in ui.layoutArena.nodes:
     if node.itemId != 0:
       solvedRects[node.itemId] = node.rect
+      solvedContentSizes[node.itemId] = node.contentSize
   ui.layoutRects = solvedRects
+  ui.layoutContentSizes = solvedContentSizes
 
 func col*(width: float): LayoutColumn =
   LayoutColumn(mode: cmStatic, value: width)

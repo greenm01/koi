@@ -1093,6 +1093,53 @@ suite "scroll view behavior":
     check drawOffset().ox == -25
     endScrollView(100, 20)
 
+  test "auto scroll view uses previous solved content height for wheel scrolling":
+    resetUi()
+    beginFrameLayout()
+
+    beginScrollView(90, 0, 0, 50, 30)
+    let (firstX, firstY) = addDrawOffset(0, 80)
+    discard layoutSlot(91, rect(firstX, firstY, 20, 10))
+    endScrollView()
+    finishFrameLayout()
+
+    check g_uiState.layoutContentSizes[90].h == 90
+
+    beginFrameLayout()
+    g_uiState.mx = 10
+    g_uiState.my = 10
+    g_uiState.hasEvent = true
+    g_uiState.currEvent = Event(kind: ekScroll, ox: 0, oy: -1, mods: {})
+
+    beginScrollView(90, 0, 0, 50, 30)
+    let (secondX, secondY) = addDrawOffset(0, 80)
+    discard layoutSlot(91, rect(secondX, secondY, 20, 10))
+    endScrollView()
+    finishFrameLayout()
+
+    check eventHandled()
+    check scrollViewStartY(90) > 0
+    check g_uiState.layoutContentSizes[90].h == 90
+
+  test "explicit scroll content dimensions override smaller solved content":
+    resetUi()
+    beginFrameLayout()
+    g_uiState.layoutRects[92] = rect(0, 0, 50, 30)
+    g_uiState.mx = 10
+    g_uiState.my = 10
+    g_uiState.hasEvent = true
+    g_uiState.currEvent = Event(kind: ekScroll, ox: 0, oy: -1, mods: {})
+
+    beginScrollView(92, 0, 0, 50, 30)
+    let (childX, childY) = addDrawOffset(0, 0)
+    discard layoutSlot(93, rect(childX, childY, 20, 10))
+    endScrollView(100)
+    finishFrameLayout()
+
+    check eventHandled()
+    check scrollViewStartY(92) > 0
+    check g_uiState.layoutContentSizes[92].h == 10
+
 suite "feature widget behavior":
   test "tooltip drawing registers a draw-only layout node":
     resetUi()

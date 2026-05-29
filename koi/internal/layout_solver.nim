@@ -175,6 +175,7 @@ func layoutNode*(
     alignCross: LayoutCrossAlign = lcaStart,
     placement: LayoutPlacement = flow(),
     itemId: ItemId = 0,
+    scrollOffset: Size = size(0, 0),
     text: string = "",
     fontSize: float = 0,
     fontFace: string = "",
@@ -192,6 +193,7 @@ func layoutNode*(
     childGap: childGap,
     alignMain: alignMain,
     alignCross: alignCross,
+    scrollOffset: scrollOffset,
     text: text,
     fontSize: fontSize,
     fontFace: fontFace,
@@ -522,7 +524,6 @@ proc placeChildren(arena: var LayoutArena, id: LayoutNodeId) =
       )
       cursor += child.rect.axis(mainHorizontal) + childGap
 
-    arena.nodes[childIndex] = child
     contentMainExtent = max(
       contentMainExtent,
       child.rectStart(mainHorizontal) - parent.rectStart(mainHorizontal) +
@@ -533,6 +534,10 @@ proc placeChildren(arena: var LayoutArena, id: LayoutNodeId) =
       child.rectStart(not mainHorizontal) - parent.rectStart(not mainHorizontal) +
         child.rect.axis(not mainHorizontal) + parent.paddingEnd(not mainHorizontal),
     )
+
+    child.rect.x -= parent.scrollOffset.w
+    child.rect.y -= parent.scrollOffset.h
+    arena.nodes[childIndex] = child
     arena.placeChildren(childId)
 
   parent.contentSize.setAxis(mainHorizontal, contentMainExtent)

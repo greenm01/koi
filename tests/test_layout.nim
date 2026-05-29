@@ -708,6 +708,30 @@ suite "unified layout solver":
     checkRect(arena.layoutRect(centered), rect(40, 60, 40, 20))
     checkRect(arena.layoutRect(manualChild), rect(7, 9, 10, 10))
 
+  test "scroll offset shifts child rects but preserves content size":
+    var arena: LayoutArena
+    arena.initLayoutArena()
+
+    let root = arena.beginLayoutNode(layoutNode(width = fixed(100), height = fixed(60)))
+    let scroller = arena.beginLayoutNode(
+      layoutNode(
+        width = fixed(50),
+        height = fixed(20),
+        scrollOffset = size(0, 15),
+      )
+    )
+    let child = arena.addLayoutNode(
+      layoutNode(width = fixed(10), height = fixed(10), placement = manual(0, 40))
+    )
+    discard arena.endLayoutNode()
+    discard arena.endLayoutNode()
+
+    arena.solveLayout(rect(0, 0, 100, 60), root)
+
+    checkRect(arena.layoutRect(scroller), rect(0, 0, 50, 20))
+    checkRect(arena.layoutRect(child), rect(0, 25, 10, 10))
+    checkClose(arena.nodes[scroller.int].contentSize.h, 50)
+
   test "fixed-width text wraps and updates a fit-height parent":
     proc measureText(
         text: string, fontSize: float, fontFace: string, maxWidth: float
