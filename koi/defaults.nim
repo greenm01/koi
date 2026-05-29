@@ -573,8 +573,11 @@ var DefaultProgressStyle = ProgressStyle(
   cornerRadius: 5.0,
   strokeWidth: 0.0,
   strokeColor: black(),
+  strokeColorDisabled: gray(0.45),
   fillColor: gray(0.6),
+  fillColorDisabled: gray(0.5, 0.5),
   valueColor: HighlightColor,
+  valueColorDisabled: gray(0.65, 0.65),
   label: defaultLabelStyle(),
 )
 

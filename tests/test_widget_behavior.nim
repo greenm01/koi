@@ -453,6 +453,25 @@ suite "layout-integrated widget behavior":
     check isHot(22)
     check g_drawLayers.layers[ord(layerDefault)].len == 1
 
+  test "progress custom draw receives disabled state":
+    resetUi()
+    var states: seq[WidgetState] = @[]
+    let drawProc: ProgressDrawProc = proc(
+        vg: NVGContext,
+        id: ItemId,
+        x, y, w, h: float,
+        value, maxValue: float,
+        label: string,
+        state: WidgetState,
+        style: ProgressStyle,
+    ) =
+      states.add(state)
+
+    progress(23, 0, 0, 10, 10, 1, 2, drawProc = drawProc.some, disabled = true)
+    g_drawLayers.draw(g_nvgContext)
+
+    check states == @[wsDisabled]
+
   test "checkbox hit testing uses a previous solved rect":
     resetUi()
     var checked = false

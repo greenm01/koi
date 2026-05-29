@@ -19,6 +19,7 @@ type ProgressDrawProc* = proc(
   x, y, w, h: float,
   value, maxValue: float,
   label: string,
+  state: WidgetState,
   style: ProgressStyle,
 )
 
@@ -28,6 +29,7 @@ let DefaultProgressDrawProc*: ProgressDrawProc = proc(
     x, y, w, h: float,
     value, maxValue: float,
     label: string,
+    state: WidgetState,
     style: ProgressStyle,
 ) =
   alias(s, style)
@@ -35,16 +37,17 @@ let DefaultProgressDrawProc*: ProgressDrawProc = proc(
   let sw = s.strokeWidth
   let (x, y, w, h) = snapToGrid(x, y, w, h, sw)
   let fillW = w * progressFraction(value, maxValue)
+  let disabled = state == wsDisabled
 
-  vg.fillColor(s.fillColor)
-  vg.strokeColor(s.strokeColor)
+  vg.fillColor(if disabled: s.fillColorDisabled else: s.fillColor)
+  vg.strokeColor(if disabled: s.strokeColorDisabled else: s.strokeColor)
   vg.strokeWidth(sw)
   vg.beginPath()
   vg.roundedRect(x, y, w, h, s.cornerRadius)
   vg.fill()
 
   if fillW > 0:
-    vg.fillColor(s.valueColor)
+    vg.fillColor(if disabled: s.valueColorDisabled else: s.valueColor)
     vg.beginPath()
     vg.roundedRect(x, y, fillW, h, s.cornerRadius)
     vg.fill()
@@ -54,7 +57,7 @@ let DefaultProgressDrawProc*: ProgressDrawProc = proc(
   vg.stroke()
 
   if label != "":
-    vg.drawLabel(x, y, w, h, label, wsNormal, s.label)
+    vg.drawLabel(x, y, w, h, label, state, s.label)
 
 proc progress*(
     id: ItemId,
@@ -64,6 +67,7 @@ proc progress*(
     tooltip: string = "",
     drawProc: Option[ProgressDrawProc] = ProgressDrawProc.none,
     style: ProgressStyle = borrowDefaultProgressStyle(),
+    disabled: bool = false,
 ) =
   alias(ui, g_uiState)
 
@@ -79,8 +83,10 @@ proc progress*(
 
   addLayoutDrawLayer(ui.currentLayer, slot.nodeId, vg, bounds):
     let drawProc = if drawProc.isSome: drawProc.get else: DefaultProgressDrawProc
+    let state = if disabled: wsDisabled else: wsNormal
     drawProc(
-      vg, id, bounds.x, bounds.y, bounds.w, bounds.h, value, maxValue, label, style
+      vg, id, bounds.x, bounds.y, bounds.w, bounds.h, value, maxValue, label, state,
+      style,
     )
 
   if isHot(id):
@@ -93,10 +99,11 @@ template progress*(
     tooltip: string = "",
     drawProc: Option[ProgressDrawProc] = ProgressDrawProc.none,
     style: ProgressStyle = borrowDefaultProgressStyle(),
+    disabled: bool = false,
 ) =
   let i = instantiationInfo(fullPaths = true)
   let id = nextId(i.filename, i.line)
-  progress(id, x, y, w, h, value, maxValue, label, tooltip, drawProc, style)
+  progress(id, x, y, w, h, value, maxValue, label, tooltip, drawProc, style, disabled)
 
 template progress*(
     value, maxValue: float,
@@ -104,6 +111,7 @@ template progress*(
     tooltip: string = "",
     drawProc: Option[ProgressDrawProc] = ProgressDrawProc.none,
     style: ProgressStyle = borrowDefaultProgressStyle(),
+    disabled: bool = false,
 ) =
   let i = instantiationInfo(fullPaths = true)
   let id = nextId(i.filename, i.line)
@@ -121,5 +129,6 @@ template progress*(
     tooltip,
     drawProc,
     style,
+    disabled,
   )
   autoLayoutPost()

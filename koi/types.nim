@@ -740,8 +740,11 @@ type ProgressStyle* = ref object
   cornerRadius*: float
   strokeWidth*: float
   strokeColor*: Color
+  strokeColorDisabled*: Color
   fillColor*: Color
+  fillColorDisabled*: Color
   valueColor*: Color
+  valueColorDisabled*: Color
   label*: LabelStyle
 
 type PropertyStyle* = ref object
