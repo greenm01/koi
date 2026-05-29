@@ -61,6 +61,17 @@ proc textFieldExitEditMode*(id: ItemId = 0, startX: float = 0) =
   ui.focusCaptured = false
   cursorShape(csArrow)
 
+proc textFieldPre*() =
+  alias(ui, g_uiState)
+  alias(tf, ui.textFieldState)
+
+  if tf.activeItem == 0 or not ui.mbLeftDown:
+    return
+
+  let bounds = previousLayoutRect(tf.activeItem, rect(0, 0, 0, 0))
+  if not mouseInside(bounds.x, bounds.y, bounds.w, bounds.h):
+    textFieldExitEditMode(tf.activeItem)
+
 proc textFieldWithSlot*(
     slot: LayoutSlot,
     id: ItemId,

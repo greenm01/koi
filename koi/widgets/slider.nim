@@ -77,7 +77,7 @@ proc horizSlider*(
                 hitBounds.x + hitBounds.w - s.trackPad,
                 ui.mx,
               )
-            newValue = lerp(startVal, endVal, t)
+            newValue = lerp(startVal, endVal, t).clampToRange(startVal, endVal)
 
         # Transition to edit mode on double click or simple click without move
         if isDoubleClick():

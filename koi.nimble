@@ -109,6 +109,54 @@ task testDrawState, "run headless draw-state tests":
     nimcache = "/tmp/koi_test_draw_state_d",
   )
 
+# Per-widget headless behaviour tests (share tests/widget_test_common.nim).
+
+const WidgetBehaviorTests = [
+  "popup", "dropdown", "menu", "slider", "scrollbar", "colorpicker", "textinput"
+]
+
+proc runHeadlessTest(name: string) =
+  nimRun(
+    "tests/test_" & name,
+    CommonFlags & " -d:debug",
+    outPath = "/tmp/koi_test_" & name,
+    nimcache = "/tmp/koi_test_" & name & "_d",
+  )
+
+task testPopup, "run headless popup tests":
+  runHeadlessTest("popup")
+
+task testDropdown, "run headless dropdown tests":
+  runHeadlessTest("dropdown")
+
+task testMenu, "run headless menu tests":
+  runHeadlessTest("menu")
+
+task testSlider, "run headless slider tests":
+  runHeadlessTest("slider")
+
+task testScrollbar, "run headless scrollbar tests":
+  runHeadlessTest("scrollbar")
+
+task testColorPicker, "run headless color picker tests":
+  runHeadlessTest("colorpicker")
+
+task testTextInput, "run headless text field/area tests":
+  runHeadlessTest("textinput")
+
+task tests, "run every headless test suite":
+  for name in [
+    "algorithms", "layout", "draw_state", "widget_behavior",
+  ]:
+    nimRun(
+      "tests/test_" & name,
+      CommonFlags & " -d:debug",
+      outPath = "/tmp/koi_test_" & name,
+      nimcache = "/tmp/koi_test_" & name & "_d",
+    )
+  for name in WidgetBehaviorTests:
+    runHeadlessTest(name)
+
 task testRelease, "build release test example":
   nimCompile("examples/test", CommonFlags & " -d:release", nimcache = "/tmp/koi_example_test_r")
 

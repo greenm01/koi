@@ -18,8 +18,6 @@ to the deferred candidates that still look useful.
 
 ## Widgets And Input
 
-- Add a full HSV color picker path for `colorCombo`, keeping presets as the
-  quick-select layer and adding hue/saturation/value plus alpha editing.
 - Add dropdown keyboard navigation before deeper popup/list refactors.
 - Add double-click word selection and richer selection gestures to text areas.
 - Extract deeper slider and scrollbar drag-state logic after focused tests cover

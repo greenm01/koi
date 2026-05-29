@@ -977,6 +977,22 @@ suite "layout-integrated widget behavior":
     check g_uiState.layoutArena.nodes.len == 1
     check g_drawLayers.layers[ord(layerDefault)].len == 1
 
+  test "text field pre-pass exits edit mode on outside press":
+    resetUi()
+    let id: ItemId = 390
+    g_uiState.layoutRects[id] = rect(40, 40, 20, 10)
+    g_uiState.textFieldState.activeItem = id
+    g_uiState.textFieldState.state = tfsEdit
+    g_uiState.focusCaptured = true
+    g_uiState.mx = 10
+    g_uiState.my = 10
+    g_uiState.mbLeftDown = true
+
+    textFieldPre()
+
+    check g_uiState.textFieldState.activeItem == 0
+    check not g_uiState.focusCaptured
+
   test "text area hover testing uses a previous solved rect":
     resetUi()
     var text = ""

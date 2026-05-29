@@ -17,6 +17,7 @@ import koi/ringbuffer
 import koi/widgets/common
 import koi/widgets/scrollbar
 import koi/widgets/slider
+import koi/widgets/textfield
 
 proc beginFrame*() =
   alias(ui, g_uiState)
@@ -73,6 +74,8 @@ proc beginFrame*() =
         ui.mbMiddleDown = ev.pressed
       else:
         discard
+
+  textFieldPre()
 
   # Reset hot item
   ui.hotItem = 0
