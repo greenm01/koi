@@ -732,6 +732,30 @@ suite "unified layout solver":
     checkRect(arena.layoutRect(child), rect(0, 25, 10, 10))
     checkClose(arena.nodes[scroller.int].contentSize.h, 50)
 
+  test "follower nodes track target rects without contributing content size":
+    var arena: LayoutArena
+    arena.initLayoutArena()
+
+    let root = arena.beginLayoutNode(layoutNode(width = fixed(100), height = fixed(80)))
+    let target = arena.addLayoutNode(
+      layoutNode(width = fixed(50), height = fixed(30), placement = manual(10, 20))
+    )
+    let follower = arena.addLayoutNode(
+      layoutNode(
+        width = fixed(5),
+        height = fixed(10),
+        placement = follow(target, lfkVerticalScrollBar),
+      )
+    )
+    discard arena.endLayoutNode()
+
+    arena.solveLayout(rect(0, 0, 100, 80), root)
+
+    checkRect(arena.layoutRect(target), rect(10, 20, 50, 30))
+    checkRect(arena.layoutRect(follower), rect(55, 20, 5, 30))
+    checkClose(arena.nodes[root.int].contentSize.w, 60)
+    checkClose(arena.nodes[root.int].contentSize.h, 50)
+
   test "fixed-width text wraps and updates a fit-height parent":
     proc measureText(
         text: string, fontSize: float, fontFace: string, maxWidth: float

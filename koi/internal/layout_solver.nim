@@ -40,6 +40,9 @@ func flow*(): LayoutPlacement =
 func manual*(x, y: float): LayoutPlacement =
   LayoutPlacement(kind: lpkManual, x: x, y: y)
 
+func follow*(target: LayoutNodeId, followKind: LayoutFollowerKind): LayoutPlacement =
+  LayoutPlacement(kind: lpkFollow, target: target, followKind: followKind)
+
 func clampSize(value: float, spec: LayoutSize): float =
   case spec.kind
   of lskFixed:
@@ -210,6 +213,9 @@ func resolvedOwnSize(node: LayoutNode, horizontal: bool, parentInner: float): fl
   of lskFit, lskGrow:
     clampSize(node.intrinsicPref.axis(horizontal), spec)
 
+func contributesToLayout(node: LayoutNode): bool =
+  node.placement.kind != lpkFollow
+
 proc measureNode(arena: var LayoutArena, id: LayoutNodeId) =
   let i = id.toIndex
   for child in arena.children(arena.nodes[i]):
@@ -233,12 +239,19 @@ proc measureNode(arena: var LayoutArena, id: LayoutNodeId) =
 
     for childId in arena.children(node):
       let child = arena.nodes[childId.toIndex]
+      if not child.contributesToLayout:
+        continue
       minMain += child.intrinsicMin.axis(mainHorizontal)
       prefMain += child.intrinsicPref.axis(mainHorizontal)
       minCross = max(minCross, child.intrinsicMin.axis(not mainHorizontal))
       prefCross = max(prefCross, child.intrinsicPref.axis(not mainHorizontal))
 
-    let gap = node.childGap * max(0, int(node.childCount) - 1).float
+    var contributingCount = 0
+    for childId in arena.children(node):
+      if arena.nodes[childId.toIndex].contributesToLayout:
+        inc contributingCount
+
+    let gap = node.childGap * max(0, contributingCount - 1).float
     minMain += gap + node.paddingMain
     prefMain += gap + node.paddingMain
     minCross += node.paddingCross
@@ -329,7 +342,9 @@ func resolvedChildSizes(
             shrinkFloors[pos] = spec.min
           max(spec.min, child.intrinsicMin.axis(horizontal))
     result[pos] = value
-    if horizontal != parent.mainIsHorizontal or child.placement.kind == lpkFlow:
+    if child.contributesToLayout and (
+      horizontal != parent.mainIsHorizontal or child.placement.kind == lpkFlow
+    ):
       used += value
     inc(pos)
 
@@ -412,12 +427,19 @@ proc refreshFitIntrinsic(arena: var LayoutArena, id: LayoutNodeId) =
 
     for childId in arena.children(node):
       let child = arena.nodes[childId.toIndex]
+      if not child.contributesToLayout:
+        continue
       minMain += child.intrinsicMin.axis(mainHorizontal)
       prefMain += child.intrinsicPref.axis(mainHorizontal)
       minCross = max(minCross, child.intrinsicMin.axis(not mainHorizontal))
       prefCross = max(prefCross, child.intrinsicPref.axis(not mainHorizontal))
 
-    let gap = node.childGap * max(0, int(node.childCount) - 1).float
+    var contributingCount = 0
+    for childId in arena.children(node):
+      if arena.nodes[childId.toIndex].contributesToLayout:
+        inc contributingCount
+
+    let gap = node.childGap * max(0, contributingCount - 1).float
     var minSize = node.intrinsicMin
     var prefSize = node.intrinsicPref
 
@@ -495,11 +517,26 @@ proc placeChildren(arena: var LayoutArena, id: LayoutNodeId) =
   for childId in arena.children(parent):
     let childIndex = childId.toIndex
     var child = arena.nodes[childIndex]
+    var contributesContent = true
 
-    if child.placement.kind == lpkManual:
+    case child.placement.kind
+    of lpkManual:
       child.rect.x = parent.rect.x + child.placement.x
       child.rect.y = parent.rect.y + child.placement.y
-    else:
+    of lpkFollow:
+      contributesContent = false
+      if not child.placement.target.isNull:
+        let target = arena.nodes[child.placement.target.toIndex].rect
+        case child.placement.followKind
+        of lfkVerticalScrollBar:
+          child.rect.x = target.x + target.w - child.rect.w
+          child.rect.y = target.y
+          child.rect.h = target.h
+        of lfkHorizontalScrollBar:
+          child.rect.x = target.x
+          child.rect.y = target.y + target.h - child.rect.h
+          child.rect.w = target.w
+    of lpkFlow:
       let crossSize = child.rect.axis(not mainHorizontal)
       let crossExtra = max(0.0, innerCross - crossSize)
       let crossOffset =
@@ -524,19 +561,20 @@ proc placeChildren(arena: var LayoutArena, id: LayoutNodeId) =
       )
       cursor += child.rect.axis(mainHorizontal) + childGap
 
-    contentMainExtent = max(
-      contentMainExtent,
-      child.rectStart(mainHorizontal) - parent.rectStart(mainHorizontal) +
-        child.rect.axis(mainHorizontal) + parent.paddingEnd(mainHorizontal),
-    )
-    contentCrossExtent = max(
-      contentCrossExtent,
-      child.rectStart(not mainHorizontal) - parent.rectStart(not mainHorizontal) +
-        child.rect.axis(not mainHorizontal) + parent.paddingEnd(not mainHorizontal),
-    )
+    if contributesContent:
+      contentMainExtent = max(
+        contentMainExtent,
+        child.rectStart(mainHorizontal) - parent.rectStart(mainHorizontal) +
+          child.rect.axis(mainHorizontal) + parent.paddingEnd(mainHorizontal),
+      )
+      contentCrossExtent = max(
+        contentCrossExtent,
+        child.rectStart(not mainHorizontal) - parent.rectStart(not mainHorizontal) +
+          child.rect.axis(not mainHorizontal) + parent.paddingEnd(not mainHorizontal),
+      )
 
-    child.rect.x -= parent.scrollOffset.w
-    child.rect.y -= parent.scrollOffset.h
+      child.rect.x -= parent.scrollOffset.w
+      child.rect.y -= parent.scrollOffset.h
     arena.nodes[childIndex] = child
     arena.placeChildren(childId)
 

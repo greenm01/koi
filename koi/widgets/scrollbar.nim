@@ -21,12 +21,9 @@ const
   ScrollBarTrackClickRepeatDelay = 0.3
   ScrollBarTrackClickRepeatTimeout = 0.05
 
-# horizScrollBar()
-
-# Must be kept in sync with vertScrollBar!
-proc horizScrollBar*(
+proc horizScrollBarWithSlot*(
+    slot: LayoutSlot,
     id: ItemId,
-    x, y, w, h: float,
     startVal: float,
     endVal: float,
     value_out: var float,
@@ -46,8 +43,6 @@ proc horizScrollBar*(
   let thumbSize = effectiveScrollBarThumbSize(thumbSize, startVal, endVal)
   let clickStep = if clickStep > valueRange: -1.0 else: clickStep
 
-  let (x, y) = addDrawOffset(x, y)
-  let slot = layoutSlot(id, rect(x, y, w, h))
   let hitBounds = slot.previousBounds
 
   # Calculate current thumb position
@@ -251,12 +246,31 @@ proc horizScrollBar*(
   if isHot(id):
     handleTooltip(id, tooltip)
 
-# vertScrollBar()
+# horizScrollBar()
 
-# Must be kept in sync with horizScrollBar!
-proc vertScrollBar*(
+proc horizScrollBar*(
     id: ItemId,
     x, y, w, h: float,
+    startVal: float,
+    endVal: float,
+    value_out: var float,
+    tooltip: string = "",
+    thumbSize: float = -1.0,
+    clickStep: float = -1.0,
+    style: ScrollBarStyle = borrowDefaultScrollBarStyle(),
+    allowFocusCaptured: bool = false,
+) =
+  let (x, y) = addDrawOffset(x, y)
+  let slot = layoutSlot(id, rect(x, y, w, h))
+  horizScrollBarWithSlot(
+    slot, id, startVal, endVal, value_out, tooltip, thumbSize, clickStep, style,
+    allowFocusCaptured,
+  )
+
+# Must be kept in sync with horizScrollBar!
+proc vertScrollBarWithSlot*(
+    slot: LayoutSlot,
+    id: ItemId,
     startVal: float,
     endVal: float,
     value_out: var float,
@@ -276,8 +290,6 @@ proc vertScrollBar*(
   let thumbSize = effectiveScrollBarThumbSize(thumbSize, startVal, endVal)
   let clickStep = if clickStep > valueRange: -1.0 else: clickStep
 
-  let (x, y) = addDrawOffset(x, y)
-  let slot = layoutSlot(id, rect(x, y, w, h))
   let hitBounds = slot.previousBounds
 
   # Calculate current thumb position
@@ -482,6 +494,27 @@ proc vertScrollBar*(
 
   if isHot(id):
     handleTooltip(id, tooltip)
+
+# vertScrollBar()
+
+proc vertScrollBar*(
+    id: ItemId,
+    x, y, w, h: float,
+    startVal: float,
+    endVal: float,
+    value_out: var float,
+    tooltip: string = "",
+    thumbSize: float = -1.0,
+    clickStep: float = -1.0,
+    style: ScrollBarStyle = borrowDefaultScrollBarStyle(),
+    allowFocusCaptured: bool = false,
+) =
+  let (x, y) = addDrawOffset(x, y)
+  let slot = layoutSlot(id, rect(x, y, w, h))
+  vertScrollBarWithSlot(
+    slot, id, startVal, endVal, value_out, tooltip, thumbSize, clickStep, style,
+    allowFocusCaptured,
+  )
 
 proc scrollBarPost*() =
   alias(ui, g_uiState)

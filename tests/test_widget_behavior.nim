@@ -776,6 +776,97 @@ suite "layout-integrated widget behavior":
     check int32(g_uiState.layoutArena.nodes[autoRoot.int].parent) ==
       int32(g_uiState.layoutArena.nodes[scrollNode].id)
 
+  test "scroll view vertical scrollbar follows solved viewport rect":
+    resetUi()
+    var params = DefaultAutoLayoutParams
+    params.itemsPerRow = 1
+    params.rowWidth = 120
+    params.leftPad = 0
+    params.rightPad = 0
+    params.rowPad = 0
+    params.sectionPad = 0
+    params.defaultRowHeight = 30
+    params.defaultItemHeight = 30
+    initAutoLayout(params)
+    beginFrameLayout()
+
+    beginRowLayout(30, [colDynamic()])
+    autoLayoutPre()
+    beginScrollView(86, autoLayoutNextX(), autoLayoutNextY(),
+      autoLayoutNextItemWidth(), autoLayoutNextItemHeight())
+    endScrollView(100)
+    autoLayoutPost()
+    endLayout()
+    finishFrameLayout()
+
+    var viewport = rect(0, 0, 0, 0)
+    var scrollbar = rect(0, 0, 0, 0)
+    for node in g_uiState.layoutArena.nodes:
+      if node.itemId == 86:
+        viewport = node.rect
+      elif node.placement.kind == lpkFollow and
+          node.placement.followKind == lfkVerticalScrollBar:
+        scrollbar = node.rect
+
+    checkRect(
+      scrollbar,
+      rect(viewport.x + viewport.w - scrollbar.w, viewport.y, scrollbar.w, viewport.h),
+    )
+
+  test "scroll view horizontal scrollbar follows solved viewport rect":
+    resetUi()
+    var params = DefaultAutoLayoutParams
+    params.itemsPerRow = 1
+    params.rowWidth = 120
+    params.leftPad = 0
+    params.rightPad = 0
+    params.rowPad = 0
+    params.sectionPad = 0
+    params.defaultRowHeight = 30
+    params.defaultItemHeight = 30
+    initAutoLayout(params)
+    beginFrameLayout()
+
+    beginRowLayout(30, [colDynamic()])
+    autoLayoutPre()
+    beginScrollView(87, autoLayoutNextX(), autoLayoutNextY(),
+      autoLayoutNextItemWidth(), autoLayoutNextItemHeight())
+    endScrollView(200, 20)
+    autoLayoutPost()
+    endLayout()
+    finishFrameLayout()
+
+    var viewport = rect(0, 0, 0, 0)
+    var scrollbar = rect(0, 0, 0, 0)
+    for node in g_uiState.layoutArena.nodes:
+      if node.itemId == 87:
+        viewport = node.rect
+      elif node.placement.kind == lpkFollow and
+          node.placement.followKind == lfkHorizontalScrollBar:
+        scrollbar = node.rect
+
+    checkRect(
+      scrollbar,
+      rect(viewport.x, viewport.y + viewport.h - scrollbar.h, viewport.w, scrollbar.h),
+    )
+
+  test "followed scrollbars still hit test against previous rects":
+    resetUi()
+    beginFrameLayout()
+
+    let id = generateId("scrollbar-follow-test.nim", 1, "scroll")
+    let sbId = hashId(lastIdString() & ":scrollBar")
+    g_uiState.layoutRects[id] = rect(0, 0, 50, 30)
+    g_uiState.layoutRects[sbId] = rect(40, 0, 10, 30)
+    g_uiState.mx = 45
+    g_uiState.my = 5
+    g_uiState.mbLeftDown = true
+
+    beginScrollView(id, 0, 0, 50, 30)
+    endScrollView(100)
+
+    check isActive(sbId)
+
   test "auto-layout views register under active rows":
     resetUi()
     var params = DefaultAutoLayoutParams

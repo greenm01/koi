@@ -291,6 +291,30 @@ proc layoutDrawSlot*(id: ItemId, fallback: Rect): LayoutSlot =
     id, fallback, fixed(fallback.w), fixed(fallback.h), NullLayoutNodeId
   )
 
+proc layoutFollowerSlot*(
+    id: ItemId, fallback: Rect, target: LayoutNodeId, followKind: LayoutFollowerKind
+): LayoutSlot =
+  alias(ui, g_uiState)
+
+  var node = layoutNode(
+    kind = lnkWidget,
+    itemId = id,
+    width = fixed(fallback.w),
+    height = fixed(fallback.h),
+    placement = follow(target, followKind),
+  )
+  node.intrinsicMin = size(fallback.w, fallback.h)
+  node.intrinsicPref = size(fallback.w, fallback.h)
+  node.rect = fallback
+
+  let nodeId = ui.layoutArena.addLayoutNode(node)
+  result = LayoutSlot(
+    itemId: id,
+    nodeId: nodeId,
+    bounds: fallback,
+    previousBounds: previousLayoutRect(id, fallback),
+  )
+
 proc textLayoutSlotWithSizing(
     id: ItemId,
     fallback: Rect,

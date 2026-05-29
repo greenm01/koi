@@ -302,6 +302,11 @@ type
   LayoutPlacementKind* = enum
     lpkFlow
     lpkManual
+    lpkFollow
+
+  LayoutFollowerKind* = enum
+    lfkVerticalScrollBar
+    lfkHorizontalScrollBar
 
   LayoutPlacement* = object
     case kind*: LayoutPlacementKind
@@ -309,6 +314,9 @@ type
       discard
     of lpkManual:
       x*, y*: float
+    of lpkFollow:
+      target*: LayoutNodeId
+      followKind*: LayoutFollowerKind
 
   TextMeasure* = object
     minWidth*: float

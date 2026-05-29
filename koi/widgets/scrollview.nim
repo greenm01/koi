@@ -22,6 +22,7 @@ type ScrollViewState = ref object of RootObj
   contentHeight: float
   autoContentWidth: bool
   autoContentHeight: bool
+  viewportNode: LayoutNodeId
   style: ScrollViewStyle
 
 proc clampedStartX(ss: ScrollViewState): float =
@@ -142,6 +143,7 @@ proc beginScrollView*(
   hitClip(hitBounds.x, hitBounds.y, hitBounds.w, hitBounds.h)
 
   ss.hitBounds = hitBounds
+  ss.viewportNode = slot.nodeId
   pushDrawOffset(DrawOffset(ox: x - scrollX, oy: y - scrollY))
   ui.itemState[id] = ss
 
@@ -168,6 +170,7 @@ proc endScrollView*(contentW, contentH: float) =
 
   let id = ui.scrollViewState.activeItem
   var ss = cast[ScrollViewState](ui.itemState[id])
+  let viewportNode = ss.viewportNode
 
   var viewStartX = ss.clampedStartX()
   var viewStartY = ss.clampedStartY()
@@ -199,12 +202,20 @@ proc endScrollView*(contentW, contentH: float) =
     viewStartY = viewStartY.clamp(0, endVal)
 
     let sbId = hashId(lastIdString() & ":scrollBar")
-    vertScrollBar(
+    let sbSlot = layoutFollowerSlot(
       sbId,
-      x = ss.x + ss.w - ss.style.vertScrollBarWidth,
-      y = ss.y,
-      w = ss.style.vertScrollBarWidth,
-      h = visibleHeight,
+      rect(
+        ss.x + ss.w - ss.style.vertScrollBarWidth,
+        ss.y,
+        ss.style.vertScrollBarWidth,
+        visibleHeight,
+      ),
+      viewportNode,
+      lfkVerticalScrollBar,
+    )
+    vertScrollBarWithSlot(
+      sbSlot,
+      sbId,
       startVal = 0,
       endVal = endVal,
       value_out = viewStartY,
@@ -223,12 +234,16 @@ proc endScrollView*(contentW, contentH: float) =
     viewStartX = viewStartX.clamp(0, endVal)
 
     let sbId = hashId(lastIdString() & ":horizScrollBar")
-    horizScrollBar(
+    let sbSlot = layoutFollowerSlot(
       sbId,
-      x = ss.x,
-      y = ss.y + ss.h - ss.style.horizScrollBarHeight,
-      w = visibleWidth,
-      h = ss.style.horizScrollBarHeight,
+      rect(ss.x, ss.y + ss.h - ss.style.horizScrollBarHeight, visibleWidth,
+        ss.style.horizScrollBarHeight),
+      viewportNode,
+      lfkHorizontalScrollBar,
+    )
+    horizScrollBarWithSlot(
+      sbSlot,
+      sbId,
       startVal = 0,
       endVal = endVal,
       value_out = viewStartX,
