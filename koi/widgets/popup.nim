@@ -114,7 +114,9 @@ proc endPopup*() =
   ui.currentLayer = ps.prevLayer
   ui.autoLayoutState.activeSlotParent = LayoutNodeId(ps.prevActiveSlotParent)
   ui.autoLayoutState.activeSlotUsed = ps.prevActiveSlotUsed
-  if ps.activeItem != 0:
+  if ps.closed:
+    ui.focusCaptured = false
+  elif ps.activeItem != 0:
     ui.focusCaptured = true
   else:
     ui.focusCaptured = ps.prevFocusCaptured

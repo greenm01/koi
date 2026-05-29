@@ -101,6 +101,20 @@ suite "popup behavior":
     check not beginPopup(30, 10, 10, 30, 30)
     check not isPopupOpen(30)
 
+  test "popup closed from its body releases captured focus":
+    resetUi()
+
+    openPopup(30)
+    g_uiState.mbLeftDown = false
+    check beginPopup(30, 10, 10, 30, 30)
+    check not g_uiState.focusCaptured
+
+    closePopup()
+    endPopup()
+
+    check not isPopupOpen(30)
+    check not g_uiState.focusCaptured
+
   test "popup hit clipping uses a previous solved rect":
     resetUi()
     g_uiState.layoutRects[31] = rect(40, 40, 20, 10)
@@ -546,10 +560,31 @@ suite "layout-integrated widget behavior":
     g_uiState.mbLeftDown = true
 
     useNextId("section-header")
-    check sectionHeader("Header", expanded)
+    check not sectionHeader("Header", expanded)
 
     check isHot(id)
     check isActive(id)
+
+  test "section header toggles on mouse release while hot and active":
+    resetUi()
+    var expanded = false
+    initAutoLayout(DefaultAutoLayoutParams)
+    let id = hashId("section-header-toggle")
+    g_uiState.layoutRects[id] = rect(40, 40, 30, 20)
+    g_uiState.mx = 45
+    g_uiState.my = 45
+    g_uiState.mbLeftDown = true
+
+    useNextId("section-header-toggle")
+    check not sectionHeader("Header", expanded)
+    check not expanded
+    check isActive(id)
+
+    g_uiState.hotItem = 0
+    g_uiState.mbLeftDown = false
+    useNextId("section-header-toggle")
+    check sectionHeader("Header", expanded)
+    check expanded
 
   test "color swatch hit testing uses a previous solved rect":
     resetUi()

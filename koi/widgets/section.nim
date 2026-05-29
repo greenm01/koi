@@ -9,6 +9,7 @@ import koi/layout
 import koi/rect
 import koi/input
 import koi/defaults
+import koi/internal/widget_behavior
 import koi/widgets/common
 import koi/utils
 
@@ -39,9 +40,10 @@ proc sectionHeader(
       slot.previousBounds.x, slot.previousBounds.y,
       max(0.0, slot.previousBounds.w - s.hitRightPad), slot.previousBounds.h,
     ):
-      markHot(id)
-      if ui.mbLeftDown and hasNoActiveItem():
-        markActive(id)
+      captureSimpleWidget(id, disabled = false)
+
+      let behavior = simpleWidgetBehavior(id, disabled = false)
+      if behavior.clicked:
 
         if not subHeader and ctrlDown():
           expanded_out = true
