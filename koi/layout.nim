@@ -185,6 +185,11 @@ proc layoutSlot*(id: ItemId, fallback: Rect): LayoutSlot =
   let parent = g_uiState.activeAutoSlotParent()
   layoutSlotWithSizing(id, fallback, fixed(fallback.w), fixed(fallback.h), parent)
 
+proc layoutDrawSlot*(id: ItemId, fallback: Rect): LayoutSlot =
+  layoutSlotWithSizing(
+    id, fallback, fixed(fallback.w), fixed(fallback.h), NullLayoutNodeId
+  )
+
 proc textLayoutSlotWithSizing(
     id: ItemId,
     fallback: Rect,

@@ -962,7 +962,51 @@ suite "feature widget behavior":
     checkRect(r, rect(16, 50, 88, 44))
     check drawOffset().ox == 16
     check drawOffset().oy == 50
+    check g_uiState.layoutArena.nodes.len == 2
+    check g_drawLayers.layers[ord(layerDefault)].len == 2
     endGroupBox()
+
+  test "titled scroll view registers frame and content slots":
+    resetUi()
+
+    let r = beginTitledScrollView(91, 10, 20, 100, 80, "Group")
+    checkRect(r, rect(16, 50, 88, 44))
+    check g_uiState.layoutArena.nodes.len == 2
+    check g_drawLayers.layers[ord(layerDefault)].len == 2
+    endTitledScrollView(20)
+
+  test "table header hit testing uses a previous solved rect":
+    resetUi()
+    let columns =
+      [TableColumn(label: "A", width: 50), TableColumn(label: "B", width: 50)]
+    var
+      widths: seq[float]
+      sortState = TableSortState(column: -1, direction: tsdNone)
+
+    g_uiState.layoutRects[101] = rect(40, 40, 100, 24)
+    g_uiState.mx = 60
+    g_uiState.my = 45
+    g_uiState.mbLeftDown = true
+    drawTableHeader(101, 0, 0, 10, columns, widths, sortState)
+
+    g_uiState.hotItem = 0
+    g_uiState.mbLeftDown = false
+    drawTableHeader(101, 0, 0, 10, columns, widths, sortState)
+
+    check sortState.column == 0
+    check sortState.direction == tsdAsc
+
+  test "table drawing registers layout-backed draw nodes":
+    resetUi()
+    let columns =
+      [TableColumn(label: "A", width: 5), TableColumn(label: "B", width: 5)]
+
+    drawTableHeader(0, 0, 10, columns)
+    beginTableRow(0, [5.0, 5.0], 0, 10, 10)
+    tableCell("A")
+
+    check g_uiState.layoutArena.nodes.len == 3
+    check g_drawLayers.layers[ord(layerDefault)].len == 3
 
   test "interactive table header updates caller-owned sort state":
     resetUi()

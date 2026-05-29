@@ -3,6 +3,7 @@ import nanovg
 import koi/types
 import koi/core
 import koi/drawing
+import koi/layout
 import koi/rect
 import koi/defaults
 import koi/input
@@ -17,12 +18,16 @@ proc groupBoxContentRect(x, y, w, h: float, style: GroupBoxStyle): Rect =
     max(0.0, h - style.titleHeight - style.pad * 2),
   )
 
-proc drawGroupBoxFrame(x, y, w, h: float, title: string, style: GroupBoxStyle) =
+proc drawGroupBoxFrame(
+    id: ItemId, x, y, w, h: float, title: string, style: GroupBoxStyle
+) =
   alias(ui, g_uiState)
   let (sx, sy) = addDrawOffset(x, y)
+  let slot = layoutDrawSlot(id, rect(sx, sy, w, h))
 
-  addDrawLayer(ui.currentLayer, vg):
-    let (rx, ry, rw, rh) = snapToGrid(sx, sy, w, h, style.strokeWidth)
+  addLayoutDrawLayer(ui.currentLayer, slot.nodeId, vg, bounds):
+    let (rx, ry, rw, rh) =
+      snapToGrid(bounds.x, bounds.y, bounds.w, bounds.h, style.strokeWidth)
     vg.fillColor(style.fillColor)
     vg.strokeColor(style.strokeColor)
     vg.strokeWidth(style.strokeWidth)
@@ -46,7 +51,7 @@ proc beginGroupBox*(
     title: string,
     style: GroupBoxStyle = borrowDefaultGroupBoxStyle(),
 ): Rect =
-  drawGroupBoxFrame(x, y, w, h, title, style)
+  drawGroupBoxFrame(hashId($id & ":frame"), x, y, w, h, title, style)
   result = groupBoxContentRect(x, y, w, h, style)
   beginView(id, result.x, result.y, result.w, result.h)
 
@@ -80,7 +85,7 @@ proc beginTitledScrollView*(
     groupStyle: GroupBoxStyle = borrowDefaultGroupBoxStyle(),
     scrollStyle: ScrollViewStyle = borrowDefaultScrollViewStyle(),
 ): Rect =
-  drawGroupBoxFrame(x, y, w, h, title, groupStyle)
+  drawGroupBoxFrame(hashId($id & ":frame"), x, y, w, h, title, groupStyle)
   result = groupBoxContentRect(x, y, w, h, groupStyle)
   beginScrollView(id, result.x, result.y, result.w, result.h, scrollStyle)
 

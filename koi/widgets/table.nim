@@ -3,6 +3,8 @@ import nanovg
 import koi/types
 import koi/core
 import koi/drawing
+import koi/layout
+import koi/rect
 import koi/defaults
 import koi/input
 import koi/internal/algorithms
@@ -37,21 +39,22 @@ proc drawTableHeader*(
     (sx, sy) = addDrawOffset(x, y)
     tableColumns = @columns
     widths = tableColumnWidths(columns, w)
+    slot = layoutDrawSlot(0, rect(sx, sy, w, style.headerHeight))
 
-  addDrawLayer(ui.currentLayer, vg):
+  addLayoutDrawLayer(ui.currentLayer, slot.nodeId, vg, bounds):
     vg.fillColor(style.headerFillColor)
     vg.strokeColor(style.strokeColor)
     vg.strokeWidth(style.strokeWidth)
     vg.beginPath()
-    vg.rect(sx, sy, w, style.headerHeight)
+    vg.rect(bounds.x, bounds.y, bounds.w, bounds.h)
     vg.fill()
     vg.stroke()
 
-    var cx = sx
+    var cx = bounds.x
     for i, column in tableColumns:
       let cw = widths[i]
       vg.drawLabel(
-        cx, sy, cw, style.headerHeight, column.label, wsNormal, style.headerLabel
+        cx, bounds.y, cw, bounds.h, column.label, wsNormal, style.headerLabel
       )
       cx += cw
 
@@ -67,23 +70,25 @@ proc drawTableHeader*(
   let
     (sx, sy) = addDrawOffset(x, y)
     tableColumns = @columns
+    slot = layoutSlot(id, rect(sx, sy, w, style.headerHeight))
+    hitBounds = slot.previousBounds
 
   ensureTableColumnWidths(columns, w, widths)
 
-  var cx = sx
+  var cx = hitBounds.x
   for i, column in tableColumns:
     let
       cw = widths[i]
       sortId = hashId($id & ":sort:" & $i)
       resizeId = hashId($id & ":resize:" & $i)
-      headerHit = isHit(cx, sy, cw, style.headerHeight)
+      headerHit = isHit(cx, hitBounds.y, cw, hitBounds.h)
       resizeHit =
         i < tableColumns.high and
         isHit(
           cx + cw - TableResizeHitWidth * 0.5,
-          sy,
+          hitBounds.y,
           TableResizeHitWidth,
-          style.headerHeight,
+          hitBounds.h,
         )
 
     if resizeHit:
@@ -105,16 +110,16 @@ proc drawTableHeader*(
     drawWidths = widths
     drawSortState = sortState
 
-  addDrawLayer(ui.currentLayer, vg):
+  addLayoutDrawLayer(ui.currentLayer, slot.nodeId, vg, bounds):
     vg.fillColor(style.headerFillColor)
     vg.strokeColor(style.strokeColor)
     vg.strokeWidth(style.strokeWidth)
     vg.beginPath()
-    vg.rect(sx, sy, w, style.headerHeight)
+    vg.rect(bounds.x, bounds.y, bounds.w, bounds.h)
     vg.fill()
     vg.stroke()
 
-    var cx = sx
+    var cx = bounds.x
     for i, column in tableColumns:
       let
         cw = drawWidths[i]
@@ -127,16 +132,16 @@ proc drawTableHeader*(
             ""
       vg.drawLabel(
         cx,
-        sy,
+        bounds.y,
         cw,
-        style.headerHeight,
+        bounds.h,
         column.label & sortMark,
         wsNormal,
         style.headerLabel,
       )
       if i < tableColumns.high:
         vg.beginPath()
-        vg.vertLine(cx + cw, sy, style.headerHeight)
+        vg.vertLine(cx + cw, bounds.y, bounds.h)
         vg.stroke()
       cx += cw
 
@@ -153,12 +158,13 @@ proc beginTableRow*(
   tableCellIndex = 0
   tableColumnWidthsCache = @widths
   activeTableStyle = style
+  let slot = layoutDrawSlot(0, rect(0, rowY, tableW, rowH))
 
-  addDrawLayer(ui.currentLayer, vg):
+  addLayoutDrawLayer(ui.currentLayer, slot.nodeId, vg, bounds):
     let fill = if rowIndex mod 2 == 0: style.rowFillColor else: style.rowAltFillColor
     vg.fillColor(fill)
     vg.beginPath()
-    vg.rect(0, rowY, tableW, rowH)
+    vg.rect(bounds.x, bounds.y, bounds.w, bounds.h)
     vg.fill()
 
 proc tableCell*(text: string, style: TableStyle = activeTableStyle) =
@@ -172,8 +178,9 @@ proc tableCell*(text: string, style: TableStyle = activeTableStyle) =
     h = tableCellH
 
   alias(ui, g_uiState)
-  addDrawLayer(ui.currentLayer, vg):
-    vg.drawLabel(x, y, w, h, text, wsNormal, style.rowLabel)
+  let slot = layoutDrawSlot(0, rect(x, y, w, h))
+  addLayoutDrawLayer(ui.currentLayer, slot.nodeId, vg, bounds):
+    vg.drawLabel(bounds.x, bounds.y, bounds.w, bounds.h, text, wsNormal, style.rowLabel)
 
   tableCellX += w
   inc(tableCellIndex)
