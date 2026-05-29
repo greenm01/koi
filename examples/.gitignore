@@ -2,7 +2,7 @@ paneltest
 paneltest.exe
 test
 test.exe
-webgpu_minimal
-webgpu_minimal.exe
+minimal
+minimal.exe
 wayland_minimal
 wayland_minimal.exe

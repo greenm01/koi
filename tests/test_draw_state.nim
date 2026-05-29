@@ -22,7 +22,7 @@ func collectStrip(count: int): seq[int] =
   for i in stripIndices(count):
     result.add i
 
-suite "WebGPU draw geometry":
+suite "wgpu draw geometry":
   test "triangle list keeps valid source order":
     check collectTriangleList(2) == newSeq[int]()
     check collectTriangleList(3) == @[0, 1, 2]
@@ -61,7 +61,7 @@ suite "WebGPU draw geometry":
     check not hasDrawableViewport(WebGpuViewport(width: 0, height: 1))
     check not hasDrawableViewport(WebGpuViewport(width: 1, height: 0))
 
-suite "WebGPU antialiasing metadata":
+suite "draw antialiasing metadata":
   test "fill antialiasing follows fringe":
     checkClose fillAaMult(0), 0
     checkClose fillAaMult(1), 1
@@ -70,7 +70,7 @@ suite "WebGPU antialiasing metadata":
     checkClose strokeAaMult(0, 10), 0
     checkClose strokeAaMult(2, 6), 2
 
-suite "WebGPU blend mapping":
+suite "draw blend mapping":
   test "default source-over blend matches NanoVG fallback":
     let blend = defaultWebGpuBlend()
 
@@ -79,7 +79,7 @@ suite "WebGPU blend mapping":
     check blend.srcAlpha == wgbfOne
     check blend.dstAlpha == wgbfOneMinusSrcAlpha
 
-  test "custom NanoVG blend factors map to WebGPU":
+  test "custom NanoVG blend factors map to wgpu":
     let blend = webGpuBlend(
       nvg.CompositeOperationState(
         srcRGB: (1 shl 6).cint,
@@ -98,7 +98,7 @@ suite "WebGPU blend mapping":
     check webGpuBlend(nvg.CompositeOperationState(srcRGB: 999.cint)) ==
       defaultWebGpuBlend()
 
-suite "WebGPU scissor mapping":
+suite "draw scissor mapping":
   test "disabled scissor stays inactive":
     let scissor = scissorFromNanoVg([0'f32, 0, 0, 0, 0, 0], [-1'f32, -1], 100, 100, 1)
 

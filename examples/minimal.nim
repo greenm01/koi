@@ -29,12 +29,12 @@ var
   backend: KoiWgpuBackend
   sliderValue = 42.0
   enabled = true
-  textValue = "WebGPU scissor clips this deliberately long text field value"
+  textValue = "wgpu scissor clips this deliberately long text field value"
 
 proc createWindow(): Window =
   var cfg = DefaultOpenglWindowConfig
   cfg.size = (w: 900, h: 560)
-  cfg.title = "Koi WebGPU"
+  cfg.title = "Koi wgpu"
   cfg.resizable = true
   cfg.visible = true
   cfg.bits = (
@@ -89,8 +89,8 @@ proc renderUi() =
     w = 220.0
     h = 24.0
 
-  label(x, 52, 420, h, "Koi running on webgpu-nim", style = titleStyle)
-  label(x, 90, 360, h, "This is the opt-in WebGPU path.", style = labelStyle)
+  label(x, 52, 420, h, "Koi running on wgpu", style = titleStyle)
+  label(x, 90, 360, h, "This is the default renderer path.", style = labelStyle)
 
   if button(x, 132, 120, h, "Button"):
     echo "button pressed"

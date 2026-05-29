@@ -32,18 +32,25 @@ nimble install glfw nanovg
 To build the examples (the dependencies will be auto-installed if needed):
 
 ```
-nim test
-nim paneltest
+nimble minimal
+nimble test
+nimble paneltest
 ```
 
 or
 
 ```
-nim testRelease
-nim paneltestRelease
+nimble testRelease
+nimble paneltestRelease
 ```
 
-See [config.nims](/config.nims) on how to link statically **koi** and **GLFW** to your program.
+See [koi.nimble](/koi.nimble) on how to link statically **koi** and **GLFW** to your program.
+
+To format sources and remove generated example binaries:
+
+```
+nimble tidy
+```
 
 ## License
 
