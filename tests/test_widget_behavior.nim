@@ -25,6 +25,8 @@ import koi/widgets/radiobuttons
 import koi/widgets/section
 import koi/widgets/selectable
 import koi/widgets/scrollview
+import koi/widgets/scrollbar
+import koi/widgets/slider
 import koi/widgets/table
 import koi/widgets/togglebutton
 
@@ -373,6 +375,124 @@ suite "layout-integrated widget behavior":
 
     check isHot(31)
     check isActive(31)
+
+  test "horizontal slider hit testing uses a previous solved rect":
+    resetUi()
+    var value = 0.0
+    g_uiState.layoutRects[32] = rect(40, 40, 20, 10)
+    g_uiState.mx = 45
+    g_uiState.my = 45
+    g_uiState.mbLeftDown = true
+
+    horizSlider(32, 0, 0, 10, 10, 0, 100, value)
+
+    check isHot(32)
+    check isActive(32)
+    check g_drawLayers.layers[ord(layerDefault)].len == 1
+
+  test "vertical slider hover testing uses a previous solved rect":
+    resetUi()
+    var value = 0.0
+    g_uiState.layoutRects[33] = rect(40, 40, 10, 20)
+    g_uiState.mx = 45
+    g_uiState.my = 45
+
+    vertSlider(33, 0, 0, 10, 10, 0, 100, value)
+
+    check isHot(33)
+    check not isActive(33)
+    check g_drawLayers.layers[ord(layerDefault)].len == 1
+
+  test "horizontal scrollbar hit testing uses a previous solved rect":
+    resetUi()
+    var value = 0.0
+    g_uiState.layoutRects[34] = rect(40, 40, 40, 10)
+    g_uiState.mx = 45
+    g_uiState.my = 45
+    g_uiState.mbLeftDown = true
+
+    horizScrollBar(34, 0, 0, 20, 10, 0, 100, value)
+
+    check isHot(34)
+    check isActive(34)
+    check g_drawLayers.layers[ord(layerDefault)].len == 1
+
+  test "vertical scrollbar hit testing uses a previous solved rect":
+    resetUi()
+    var value = 0.0
+    g_uiState.layoutRects[35] = rect(40, 40, 10, 40)
+    g_uiState.mx = 45
+    g_uiState.my = 45
+    g_uiState.mbLeftDown = true
+
+    vertScrollBar(35, 0, 0, 10, 20, 0, 100, value)
+
+    check isHot(35)
+    check isActive(35)
+    check g_drawLayers.layers[ord(layerDefault)].len == 1
+
+  test "scrollbar allowFocusCaptured uses previous solved rect":
+    resetUi()
+    var value = 0.0
+    g_uiState.layoutRects[36] = rect(40, 40, 40, 10)
+    g_uiState.focusCaptured = true
+    g_uiState.mx = 45
+    g_uiState.my = 45
+    g_uiState.mbLeftDown = true
+
+    horizScrollBar(
+      36, 0, 0, 20, 10, 0, 100, value, allowFocusCaptured = true
+    )
+
+    check isHot(36)
+    check isActive(36)
+
+  test "auto-layout drag controls register under active rows":
+    resetUi()
+    var params = DefaultAutoLayoutParams
+    params.itemsPerRow = 1
+    params.rowWidth = 20
+    params.leftPad = 0
+    params.rightPad = 0
+    params.rowPad = 0
+    params.sectionPad = 0
+    params.defaultRowHeight = 10
+    params.defaultItemHeight = 10
+    initAutoLayout(params)
+    beginFrameLayout()
+
+    var sliderValue = 0.0
+    autoLayoutPre()
+    let sliderRow = g_uiState.autoLayoutState.autoRow
+    horizSlider(
+      37,
+      g_uiState.autoLayoutState.x,
+      autoLayoutNextY(),
+      autoLayoutNextItemWidth(),
+      autoLayoutNextItemHeight(),
+      0,
+      100,
+      sliderValue,
+    )
+    autoLayoutPost()
+
+    var scrollValue = 0.0
+    autoLayoutPre()
+    let scrollRow = g_uiState.autoLayoutState.autoRow
+    horizScrollBar(
+      38,
+      g_uiState.autoLayoutState.x,
+      autoLayoutNextY(),
+      autoLayoutNextItemWidth(),
+      autoLayoutNextItemHeight(),
+      0,
+      100,
+      scrollValue,
+    )
+    autoLayoutPost()
+
+    check int32(g_uiState.layoutArena.nodes[3].parent) == int32(sliderRow)
+    check int32(g_uiState.layoutArena.nodes[5].parent) == int32(scrollRow)
 
   test "auto-layout label registers a fit-height text node under the active row":
     resetUi()

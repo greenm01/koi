@@ -7,6 +7,7 @@ import koi/types
 import koi/core
 import koi/drawing
 import koi/layout
+import koi/rect
 import koi/input
 import koi/defaults
 import koi/internal/algorithms
@@ -46,14 +47,17 @@ proc horizScrollBar*(
   let clickStep = if clickStep > valueRange: -1.0 else: clickStep
 
   let (x, y) = addDrawOffset(x, y)
+  let slot = layoutSlot(id, rect(x, y, w, h))
+  let hitBounds = slot.previousBounds
 
   # Calculate current thumb position
   let
     thumbW =
-      scrollBarThumbLength(w, s.thumbPad, s.thumbMinSize, thumbSize, startVal, endVal)
-    thumbH = h - s.thumbPad * 2
-    thumbMinX = x + s.thumbPad
-    thumbMaxX = x + w - s.thumbPad - thumbW
+      scrollBarThumbLength(
+        hitBounds.w, s.thumbPad, s.thumbMinSize, thumbSize, startVal, endVal
+      )
+    thumbMinX = hitBounds.x + s.thumbPad
+    thumbMaxX = hitBounds.x + hitBounds.w - s.thumbPad - thumbW
 
   func calcThumbX(val: float): float =
     scrollBarThumbFromValue(val, startVal, endVal, thumbMinX, thumbMaxX)
@@ -63,13 +67,13 @@ proc horizScrollBar*(
   # Hit testing
   let hit =
     if allowFocusCaptured:
-      mouseInside(x, y, w, h)
+      mouseInside(hitBounds.x, hitBounds.y, hitBounds.w, hitBounds.h)
     else:
-      isHit(x, y, w, h)
+      isHit(hitBounds.x, hitBounds.y, hitBounds.w, hitBounds.h)
 
   discard captureDragWidget(id, hit, allowActiveCapture = allowFocusCaptured)
 
-  let insideThumb = mouseInside(thumbX, y, thumbW, h)
+  let insideThumb = mouseInside(thumbX, hitBounds.y, thumbW, hitBounds.h)
 
   # New thumb position & value calculation
   var
@@ -164,9 +168,9 @@ proc horizScrollBar*(
   value_out = newValue
 
   # Draw scrollbar
-  addDrawLayer(ui.currentLayer, vg):
-    let dy = abs(y - ui.my)
-    let withinX = ui.mx >= x and ui.mx <= x + w
+  addLayoutDrawLayer(ui.currentLayer, slot.nodeId, vg, bounds):
+    let dy = abs(bounds.y - ui.my)
+    let withinX = ui.mx >= bounds.x and ui.mx <= bounds.x + bounds.w
 
     if not s.autoFade or (
       s.autoFade and dy < s.autoFadeDistance and withinX and
@@ -175,7 +179,20 @@ proc horizScrollBar*(
       let state = dragWidgetState(id)
 
       var sw = s.trackStrokeWidth
-      var (x, y, w, h) = snapToGrid(x, y, w, h, sw)
+      var (x, y, w, h) =
+        snapToGrid(bounds.x, bounds.y, bounds.w, bounds.h, sw)
+      let
+        drawThumbW =
+          scrollBarThumbLength(
+            w, s.thumbPad, s.thumbMinSize, thumbSize, startVal, endVal
+          )
+        drawThumbH = h - s.thumbPad * 2
+        drawThumbMinX = x + s.thumbPad
+        drawThumbMaxX = x + w - s.thumbPad - drawThumbW
+        drawThumbX =
+          scrollBarThumbFromValue(
+            newValue, startVal, endVal, drawThumbMinX, drawThumbMaxX
+          )
 
       let (trackFillColor, trackStrokeColor, thumbFillColor, thumbStrokeColor) =
         case state
@@ -223,7 +240,9 @@ proc horizScrollBar*(
       vg.strokeWidth(sw)
 
       vg.beginPath()
-      vg.roundedRect(newThumbX, y + s.thumbPad, thumbW, thumbH, s.thumbCornerRadius)
+      vg.roundedRect(
+        drawThumbX, y + s.thumbPad, drawThumbW, drawThumbH, s.thumbCornerRadius
+      )
       vg.fill()
       vg.stroke()
 
@@ -258,14 +277,17 @@ proc vertScrollBar*(
   let clickStep = if clickStep > valueRange: -1.0 else: clickStep
 
   let (x, y) = addDrawOffset(x, y)
+  let slot = layoutSlot(id, rect(x, y, w, h))
+  let hitBounds = slot.previousBounds
 
   # Calculate current thumb position
   let
-    thumbW = w - s.thumbPad * 2
     thumbH =
-      scrollBarThumbLength(h, s.thumbPad, s.thumbMinSize, thumbSize, startVal, endVal)
-    thumbMinY = y + s.thumbPad
-    thumbMaxY = y + h - s.thumbPad - thumbH
+      scrollBarThumbLength(
+        hitBounds.h, s.thumbPad, s.thumbMinSize, thumbSize, startVal, endVal
+      )
+    thumbMinY = hitBounds.y + s.thumbPad
+    thumbMaxY = hitBounds.y + hitBounds.h - s.thumbPad - thumbH
 
   func calcThumbY(value: float): float =
     scrollBarThumbFromValue(value, startVal, endVal, thumbMinY, thumbMaxY)
@@ -275,13 +297,13 @@ proc vertScrollBar*(
   # Hit testing
   let hit =
     if allowFocusCaptured:
-      mouseInside(x, y, w, h)
+      mouseInside(hitBounds.x, hitBounds.y, hitBounds.w, hitBounds.h)
     else:
-      isHit(x, y, w, h)
+      isHit(hitBounds.x, hitBounds.y, hitBounds.w, hitBounds.h)
 
   discard captureDragWidget(id, hit, allowActiveCapture = allowFocusCaptured)
 
-  let insideThumb = mouseInside(x, thumbY, w, thumbH)
+  let insideThumb = mouseInside(hitBounds.x, thumbY, hitBounds.w, thumbH)
 
   # New thumb position & value calculation
   var
@@ -378,9 +400,9 @@ proc vertScrollBar*(
   value_out = newValue
 
   # Draw scrollbar
-  addDrawLayer(ui.currentLayer, vg):
-    let dx = abs(x - ui.mx)
-    let withinY = ui.my >= y and ui.my <= y + h
+  addLayoutDrawLayer(ui.currentLayer, slot.nodeId, vg, bounds):
+    let dx = abs(bounds.x - ui.mx)
+    let withinY = ui.my >= bounds.y and ui.my <= bounds.y + bounds.h
 
     if not s.autoFade or (
       s.autoFade and dx < s.autoFadeDistance and withinY and
@@ -389,7 +411,20 @@ proc vertScrollBar*(
       let state = dragWidgetState(id)
 
       var sw = s.trackStrokeWidth
-      var (x, y, w, h) = snapToGrid(x, y, w, h, sw)
+      var (x, y, w, h) =
+        snapToGrid(bounds.x, bounds.y, bounds.w, bounds.h, sw)
+      let
+        drawThumbW = w - s.thumbPad * 2
+        drawThumbH =
+          scrollBarThumbLength(
+            h, s.thumbPad, s.thumbMinSize, thumbSize, startVal, endVal
+          )
+        drawThumbMinY = y + s.thumbPad
+        drawThumbMaxY = y + h - s.thumbPad - drawThumbH
+        drawThumbY =
+          scrollBarThumbFromValue(
+            newValue, startVal, endVal, drawThumbMinY, drawThumbMaxY
+          )
 
       let (trackFillColor, trackStrokeColor, thumbFillColor, thumbStrokeColor) =
         case state
@@ -437,7 +472,9 @@ proc vertScrollBar*(
       vg.strokeWidth(sw)
 
       vg.beginPath()
-      vg.roundedRect(x + s.thumbPad, newThumbY, thumbW, thumbH, s.thumbCornerRadius)
+      vg.roundedRect(
+        x + s.thumbPad, drawThumbY, drawThumbW, drawThumbH, s.thumbCornerRadius
+      )
       vg.fill()
       vg.stroke()
 

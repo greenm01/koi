@@ -9,6 +9,7 @@ import koi/types
 import koi/core
 import koi/drawing
 import koi/layout
+import koi/rect
 import koi/input
 import koi/defaults
 import koi/internal/widget_behavior
@@ -40,9 +41,13 @@ proc horizSlider*(
   var value = value_out.clampToRange(startVal, endVal)
 
   let (x, y) = addDrawOffset(x, y)
+  let slot = layoutSlot(id, rect(x, y, w, h))
+  let hitBounds = slot.previousBounds
 
   # Hit testing
-  if captureDragWidget(id, isHit(x, y, w, h)):
+  if captureDragWidget(
+    id, isHit(hitBounds.x, hitBounds.y, hitBounds.w, hitBounds.h)
+  ):
     sl.state = ssDefault
     sl.oldValue = value
     sl.cursorMoved = false
@@ -66,7 +71,12 @@ proc horizSlider*(
             sl.cursorPosY = ui.my
             ui.widgetMouseDrag = true
           else:
-            let t = invLerp(x + s.trackPad, x + w - s.trackPad, ui.mx)
+            let t =
+              invLerp(
+                hitBounds.x + s.trackPad,
+                hitBounds.x + hitBounds.w - s.trackPad,
+                ui.mx,
+              )
             newValue = lerp(startVal, endVal, t)
 
         # Transition to edit mode on double click or simple click without move
@@ -85,9 +95,14 @@ proc horizSlider*(
         let dx = (ui.dx - ui.x0) / d
         let range = abs(endVal - startVal)
         newValue =
-          (value + (dx / (w - s.trackPad * 2)) * range).clampToRange(startVal, endVal)
+          (value + (dx / (hitBounds.w - s.trackPad * 2)) * range).clampToRange(
+            startVal, endVal
+          )
         ui.x0 = ui.dx
-        sl.cursorPosX = (sl.cursorPosX + dx).clamp(x + s.trackPad, x + w - s.trackPad)
+        sl.cursorPosX =
+          (sl.cursorPosX + dx).clamp(
+            hitBounds.x + s.trackPad, hitBounds.x + hitBounds.w - s.trackPad
+          )
       else:
         sl.state = ssDefault
         showCursor()
@@ -126,11 +141,12 @@ proc horizSlider*(
 
   # Draw slider
   if sl.editModeItem != id:
-    addDrawLayer(ui.currentLayer, vg):
+    addLayoutDrawLayer(ui.currentLayer, slot.nodeId, vg, bounds):
       let state = dragWidgetState(id)
 
       var sw = s.trackStrokeWidth
-      var (rx, ry, rw, rh) = snapToGrid(x, y, w, h, sw)
+      var (rx, ry, rw, rh) =
+        snapToGrid(bounds.x, bounds.y, bounds.w, bounds.h, sw)
 
       let (trackFillColor, trackStrokeColor) =
         case state
@@ -190,10 +206,12 @@ proc vertSlider*(
 
   var value = value_out.clampToRange(startVal, endVal)
   let (x, y) = addDrawOffset(x, y)
+  let slot = layoutSlot(id, rect(x, y, w, h))
+  let hitBounds = slot.previousBounds
 
   let
-    posMinY = y + h - s.trackPad
-    posMaxY = y + s.trackPad
+    posMinY = hitBounds.y + hitBounds.h - s.trackPad
+    posMaxY = hitBounds.y + s.trackPad
 
   func calcPosY(val: float): float =
     let t = invLerp(startVal, endVal, val)
@@ -201,7 +219,9 @@ proc vertSlider*(
 
   let posY = calcPosY(value)
 
-  discard captureDragWidget(id, isHit(x, y, w, h))
+  discard captureDragWidget(
+    id, isHit(hitBounds.x, hitBounds.y, hitBounds.w, hitBounds.h)
+  )
 
   var newPosY = posY
 
@@ -240,11 +260,12 @@ proc vertSlider*(
 
   value_out = value
 
-  addDrawLayer(ui.currentLayer, vg):
+  addLayoutDrawLayer(ui.currentLayer, slot.nodeId, vg, bounds):
     let state = dragWidgetState(id)
 
     var sw = s.trackStrokeWidth
-    var (rx, ry, rw, rh) = snapToGrid(x, y, w, h, sw)
+    var (rx, ry, rw, rh) =
+      snapToGrid(bounds.x, bounds.y, bounds.w, bounds.h, sw)
 
     let (trackFillColor, trackStrokeColor, sliderColor) =
       case state
@@ -261,10 +282,13 @@ proc vertSlider*(
     vg.fill()
 
     let
+      drawPosMinY = ry + rh - s.trackPad
+      drawPosMaxY = ry + s.trackPad
+      drawPosY = lerp(drawPosMinY, drawPosMaxY, invLerp(startVal, endVal, value))
       vx = rx + s.trackPad
-      vy = newPosY
+      vy = drawPosY
       vw = rw - s.trackPad * 2
-      vh = ry + rh - newPosY - s.trackPad
+      vh = ry + rh - drawPosY - s.trackPad
 
     vg.fillColor(sliderColor)
     vg.beginPath()
