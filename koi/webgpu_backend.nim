@@ -161,6 +161,10 @@ type
     params: pointer
     vertices: seq[GpuVertex]
     drawCalls: seq[DrawCall]
+    capturePending: bool
+    capturedPixels: seq[uint8]
+    capturedWidth: uint32
+    capturedHeight: uint32
     vertexBuffer: Buffer
     vertexBytes: uint64
     width: float32
@@ -690,47 +694,28 @@ proc ensureVertexBuffer(b: var KoiWgpuBackend, bytes: uint64) =
 proc pipelineForBlend(b: var KoiWgpuBackend, blend: WebGpuBlend): RenderPipeline
 
 proc applyDrawScissor(
-    pass: RenderPassEncoder, b: KoiWgpuBackend, scissor: WebGpuScissor
+    pass: RenderPassEncoder,
+    scissor: WebGpuScissor,
+    fallbackWidth, fallbackHeight: uint32,
 ) =
   if scissor.active:
     pass.setScissorRect(scissor.x, scissor.y, scissor.width, scissor.height)
   else:
-    pass.setScissorRect(0, 0, b.config.width, b.config.height)
+    pass.setScissorRect(0, 0, fallbackWidth, fallbackHeight)
 
-proc renderFlush(userPtr: pointer) {.cdecl.} =
-  let b = backend(userPtr)
-  if b.vertices.len == 0:
-    return
-
-  let byteLen = (b.vertices.len * sizeof(GpuVertex)).uint64
-  b[].ensureVertexBuffer(byteLen)
-  b.queue.write(b.vertexBuffer, 0'u64, b.vertices[0].addr, byteLen.csize_t)
-
-  var surfaceTexture = SurfaceTexture()
-  b.surface.getCurrentTexture(surfaceTexture.addr)
-  case surfaceTexture.status
-  of SuccessOptimal, SuccessSuboptimal:
-    discard
-  of Timeout, Outdated, Lost:
-    if not surfaceTexture.texture.isNil:
-      surfaceTexture.texture.release()
-    b.surface.configure(b.config.addr)
-    return
-  else:
-    return
-
-  let nextTexture = surfaceTexture.texture.create(nil)
-  let encoder = b.device.create(
-    vaddr CommandEncoderDescriptor(
-      nextInChain: nil, label: "Koi NanoVG command encoder".toStringView()
-    )
-  )
+proc renderQueuedDraws(
+    b: var KoiWgpuBackend,
+    encoder: CommandEncoder,
+    targetView: TextureView,
+    targetWidth, targetHeight: uint32,
+    byteLen: uint64,
+) =
   var renderPassDesc = RenderPassDescriptor(
     nextInChain: nil,
     label: "Koi NanoVG render pass".toStringView(),
     colorAttachmentCount: 1,
     colorAttachments: vaddr RenderPassColorAttachment(
-      view: nextTexture,
+      view: targetView,
       resolveTarget: nil,
       loadOp: Clear,
       storeOp: Store,
@@ -746,14 +731,155 @@ proc renderFlush(userPtr: pointer) {.cdecl.} =
     if call.scissor.active and (call.scissor.width == 0 or call.scissor.height == 0):
       continue
 
-    pass.set(b[].pipelineForBlend(call.blend))
-    applyDrawScissor(pass, b[], call.scissor)
+    pass.set(b.pipelineForBlend(call.blend))
+    applyDrawScissor(pass, call.scissor, targetWidth, targetHeight)
     if call.textureId != 0 and b.textures.hasKey(call.textureId):
       pass.set(0, b.textures[call.textureId].bindGroup, 0, nil)
     else:
       pass.set(0, b.white.bindGroup, 0, nil)
     pass.draw(call.count, 1, call.first, 0)
   pass.End()
+
+func captureRowBytes(width: uint32): uint32 =
+  let rowBytes = width * 4'u32
+  ((rowBytes + WebGpuTextureRowAlignment - 1) div WebGpuTextureRowAlignment) *
+    WebGpuTextureRowAlignment
+
+proc readCapturedTexture(
+    b: KoiWgpuBackend, texture: Texture, width, height: uint32, encoder: CommandEncoder
+): Buffer =
+  let
+    paddedRowBytes = captureRowBytes(width)
+    readBytes = paddedRowBytes.uint64 * height.uint64
+  result = b.device.create(
+    vaddr BufferDescriptor(
+      nextInChain: nil,
+      label: "Koi NanoVG capture readback buffer".toStringView(),
+      usage: BufferUsage_CopyDst or BufferUsage_MapRead,
+      size: readBytes,
+      mappedAtCreation: false.uint32,
+    )
+  )
+  var source = TexelCopyTextureInfo(
+    texture: texture,
+    mipLevel: 0,
+    origin: Origin3D(x: 0, y: 0, z: 0),
+    aspect: TextureAspect.All,
+  )
+  var destination = TexelCopyBufferInfo(
+    layout: TexelCopyBufferLayout(
+      offset: 0, bytesPerRow: paddedRowBytes, rowsPerImage: height
+    ),
+    buffer: result,
+  )
+  var size = Extent3D(width: width, height: height, depthOrArrayLayers: 1)
+  encoder.copy(source.addr, destination.addr, size.addr)
+
+proc copyCapturedPixels(
+    b: var KoiWgpuBackend, readBuffer: Buffer, width, height: uint32
+) =
+  let
+    paddedRowBytes = captureRowBytes(width)
+    rowBytes = width * 4'u32
+    readBytes = paddedRowBytes.uint64 * height.uint64
+  var mapped: pointer
+  readBuffer.map(MapMode_Read, 0.csize_t, readBytes.csize_t, mapped.addr)
+  doAssert not mapped.isNil, "Could not map WebGPU capture buffer"
+
+  b.capturedPixels.setLen((rowBytes * height).int)
+  for y in 0 ..< height.int:
+    let
+      dstOffset = y * rowBytes.int
+      srcOffset = y * paddedRowBytes.int
+    copyMem(
+      b.capturedPixels[dstOffset].addr,
+      cast[pointer](cast[uint](mapped) + srcOffset.uint),
+      rowBytes.int,
+    )
+
+  if b.surfaceFormat == TextureFormat.BGRA8Unorm or
+      b.surfaceFormat == TextureFormat.BGRA8UnormSrgb:
+    for i in countup(0, b.capturedPixels.high, 4):
+      swap(b.capturedPixels[i], b.capturedPixels[i + 2])
+
+  readBuffer.unmap()
+
+proc renderCaptureFrame(b: var KoiWgpuBackend, byteLen: uint64) =
+  let
+    width = max(1'u32, b.capturedWidth)
+    height = max(1'u32, b.capturedHeight)
+  let texture = b.device.create(
+    vaddr TextureDescriptor(
+      nextInChain: nil,
+      label: "Koi NanoVG capture texture".toStringView(),
+      usage: TextureUsage_RenderAttachment or TextureUsage_CopySrc,
+      dimension: TextureDimension.D2D,
+      size: Extent3D(width: width, height: height, depthOrArrayLayers: 1),
+      format: b.surfaceFormat,
+      mipLevelCount: 1,
+      sampleCount: 1,
+      viewFormatCount: 0,
+      viewFormats: nil,
+    )
+  )
+  let view = texture.create(
+    vaddr TextureViewDescriptor(
+      nextInChain: nil,
+      label: "Koi NanoVG capture texture view".toStringView(),
+      format: b.surfaceFormat,
+      dimension: TextureViewDimension.D2D,
+      baseMipLevel: 0,
+      mipLevelCount: 1,
+      baseArrayLayer: 0,
+      arrayLayerCount: 1,
+      aspect: TextureAspect.All,
+    )
+  )
+  let encoder = b.device.create(
+    vaddr CommandEncoderDescriptor(
+      nextInChain: nil, label: "Koi NanoVG capture command encoder".toStringView()
+    )
+  )
+  b.renderQueuedDraws(encoder, view, width, height, byteLen)
+  let readBuffer = b.readCapturedTexture(texture, width, height, encoder)
+  let commandBuffer = encoder.finish(
+    vaddr CommandBufferDescriptor(
+      nextInChain: nil, label: "Koi NanoVG capture command buffer".toStringView()
+    )
+  )
+  b.queue.submit(1, commandBuffer.addr)
+  b.queue.waitIdle()
+  b.copyCapturedPixels(readBuffer, width, height)
+  b.capturedWidth = width
+  b.capturedHeight = height
+
+  commandBuffer.release()
+  encoder.release()
+  readBuffer.release()
+  view.release()
+  texture.release()
+
+proc renderSurfaceFrame(b: var KoiWgpuBackend, byteLen: uint64): bool =
+  var surfaceTexture = SurfaceTexture()
+  b.surface.getCurrentTexture(surfaceTexture.addr)
+  case surfaceTexture.status
+  of SuccessOptimal, SuccessSuboptimal:
+    discard
+  of Timeout, Outdated, Lost:
+    if not surfaceTexture.texture.isNil:
+      surfaceTexture.texture.release()
+    b.surface.configure(b.config.addr)
+    return false
+  else:
+    return false
+
+  let nextTexture = surfaceTexture.texture.create(nil)
+  let encoder = b.device.create(
+    vaddr CommandEncoderDescriptor(
+      nextInChain: nil, label: "Koi NanoVG command encoder".toStringView()
+    )
+  )
+  b.renderQueuedDraws(encoder, nextTexture, b.config.width, b.config.height, byteLen)
   nextTexture.release()
 
   let commandBuffer = encoder.finish(
@@ -763,6 +889,26 @@ proc renderFlush(userPtr: pointer) {.cdecl.} =
   )
   b.queue.submit(1, commandBuffer.addr)
   discard b.surface.present()
+  commandBuffer.release()
+  encoder.release()
+  true
+
+proc renderFlush(userPtr: pointer) {.cdecl.} =
+  let b = backend(userPtr)
+  if b.vertices.len == 0:
+    b.capturePending = false
+    return
+
+  let byteLen = (b.vertices.len * sizeof(GpuVertex)).uint64
+  b[].ensureVertexBuffer(byteLen)
+  b.queue.write(b.vertexBuffer, 0'u64, b.vertices[0].addr, byteLen.csize_t)
+
+  if b.capturePending:
+    b[].renderCaptureFrame(byteLen)
+    b.capturePending = false
+  else:
+    if not b[].renderSurfaceFrame(byteLen):
+      return
 
   b.vertices.setLen(0)
   b.drawCalls.setLen(0)
@@ -1131,6 +1277,20 @@ proc resizeKoiWgpuBackend*(b: var KoiWgpuBackend, width, height: uint32) =
   b.config.width = width
   b.config.height = height
   b.surface.configure(b.config.addr)
+
+proc captureNextFrame*(b: var KoiWgpuBackend, width, height: uint32) =
+  ## Diagnostic/test helper: the next NanoVG endFrame renders offscreen and
+  ## stores tightly packed RGBA8 pixels instead of presenting to the surface.
+  b.capturePending = true
+  b.capturedPixels.setLen(0)
+  b.capturedWidth = width
+  b.capturedHeight = height
+
+proc capturedFramePixels*(b: KoiWgpuBackend): seq[uint8] =
+  b.capturedPixels
+
+proc capturedFrameSize*(b: KoiWgpuBackend): tuple[width, height: uint32] =
+  (b.capturedWidth, b.capturedHeight)
 
 proc createNanoVgContext*(
     b: var KoiWgpuBackend, flags: set[nvg.NVGInitFlag] = {}
