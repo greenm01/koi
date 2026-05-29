@@ -2115,6 +2115,26 @@ suite "feature widget behavior":
     check g_drawLayers.layers[ord(layerDefault)].len == 2
     endTitledScrollView(20)
 
+  test "disabled titled scroll view ignores wheel and disables scrollbars":
+    resetUi()
+    let id = generateId("disabled-titled-scroll-view.nim", 1, "scroll")
+    let sbId = hashId(lastIdString() & ":scrollBar")
+    g_uiState.layoutRects[id] = rect(6, 30, 48, 24)
+    g_uiState.layoutRects[sbId] = rect(44, 30, 10, 24)
+    g_uiState.mx = 49
+    g_uiState.my = 35
+    g_uiState.mbLeftDown = true
+    g_uiState.hasEvent = true
+    g_uiState.currEvent = Event(kind: ekScroll, ox: 0, oy: -1, mods: {})
+
+    discard beginTitledScrollView(id, 0, 0, 60, 60, "Group", disabled = true)
+    endTitledScrollView(100)
+
+    check not eventHandled()
+    check scrollViewStartY(id) == 0
+    check isHot(sbId)
+    check not isActive(sbId)
+
   test "auto-layout group box frame owns row slot and content follows":
     resetUi()
     var params = DefaultAutoLayoutParams

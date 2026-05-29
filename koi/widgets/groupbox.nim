@@ -95,6 +95,7 @@ proc beginTitledScrollView*(
     title: string,
     groupStyle: GroupBoxStyle = borrowDefaultGroupBoxStyle(),
     scrollStyle: ScrollViewStyle = borrowDefaultScrollViewStyle(),
+    disabled: bool = false,
 ): Rect =
   result = groupBoxContentRect(x, y, w, h, groupStyle)
   let
@@ -103,7 +104,12 @@ proc beginTitledScrollView*(
     contentFallback = groupBoxContentRect(sx, sy, w, h, groupStyle)
   drawGroupBoxFrame(frameSlot, title, groupStyle)
   beginScrollViewWithFollowerSlot(
-    id, contentFallback, frameSlot.nodeId, groupBoxContentInset(groupStyle), scrollStyle
+    id,
+    contentFallback,
+    frameSlot.nodeId,
+    groupBoxContentInset(groupStyle),
+    scrollStyle,
+    disabled,
   )
 
 proc endTitledScrollView*(contentW, contentH: float) =
@@ -113,22 +119,50 @@ proc endTitledScrollView*(contentH: float = -1.0) =
   endScrollView(contentH)
 
 template titledScrollView*(
-    x, y, w, h: float, title: string, contentW, contentH: float, body: untyped
+    x, y, w, h: float,
+    title: string,
+    contentW, contentH: float,
+    disabled: bool = false,
+    body: untyped,
 ) =
   let i = instantiationInfo(fullPaths = true)
   let id = nextId(i.filename, i.line, title)
-  discard beginTitledScrollView(id, x, y, w, h, title)
+  discard beginTitledScrollView(
+    id,
+    x,
+    y,
+    w,
+    h,
+    title,
+    borrowDefaultGroupBoxStyle(),
+    borrowDefaultScrollViewStyle(),
+    disabled,
+  )
   try:
     body
   finally:
     endTitledScrollView(contentW, contentH)
 
 template titledScrollView*(
-    x, y, w, h: float, title: string, contentH: float, body: untyped
+    x, y, w, h: float,
+    title: string,
+    contentH: float,
+    disabled: bool = false,
+    body: untyped,
 ) =
   let i = instantiationInfo(fullPaths = true)
   let id = nextId(i.filename, i.line, title)
-  discard beginTitledScrollView(id, x, y, w, h, title)
+  discard beginTitledScrollView(
+    id,
+    x,
+    y,
+    w,
+    h,
+    title,
+    borrowDefaultGroupBoxStyle(),
+    borrowDefaultScrollViewStyle(),
+    disabled,
+  )
   try:
     body
   finally:
