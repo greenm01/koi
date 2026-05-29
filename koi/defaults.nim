@@ -1039,6 +1039,20 @@ proc setScrollBarCornerRadius(style: ScrollBarStyle, radius: float) =
     style.trackCornerRadius = radius
     style.thumbCornerRadius = radius
 
+proc setButtonAccent(style: ButtonStyle, accent: Color) =
+  if style != nil:
+    style.fillColorDown = accent
+
+proc setSelectableAccent(style: SelectableStyle, accent, accentLow: Color) =
+  if style != nil:
+    style.fillColorDown = accentLow
+    style.fillColorActive = accent
+    style.fillColorActiveHover = accent
+
+proc setScrollBarAccent(style: ScrollBarStyle, accent: Color) =
+  if style != nil:
+    style.thumbFillColorDown = accent
+
 proc defaultFont*(): tuple[fontFace: string, fontSize: float] =
   (DefaultLabelStyle.fontFace, DefaultLabelStyle.fontSize)
 
@@ -1138,3 +1152,48 @@ proc setDefaultCornerRadius*(radius: float) =
 
 proc defaultCornerRadius*(radius: float) =
   setDefaultCornerRadius(radius)
+
+proc defaultAccentColors*(): tuple[accent: Color, accentLow: Color] =
+  (DefaultProgressStyle.valueColor, DefaultChartStyle.columnColor)
+
+proc getDefaultAccentColors*(): tuple[accent: Color, accentLow: Color] =
+  defaultAccentColors()
+
+proc setDefaultAccentColors*(accent, accentLow: Color) =
+  setButtonAccent(DefaultButtonStyle, accent)
+
+  setSelectableAccent(DefaultSelectableStyle, accent, accentLow)
+  DefaultToggleButtonStyle.fillColorDown = accentLow
+  DefaultCheckBoxStyle.fillColorDown = accentLow
+  DefaultRadioButtonsStyle.buttonFillColorDown = accentLow
+  DefaultRadioButtonsStyle.buttonFillColorActive = accent
+  DefaultRadioButtonsStyle.buttonFillColorActiveHover = accent
+  setScrollBarAccent(DefaultScrollBarStyle, accent)
+
+  DefaultDropDownStyle.itemBackgroundColorHover = accent
+  setScrollBarAccent(DefaultDropDownStyle.scrollBarStyle, accent)
+
+  DefaultTextFieldStyle.cursorColor = accent
+  DefaultTextFieldStyle.selectionColor = accentLow.withAlpha(0.4)
+  DefaultTextAreaStyle.cursorColor = accent
+  DefaultTextAreaStyle.selectionColor = accentLow.withAlpha(0.4)
+  setScrollBarAccent(DefaultTextAreaStyle.scrollBarStyleNormal, accent)
+  setScrollBarAccent(DefaultTextAreaStyle.scrollBarStyleEdit, accent)
+
+  DefaultProgressStyle.valueColor = accent
+  setButtonAccent(DefaultPropertyStyle.button, accent)
+  DefaultPropertyStyle.textField.cursorColor = accent
+  DefaultPropertyStyle.textField.selectionColor = accentLow.withAlpha(0.4)
+
+  DefaultMenuStyle.button.fillColorDown = accentLow
+  DefaultMenuStyle.item.fillColorHover = accent
+  DefaultMenuStyle.item.fillColorDown = accentLow
+  setSelectableAccent(DefaultMenuStyle.item, accent, accentLow)
+
+  DefaultChartStyle.lineColor = accent
+  DefaultChartStyle.columnColor = accentLow
+  setButtonAccent(DefaultColorComboStyle.button, accent)
+  setScrollBarAccent(DefaultScrollViewStyle.scrollBarStyle, accent)
+
+proc defaultAccentColors*(accent, accentLow: Color) =
+  setDefaultAccentColors(accent, accentLow)

@@ -2,6 +2,8 @@ import std/math
 import std/tables
 import std/unittest
 
+import nanovg
+
 import koi/core
 import koi/defaults
 import koi/drawing
@@ -20,6 +22,12 @@ template checkRect(actual, expected: Rect) =
   checkClose(actual.y, expected.y)
   checkClose(actual.w, expected.w)
   checkClose(actual.h, expected.h)
+
+template checkColorClose(actual, expected: Color) =
+  checkClose(actual.r, expected.r)
+  checkClose(actual.g, expected.g)
+  checkClose(actual.b, expected.b)
+  checkClose(actual.a, expected.a)
 
 proc resetLayout(params: AutoLayoutParams = DefaultAutoLayoutParams) =
   g_uiState = UIState.default
@@ -999,6 +1007,32 @@ suite "NEP1 naming aliases":
       checkClose(borrowDefaultGroupBoxStyle().cornerRadius, 9.0)
     finally:
       setDefaultCornerRadius(originalRadius)
+
+  test "global default accent colors apply to highlighted styles":
+    let
+      originalAccent = defaultAccentColors()
+      accent = rgb(0.2, 0.4, 0.9)
+      accentLow = rgb(0.1, 0.25, 0.5)
+
+    try:
+      setDefaultAccentColors(accent, accentLow)
+
+      checkColorClose(defaultAccentColors().accent, accent)
+      checkColorClose(defaultAccentColors().accentLow, accentLow)
+      checkColorClose(borrowDefaultButtonStyle().fillColorDown, accent)
+      checkColorClose(borrowDefaultSelectableStyle().fillColorActive, accent)
+      checkColorClose(borrowDefaultSelectableStyle().fillColorDown, accentLow)
+      checkColorClose(borrowDefaultRadioButtonsStyle().buttonFillColorActive, accent)
+      checkColorClose(borrowDefaultDropDownStyle().itemBackgroundColorHover, accent)
+      checkColorClose(borrowDefaultTextFieldStyle().cursorColor, accent)
+      checkColorClose(borrowDefaultTextAreaStyle().cursorColor, accent)
+      checkColorClose(borrowDefaultProgressStyle().valueColor, accent)
+      checkColorClose(borrowDefaultChartStyle().lineColor, accent)
+      checkColorClose(borrowDefaultChartStyle().columnColor, accentLow)
+      checkColorClose(borrowDefaultMenuStyle().item.fillColorHover, accent)
+      checkColorClose(borrowDefaultMenuStyle().item.fillColorDown, accentLow)
+    finally:
+      setDefaultAccentColors(originalAccent.accent, originalAccent.accentLow)
 
   test "state aliases preserve old wrapper behavior":
     g_uiState = UIState.default

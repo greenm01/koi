@@ -17,8 +17,10 @@ background/text colors, and shadow, instead of hard-coded drawing constants.
 Global theme parameters are intentionally small convenience setters layered on
 top of those same style values. `setDefaultFont` updates the default font face
 and size across the default text-bearing widget styles. `setDefaultCornerRadius`
-updates default rounded-widget metrics. Callers can still edit individual style
-objects when a widget needs different typography or shape.
+updates default rounded-widget metrics. `setDefaultAccentColors` updates the
+default highlighted/action colors used by buttons, selection, progress, charts,
+menus, and text-editing cursors. Callers can still edit individual style objects
+when a widget needs different typography, shape, or color.
 
 Core style fields should meet three tests:
 

@@ -14,4 +14,5 @@ to the deferred candidates that still look useful.
 
 ## Layout And Theming
 
-- Finish complete theming coverage, including global theme color parameters.
+- Audit remaining hard-coded widget colors and promote any broadly useful values
+  to style fields or global theme parameters.
