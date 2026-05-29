@@ -62,6 +62,29 @@ let DefaultCheckBoxDrawProc*: CheckBoxDrawProc = proc(
 
   if icon != "":
     vg.drawLabel(x, y, w, w, icon, state, s.icon)
+  elif checked:
+    let iconColor =
+      case state
+      of wsNormal:
+        s.icon.colorActive
+      of wsHover:
+        s.icon.colorActiveHover
+      of wsDown, wsActiveDown:
+        s.icon.colorDown
+      of wsActive:
+        s.icon.colorActive
+      of wsActiveHover:
+        s.icon.colorActiveHover
+      of wsDisabled:
+        s.icon.colorDisabled
+
+    vg.beginPath()
+    vg.moveTo(x + w * 0.25, y + w * 0.54)
+    vg.lineTo(x + w * 0.42, y + w * 0.70)
+    vg.lineTo(x + w * 0.76, y + w * 0.32)
+    vg.strokeColor(iconColor)
+    vg.strokeWidth(max(1.5, w * 0.12))
+    vg.stroke()
 
 proc checkBox*(
     id: ItemId,

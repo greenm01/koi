@@ -428,6 +428,24 @@ suite "layout-integrated widget behavior":
     check isActive(26)
     check g_drawLayers.layers[ord(layerDefault)].len == 1
 
+  test "checkbox toggles on mouse release while hot and active":
+    resetUi()
+    var checked = false
+    g_uiState.layoutRects[260] = rect(40, 40, 20, 20)
+    g_uiState.mx = 45
+    g_uiState.my = 45
+    g_uiState.mbLeftDown = true
+
+    checkBox(260, 0, 0, 10, checked, "", disabled = false)
+    check not checked
+    check isActive(260)
+
+    g_uiState.hotItem = 0
+    g_uiState.mbLeftDown = false
+    checkBox(260, 0, 0, 10, checked, "", disabled = false)
+
+    check checked
+
   test "toggle button queues drawing with the current layout rect":
     resetUi()
     var active = false
