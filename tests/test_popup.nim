@@ -108,3 +108,14 @@ suite "popup layout scoping":
     check beginPopup(31, 0, 0, 10, 10)
     checkRect(g_uiState.hitClipRect, rect(40, 40, 20, 10))
     endPopup()
+
+  test "popup draw offset reuses a previously solved rect":
+    resetUi()
+    g_uiState.layoutRects[32] = rect(40, 40, 20, 10)
+
+    openPopup(32)
+    releaseLeft()
+
+    check beginPopup(32, 0, 0, 10, 10)
+    check addDrawOffset(2, 3) == (42.0, 43.0)
+    endPopup()

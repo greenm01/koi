@@ -250,189 +250,189 @@ proc renderUI() =
   if koi.sectionHeader("User Interface", sectionUserInterface):
     if koi.subSectionHeader("General", sectionUserInterfaceGeneral):
       koi.label("Background")
-      discard koi.colorCombo(currTheme.general.backgroundColor)
+      koi.colorPicker(currTheme.general.backgroundColor)
 
       koi.label("Highlight")
-      discard koi.colorCombo(currTheme.general.highlightColor)
+      koi.colorPicker(currTheme.general.highlightColor)
 
     if koi.subSectionHeader("Widget", sectionWidget):
       koi.label("Background")
-      discard koi.colorCombo(currTheme.widget.bgColor)
+      koi.colorPicker(currTheme.widget.bgColor)
 
       koi.label("Background Hover")
-      discard koi.colorCombo(currTheme.widget.bgColorHover)
+      koi.colorPicker(currTheme.widget.bgColorHover)
 
       koi.label("Background Disabled")
-      discard koi.colorCombo(currTheme.widget.bgColorDisabled)
+      koi.colorPicker(currTheme.widget.bgColorDisabled)
 
       koi.label("Text")
-      discard koi.colorCombo(currTheme.widget.textColor)
+      koi.colorPicker(currTheme.widget.textColor)
 
       koi.label("Text Disabled")
-      discard koi.colorCombo(currTheme.widget.textColorDisabled)
+      koi.colorPicker(currTheme.widget.textColorDisabled)
 
     if koi.subSectionHeader("Text Field", sectionTextField):
       koi.label("Background Active")
-      discard koi.colorCombo(currTheme.textField.bgColorActive)
+      koi.colorPicker(currTheme.textField.bgColorActive)
 
       koi.label("Text Active")
-      discard koi.colorCombo(currTheme.textField.textColorActive)
+      koi.colorPicker(currTheme.textField.textColorActive)
 
       koi.label("Cursor")
-      discard koi.colorCombo(currTheme.textField.cursorColor)
+      koi.colorPicker(currTheme.textField.cursorColor)
 
       koi.label("Selection")
-      discard koi.colorCombo(currTheme.textField.selectionColor)
+      koi.colorPicker(currTheme.textField.selectionColor)
 
     if koi.subSectionHeader("Dialog", sectionDialog):
       koi.label("Title Bar Background")
       koi.nextItemHeight(81)
-      discard koi.colorCombo(currTheme.dialog.titleBarBgColor)
+      koi.colorPicker(currTheme.dialog.titleBarBgColor)
 
       koi.label("Title Bar Text")
-      discard koi.colorCombo(currTheme.dialog.titleBarTextColor)
+      koi.colorPicker(currTheme.dialog.titleBarTextColor)
 
       koi.label("Background")
       koi.nextItemHeight(61)
-      discard koi.colorCombo(currTheme.dialog.backgroundColor)
+      koi.colorPicker(currTheme.dialog.backgroundColor)
 
       koi.label("Text")
-      discard koi.colorCombo(currTheme.dialog.textColor)
+      koi.colorPicker(currTheme.dialog.textColor)
 
       koi.label("Warning Text")
-      discard koi.colorCombo(currTheme.dialog.warningTextColor)
+      koi.colorPicker(currTheme.dialog.warningTextColor)
 
     if koi.subSectionHeader("Title Bar", sectionTitleBar):
       koi.label("Background")
-      discard koi.colorCombo(currTheme.window.backgroundColor)
+      koi.colorPicker(currTheme.window.backgroundColor)
 
       koi.label("Background Unfocused")
-      discard koi.colorCombo(currTheme.window.bgColorUnfocused)
+      koi.colorPicker(currTheme.window.bgColorUnfocused)
 
       koi.label("Text")
-      discard koi.colorCombo(currTheme.window.textColor)
+      koi.colorPicker(currTheme.window.textColor)
 
       koi.label("Text Unfocused")
-      discard koi.colorCombo(currTheme.window.textColorUnfocused)
+      koi.colorPicker(currTheme.window.textColorUnfocused)
 
       koi.label("Modified Flag")
-      discard koi.colorCombo(currTheme.window.modifiedFlagColor)
+      koi.colorPicker(currTheme.window.modifiedFlagColor)
 
       koi.label("Button")
-      discard koi.colorCombo(currTheme.window.buttonColor)
+      koi.colorPicker(currTheme.window.buttonColor)
 
       koi.label("Button Hover")
-      discard koi.colorCombo(currTheme.window.buttonColorHover)
+      koi.colorPicker(currTheme.window.buttonColorHover)
 
       koi.label("Button Down")
-      discard koi.colorCombo(currTheme.window.buttonColorDown)
+      koi.colorPicker(currTheme.window.buttonColorDown)
 
     if koi.subSectionHeader("Status Bar", sectionStatusBar):
       koi.label("Background")
-      discard koi.colorCombo(currTheme.statusBar.backgroundColor)
+      koi.colorPicker(currTheme.statusBar.backgroundColor)
 
       koi.label("Text")
-      discard koi.colorCombo(currTheme.statusBar.textColor)
+      koi.colorPicker(currTheme.statusBar.textColor)
 
       koi.label("Command Background")
-      discard koi.colorCombo(currTheme.statusBar.commandBgColor)
+      koi.colorPicker(currTheme.statusBar.commandBgColor)
 
       koi.label("Command")
-      discard koi.colorCombo(currTheme.statusBar.commandColor)
+      koi.colorPicker(currTheme.statusBar.commandColor)
 
       koi.label("Coordinates")
-      discard koi.colorCombo(currTheme.statusBar.coordsColor)
+      koi.colorPicker(currTheme.statusBar.coordsColor)
 
     if koi.subSectionHeader("Level Drop Down", sectionLeveldropDown):
       koi.nextRowHeight(21)
       koi.label("Button")
-      discard koi.colorCombo(currTheme.levelDropDown.buttonColor)
+      koi.colorPicker(currTheme.levelDropDown.buttonColor)
 
       koi.label("Button Hover")
-      discard koi.colorCombo(currTheme.levelDropDown.buttonColorHover)
+      koi.colorPicker(currTheme.levelDropDown.buttonColorHover)
 
       koi.nextRowHeight(21)
       koi.label("Text")
-      discard koi.colorCombo(currTheme.levelDropDown.textColor)
+      koi.colorPicker(currTheme.levelDropDown.textColor)
 
       koi.label("Item List")
-      discard koi.colorCombo(currTheme.levelDropDown.itemListColor)
+      koi.colorPicker(currTheme.levelDropDown.itemListColor)
 
       koi.nextRowHeight(21)
       koi.label("Item")
-      discard koi.colorCombo(currTheme.levelDropDown.itemColor)
+      koi.colorPicker(currTheme.levelDropDown.itemColor)
 
       koi.label("Item Hover")
-      discard koi.colorCombo(currTheme.levelDropDown.itemColorHover)
+      koi.colorPicker(currTheme.levelDropDown.itemColorHover)
 
     if koi.subSectionHeader("About Button", sectionAboutButton):
       koi.label("Color")
-      discard koi.colorCombo(currTheme.aboutButton.color)
+      koi.colorPicker(currTheme.aboutButton.color)
 
       koi.label("Hover")
-      discard koi.colorCombo(currTheme.aboutButton.colorHover)
+      koi.colorPicker(currTheme.aboutButton.colorHover)
 
       koi.label("Active")
-      discard koi.colorCombo(currTheme.aboutButton.colorActive)
+      koi.colorPicker(currTheme.aboutButton.colorActive)
 
   if koi.sectionHeader("Level", sectionLevel):
     if koi.subSectionHeader("General", sectionLevelGeneral):
       group:
         koi.label("Background")
-        discard koi.colorCombo(currTheme.level.backgroundColor)
+        koi.colorPicker(currTheme.level.backgroundColor)
 
         koi.label("Draw")
-        discard koi.colorCombo(currTheme.level.drawColor)
+        koi.colorPicker(currTheme.level.drawColor)
 
         koi.label("Draw Light")
-        discard koi.colorCombo(currTheme.level.lightDrawColor)
+        koi.colorPicker(currTheme.level.lightDrawColor)
 
         koi.label("Line Width")
         koi.dropDown(currTheme.level.lineWidth)
 
       group:
         koi.label("Coordinates")
-        discard koi.colorCombo(currTheme.level.coordsColor)
+        koi.colorPicker(currTheme.level.coordsColor)
 
         koi.label("Coordinates Highlight")
-        discard koi.colorCombo(currTheme.level.coordsHighlightColor)
+        koi.colorPicker(currTheme.level.coordsHighlightColor)
 
         koi.label("Cursor")
-        discard koi.colorCombo(currTheme.level.cursorColor)
+        koi.colorPicker(currTheme.level.cursorColor)
 
         koi.label("Cursor Guides")
-        discard koi.colorCombo(currTheme.level.cursorGuideColor)
+        koi.colorPicker(currTheme.level.cursorGuideColor)
 
       group:
         koi.label("Grid Style Background")
         koi.dropDown(currTheme.level.gridStyleBackground)
 
         koi.label("Grid Background")
-        discard koi.colorCombo(currTheme.level.gridColorBackground)
+        koi.colorPicker(currTheme.level.gridColorBackground)
 
         koi.label("Grid Style Floor")
         koi.dropDown(currTheme.level.gridStyleFloor)
 
         koi.label("Grid Floor")
-        discard koi.colorCombo(currTheme.level.gridColorFloor)
+        koi.colorPicker(currTheme.level.gridColorFloor)
 
       group:
         koi.label("Selection")
-        discard koi.colorCombo(currTheme.level.selectionColor)
+        koi.colorPicker(currTheme.level.selectionColor)
 
         koi.label("Paste Preview")
-        discard koi.colorCombo(currTheme.level.pastePreviewColor)
+        koi.colorPicker(currTheme.level.pastePreviewColor)
 
       group:
         koi.label("Link Marker")
-        discard koi.colorCombo(currTheme.level.linkMarkerColor)
+        koi.colorPicker(currTheme.level.linkMarkerColor)
 
     if koi.subSectionHeader("Background Hatch", sectionBackgroundHatch):
       koi.label("Background Hatch?")
       koi.checkBox(currTheme.level.bgHatch)
 
       koi.label("Hatch")
-      discard koi.colorCombo(currTheme.level.bgHatchColor)
+      koi.colorPicker(currTheme.level.bgHatchColor)
 
       koi.label("Hatch Stroke Width")
       koi.horizSlider(
@@ -461,7 +461,7 @@ proc renderUI() =
       koi.checkBox(currTheme.level.outlineOverscan)
 
       koi.label("Outline")
-      discard koi.colorCombo(currTheme.level.outlineColor)
+      koi.colorPicker(currTheme.level.outlineColor)
 
       koi.label("Outline Width")
       koi.horizSlider(
@@ -474,7 +474,7 @@ proc renderUI() =
     if koi.subSectionHeader("Shadow", sectionShadow):
       group:
         koi.label("Inner Shadow")
-        discard koi.colorCombo(currTheme.level.innerShadowColor)
+        koi.colorPicker(currTheme.level.innerShadowColor)
 
         koi.label("Inner Shadow Width")
         koi.horizSlider(
@@ -486,7 +486,7 @@ proc renderUI() =
 
       group:
         koi.label("Outer Shadow")
-        discard koi.colorCombo(currTheme.level.outerShadowColor)
+        koi.colorPicker(currTheme.level.outerShadowColor)
 
         koi.label("Outer Shadow Width")
         koi.horizSlider(
@@ -498,89 +498,89 @@ proc renderUI() =
 
     if koi.subSectionHeader("Floor Colors", sectionFloorColors):
       koi.label("Floor 1")
-      discard koi.colorCombo(currTheme.level.floorColor[0])
+      koi.colorPicker(currTheme.level.floorColor[0])
 
       koi.label("Floor 2")
-      discard koi.colorCombo(currTheme.level.floorColor[1])
+      koi.colorPicker(currTheme.level.floorColor[1])
 
       koi.label("Floor 3")
-      discard koi.colorCombo(currTheme.level.floorColor[2])
+      koi.colorPicker(currTheme.level.floorColor[2])
 
       koi.label("Floor 4")
-      discard koi.colorCombo(currTheme.level.floorColor[3])
+      koi.colorPicker(currTheme.level.floorColor[3])
 
       koi.label("Floor 5")
-      discard koi.colorCombo(currTheme.level.floorColor[4])
+      koi.colorPicker(currTheme.level.floorColor[4])
 
       koi.label("Floor 6")
-      discard koi.colorCombo(currTheme.level.floorColor[5])
+      koi.colorPicker(currTheme.level.floorColor[5])
 
       koi.label("Floor 7")
-      discard koi.colorCombo(currTheme.level.floorColor[6])
+      koi.colorPicker(currTheme.level.floorColor[6])
 
       koi.label("Floor 8")
-      discard koi.colorCombo(currTheme.level.floorColor[7])
+      koi.colorPicker(currTheme.level.floorColor[7])
 
       koi.label("Floor 9")
-      discard koi.colorCombo(currTheme.level.floorColor[8])
+      koi.colorPicker(currTheme.level.floorColor[8])
 
     if koi.subSectionHeader("Notes", sectionNotes):
       group:
         koi.label("Marker")
-        discard koi.colorCombo(currTheme.level.noteMarkerColor)
+        koi.colorPicker(currTheme.level.noteMarkerColor)
 
         koi.label("Comment")
-        discard koi.colorCombo(currTheme.level.noteCommentColor)
+        koi.colorPicker(currTheme.level.noteCommentColor)
 
       group:
         koi.label("Index")
-        discard koi.colorCombo(currTheme.level.noteIndexColor)
+        koi.colorPicker(currTheme.level.noteIndexColor)
 
         koi.label("Index Background 1")
-        discard koi.colorCombo(currTheme.level.noteIndexBgColor[0])
+        koi.colorPicker(currTheme.level.noteIndexBgColor[0])
 
         koi.label("Index Background 2")
-        discard koi.colorCombo(currTheme.level.noteIndexBgColor[1])
+        koi.colorPicker(currTheme.level.noteIndexBgColor[1])
 
         koi.label("Index Background 3")
-        discard koi.colorCombo(currTheme.level.noteIndexBgColor[2])
+        koi.colorPicker(currTheme.level.noteIndexBgColor[2])
 
         koi.label("Index Background 4")
-        discard koi.colorCombo(currTheme.level.noteIndexBgColor[3])
+        koi.colorPicker(currTheme.level.noteIndexBgColor[3])
 
       group:
         koi.label("Tooltip Background")
-        discard koi.colorCombo(currTheme.level.noteTooltipBgColor)
+        koi.colorPicker(currTheme.level.noteTooltipBgColor)
 
         koi.label("Tooltip Text")
-        discard koi.colorCombo(currTheme.level.noteTooltipTextColor)
+        koi.colorPicker(currTheme.level.noteTooltipTextColor)
 
   if koi.sectionHeader("Panes", sectionPanes):
     if koi.subSectionHeader("Notes Pane", sectionNotesPane):
       koi.label("Text")
-      discard koi.colorCombo(currTheme.notesPane.textColor)
+      koi.colorPicker(currTheme.notesPane.textColor)
 
       koi.label("Index")
-      discard koi.colorCombo(currTheme.notesPane.indexColor)
+      koi.colorPicker(currTheme.notesPane.indexColor)
 
       koi.label("Index Background 1")
-      discard koi.colorCombo(currTheme.notesPane.indexBgColor[0])
+      koi.colorPicker(currTheme.notesPane.indexBgColor[0])
 
       koi.label("Index Background 2")
-      discard koi.colorCombo(currTheme.notesPane.indexBgColor[1])
+      koi.colorPicker(currTheme.notesPane.indexBgColor[1])
 
       koi.label("Index Background 3")
-      discard koi.colorCombo(currTheme.notesPane.indexBgColor[2])
+      koi.colorPicker(currTheme.notesPane.indexBgColor[2])
 
       koi.label("Index Background 4")
-      discard koi.colorCombo(currTheme.notesPane.indexBgColor[3])
+      koi.colorPicker(currTheme.notesPane.indexBgColor[3])
 
     if koi.subSectionHeader("Toolbar Pane", sectionToolbarPane):
       koi.label("Button Background")
-      discard koi.colorCombo(currTheme.toolbarPane.buttonBgColor)
+      koi.colorPicker(currTheme.toolbarPane.buttonBgColor)
 
       koi.label("Button Background Hover")
-      discard koi.colorCombo(currTheme.toolbarPane.buttonBgColorHover)
+      koi.colorPicker(currTheme.toolbarPane.buttonBgColorHover)
 
   koi.endScrollView()
 

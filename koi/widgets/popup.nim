@@ -90,8 +90,8 @@ proc beginPopupWithSlot*(
     vg.fill()
     vg.stroke()
 
-  beginLayoutViewportForSlot(slot)
-  pushDrawOffset(DrawOffset(ox: slot.bounds.x, oy: slot.bounds.y))
+  beginLayoutViewportForSlot(slot, hitBounds)
+  pushDrawOffset(DrawOffset(ox: hitBounds.x, oy: hitBounds.y))
   result = true
 
 proc beginPopup*(

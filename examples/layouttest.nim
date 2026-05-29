@@ -20,6 +20,7 @@ var
   dropIndex = 0
   filteredText = ""
   comboColor = rgb(0.16, 0.45, 0.82)
+  pickerColor = rgb(0.88, 0.18, 0.16)
   treeOpen = true
   treeChildOpen = true
   listSelected: array[30, bool]
@@ -137,6 +138,7 @@ proc renderUI() =
   discard floatProperty("Float value", 0.0, 1.0, 0.1, floatValue)
   textField(filteredText, filter = tffFloat)
   discard colorCombo(comboColor, "Accent")
+  colorPicker(pickerColor)
 
   treeNode("Tree Node", treeOpen):
     label("Tree child")
