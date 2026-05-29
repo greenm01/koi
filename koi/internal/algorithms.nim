@@ -609,3 +609,27 @@ func scrollBarTrackClickValue*(
     else:
       (endVal, startVal)
   clamp(value + clickDir * step, s, e)
+
+func scrollBarTrackClickDir*(startVal, endVal, cursorPos, thumbPos: float): float =
+  let direction = sgn(endVal - startVal).float
+  if cursorPos < thumbPos:
+    -1.0 * direction
+  else:
+    direction
+
+func scrollBarRepeatTrackClick*(
+    value, startVal, endVal, clickDir, clickStep, thumbPos, thumbLength, thumbMin,
+      thumbMax, cursorPos: float
+): tuple[value, thumbPos: float] =
+  result.value = scrollBarTrackClickValue(value, startVal, endVal, clickDir, clickStep)
+  result.thumbPos =
+    scrollBarThumbFromValue(result.value, startVal, endVal, thumbMin, thumbMax)
+
+  if clickDir * sgn(endVal - startVal).float > 0:
+    if result.thumbPos + thumbLength > cursorPos:
+      result.value = value
+      result.thumbPos = thumbPos
+  else:
+    if result.thumbPos < cursorPos:
+      result.value = value
+      result.thumbPos = thumbPos

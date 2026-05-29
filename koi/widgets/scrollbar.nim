@@ -20,6 +20,143 @@ const
   ScrollBarTrackClickRepeatDelay = 0.3
   ScrollBarTrackClickRepeatTimeout = 0.05
 
+type ScrollBarAxis = enum
+  sbaHorizontal
+  sbaVertical
+
+func axisMouse(ui: UIState, axis: ScrollBarAxis): float =
+  case axis
+  of sbaHorizontal: ui.mx
+  of sbaVertical: ui.my
+
+func axisDrag(ui: UIState, axis: ScrollBarAxis): float =
+  case axis
+  of sbaHorizontal: ui.dx
+  of sbaVertical: ui.dy
+
+func axisDragOrigin(ui: UIState, axis: ScrollBarAxis): float =
+  case axis
+  of sbaHorizontal: ui.x0
+  of sbaVertical: ui.y0
+
+proc setAxisDragOrigin(ui: var UIState, axis: ScrollBarAxis, value: float) =
+  case axis
+  of sbaHorizontal:
+    ui.x0 = value
+  of sbaVertical:
+    ui.y0 = value
+
+proc setAxisDragCursor(
+    ui: var UIState, axis: ScrollBarAxis, thumbPos, thumbLength: float
+) =
+  case axis
+  of sbaHorizontal:
+    ui.dragX = thumbPos + thumbLength * 0.5
+    ui.dragY = -1.0
+  of sbaVertical:
+    ui.dragX = -1.0
+    ui.dragY = thumbPos + thumbLength * 0.5
+
+proc restoreAxisCursor(ui: var UIState, axis: ScrollBarAxis) =
+  case axis
+  of sbaHorizontal:
+    cursorPosX(ui.dragX)
+    ui.dx = ui.dragX
+    ui.x0 = ui.dragX
+  of sbaVertical:
+    cursorPosY(ui.dragY)
+    ui.dy = ui.dragY
+    ui.y0 = ui.dragY
+
+proc updateScrollBarInteraction(
+    axis: ScrollBarAxis,
+    id: ItemId,
+    startVal, endVal, value, clickStep: float,
+    thumbPos, thumbLength, thumbMin, thumbMax: float,
+    insideThumb: bool,
+): tuple[value, thumbPos: float] =
+  alias(ui, g_uiState)
+  alias(sb, ui.scrollBarState)
+  result = (value, thumbPos)
+
+  if not isActive(id):
+    return
+
+  case sb.state
+  of sbsDefault:
+    if insideThumb:
+      ui.setAxisDragOrigin(axis, ui.axisMouse(axis))
+      if shiftDown():
+        disableCursor()
+        sb.state = sbsDragHidden
+      else:
+        sb.state = sbsDragNormal
+      ui.widgetMouseDrag = true
+    else:
+      sb.clickDir =
+        scrollBarTrackClickDir(startVal, endVal, ui.axisMouse(axis), thumbPos)
+      sb.state = sbsTrackClickFirst
+      ui.t0 = core.currentTime()
+  of sbsDragNormal:
+    if shiftDown():
+      disableCursor()
+      sb.state = sbsDragHidden
+    else:
+      let delta = ui.axisDrag(axis) - ui.axisDragOrigin(axis)
+      result.thumbPos = clamp(thumbPos + delta, thumbMin, thumbMax)
+      result.value =
+        scrollBarValueFromThumb(result.thumbPos, thumbMin, thumbMax, startVal, endVal)
+      ui.setAxisDragOrigin(
+        axis, clamp(ui.axisDrag(axis), thumbMin, thumbMax + thumbLength)
+      )
+  of sbsDragHidden:
+    if axis == sbaVertical:
+      markHot(id)
+
+    if shiftDown():
+      let d = if altDown(): ScrollBarUltraFineDragDivisor else: ScrollBarFineDragDivisor
+      let delta = (ui.axisDrag(axis) - ui.axisDragOrigin(axis)) / d
+      result.thumbPos = clamp(thumbPos + delta, thumbMin, thumbMax)
+      result.value =
+        scrollBarValueFromThumb(result.thumbPos, thumbMin, thumbMax, startVal, endVal)
+      ui.setAxisDragOrigin(axis, ui.axisDrag(axis))
+      ui.setAxisDragCursor(axis, result.thumbPos, thumbLength)
+    else:
+      sb.state = sbsDragNormal
+      showCursor()
+      ui.restoreAxisCursor(axis)
+  of sbsTrackClickFirst:
+    result.value =
+      scrollBarTrackClickValue(value, startVal, endVal, sb.clickDir, clickStep)
+    result.thumbPos =
+      scrollBarThumbFromValue(result.value, startVal, endVal, thumbMin, thumbMax)
+    sb.state = sbsTrackClickDelay
+    ui.t0 = core.currentTime()
+    requestFrames()
+  of sbsTrackClickDelay:
+    if core.currentTime() - ui.t0 > ScrollBarTrackClickRepeatDelay:
+      sb.state = sbsTrackClickRepeat
+    requestFrames()
+  of sbsTrackClickRepeat:
+    if isHot(id):
+      if core.currentTime() - ui.t0 > ScrollBarTrackClickRepeatTimeout:
+        result = scrollBarRepeatTrackClick(
+          value,
+          startVal,
+          endVal,
+          sb.clickDir,
+          clickStep,
+          thumbPos,
+          thumbLength,
+          thumbMin,
+          thumbMax,
+          ui.axisMouse(axis),
+        )
+        ui.t0 = core.currentTime()
+    else:
+      ui.t0 = core.currentTime()
+    requestFrames()
+
 proc horizScrollBarWithSlot*(
     slot: LayoutSlot,
     id: ItemId,
@@ -33,7 +170,6 @@ proc horizScrollBarWithSlot*(
     allowFocusCaptured: bool = false,
 ) =
   alias(ui, g_uiState)
-  alias(sb, ui.scrollBarState)
   alias(s, style)
 
   var value = value_out.clampToRange(startVal, endVal)
@@ -73,90 +209,12 @@ proc horizScrollBarWithSlot*(
     newThumbX = thumbX
     newValue = value
 
-  func calcNewValue(newThumbX: float): float =
-    scrollBarValueFromThumb(newThumbX, thumbMinX, thumbMaxX, startVal, endVal)
-
-  proc calcNewValueTrackClick(newValue: float): float =
-    scrollBarTrackClickValue(newValue, startVal, endVal, sb.clickDir, clickStep)
-
-  if isActive(id):
-    case sb.state
-    of sbsDefault:
-      if insideThumb:
-        ui.x0 = ui.mx
-        if shiftDown():
-          disableCursor()
-          sb.state = sbsDragHidden
-        else:
-          sb.state = sbsDragNormal
-        ui.widgetMouseDrag = true
-      else:
-        let s = sgn(endVal - startVal).float
-        if ui.mx < thumbX:
-          sb.clickDir = -1 * s
-        else:
-          sb.clickDir = 1 * s
-        sb.state = sbsTrackClickFirst
-        ui.t0 = core.currentTime()
-    of sbsDragNormal:
-      if shiftDown():
-        disableCursor()
-        sb.state = sbsDragHidden
-      else:
-        let dx = ui.dx - ui.x0
-
-        newThumbX = clamp(thumbX + dx, thumbMinX, thumbMaxX)
-        newValue = calcNewValue(newThumbX)
-
-        ui.x0 = clamp(ui.dx, thumbMinX, thumbMaxX + thumbW)
-    of sbsDragHidden:
-      if shiftDown():
-        let d =
-          if altDown(): ScrollBarUltraFineDragDivisor else: ScrollBarFineDragDivisor
-        let dx = (ui.dx - ui.x0) / d
-
-        newThumbX = clamp(thumbX + dx, thumbMinX, thumbMaxX)
-        newValue = calcNewValue(newThumbX)
-
-        ui.x0 = ui.dx
-        ui.dragX = newThumbX + thumbW * 0.5
-        ui.dragY = -1.0
-      else:
-        sb.state = sbsDragNormal
-        showCursor()
-        cursorPosX(ui.dragX)
-        ui.dx = ui.dragX
-        ui.x0 = ui.dragX
-    of sbsTrackClickFirst:
-      newValue = calcNewValueTrackClick(newValue)
-      newThumbX = calcThumbX(newValue)
-
-      sb.state = sbsTrackClickDelay
-      ui.t0 = core.currentTime()
-      requestFrames()
-    of sbsTrackClickDelay:
-      if core.currentTime() - ui.t0 > ScrollBarTrackClickRepeatDelay:
-        sb.state = sbsTrackClickRepeat
-      requestFrames()
-    of sbsTrackClickRepeat:
-      if isHot(id):
-        if core.currentTime() - ui.t0 > ScrollBarTrackClickRepeatTimeout:
-          newValue = calcNewValueTrackClick(newValue)
-          newThumbX = calcThumbX(newValue)
-
-          if sb.clickDir * sgn(endVal - startVal).float > 0:
-            if newThumbX + thumbW > ui.mx:
-              newThumbX = thumbX
-              newValue = value
-          else:
-            if newThumbX < ui.mx:
-              newThumbX = thumbX
-              newValue = value
-
-          ui.t0 = core.currentTime()
-      else:
-        ui.t0 = core.currentTime()
-      requestFrames()
+  let next = updateScrollBarInteraction(
+    sbaHorizontal, id, startVal, endVal, value, clickStep, thumbX, thumbW, thumbMinX,
+    thumbMaxX, insideThumb,
+  )
+  newValue = next.value
+  newThumbX = next.thumbPos
 
   value_out = newValue
 
@@ -276,7 +334,6 @@ proc vertScrollBarWithSlot*(
     allowFocusCaptured: bool = false,
 ) =
   alias(ui, g_uiState)
-  alias(sb, ui.scrollBarState)
   alias(s, style)
 
   var value = value_out.clampToRange(startVal, endVal)
@@ -316,92 +373,12 @@ proc vertScrollBarWithSlot*(
     newThumbY = thumbY
     newValue = value
 
-  func calcNewValue(newThumbY: float): float =
-    scrollBarValueFromThumb(newThumbY, thumbMinY, thumbMaxY, startVal, endVal)
-
-  proc calcNewValueTrackClick(): float =
-    scrollBarTrackClickValue(newValue, startVal, endVal, sb.clickDir, clickStep)
-
-  if isActive(id):
-    case sb.state
-    of sbsDefault:
-      if insideThumb:
-        ui.y0 = ui.my
-        if shiftDown():
-          disableCursor()
-          sb.state = sbsDragHidden
-        else:
-          sb.state = sbsDragNormal
-        ui.widgetMouseDrag = true
-      else:
-        let s = sgn(endVal - startVal).float
-        if ui.my < thumbY:
-          sb.clickDir = -1 * s
-        else:
-          sb.clickDir = 1 * s
-        sb.state = sbsTrackClickFirst
-        ui.t0 = core.currentTime()
-    of sbsDragNormal:
-      if shiftDown():
-        disableCursor()
-        sb.state = sbsDragHidden
-      else:
-        let dy = ui.dy - ui.y0
-
-        newThumbY = clamp(thumbY + dy, thumbMinY, thumbMaxY)
-        newValue = calcNewValue(newThumbY)
-
-        ui.y0 = clamp(ui.dy, thumbMinY, thumbMaxY + thumbH)
-    of sbsDragHidden:
-      markHot(id)
-
-      if shiftDown():
-        let d =
-          if altDown(): ScrollBarUltraFineDragDivisor else: ScrollBarFineDragDivisor
-        let dy = (ui.dy - ui.y0) / d
-
-        newThumbY = clamp(thumbY + dy, thumbMinY, thumbMaxY)
-        newValue = calcNewValue(newThumbY)
-
-        ui.y0 = ui.dy
-        ui.dragX = -1.0
-        ui.dragY = newThumbY + thumbH * 0.5
-      else:
-        sb.state = sbsDragNormal
-        showCursor()
-        cursorPosY(ui.dragY)
-        ui.dy = ui.dragY
-        ui.y0 = ui.dragY
-    of sbsTrackClickFirst:
-      newValue = calcNewValueTrackClick()
-      newThumbY = calcThumbY(newValue)
-
-      sb.state = sbsTrackClickDelay
-      ui.t0 = core.currentTime()
-      requestFrames()
-    of sbsTrackClickDelay:
-      if core.currentTime() - ui.t0 > ScrollBarTrackClickRepeatDelay:
-        sb.state = sbsTrackClickRepeat
-      requestFrames()
-    of sbsTrackClickRepeat:
-      if isHot(id):
-        if core.currentTime() - ui.t0 > ScrollBarTrackClickRepeatTimeout:
-          newValue = calcNewValueTrackClick()
-          newThumbY = calcThumbY(newValue)
-
-          if sb.clickDir * sgn(endVal - startVal).float > 0:
-            if newThumbY + thumbH > ui.my:
-              newThumbY = thumbY
-              newValue = value
-          else:
-            if newThumbY < ui.my:
-              newThumbY = thumbY
-              newValue = value
-
-          ui.t0 = core.currentTime()
-      else:
-        ui.t0 = core.currentTime()
-      requestFrames()
+  let next = updateScrollBarInteraction(
+    sbaVertical, id, startVal, endVal, value, clickStep, thumbY, thumbH, thumbMinY,
+    thumbMaxY, insideThumb,
+  )
+  newValue = next.value
+  newThumbY = next.thumbPos
 
   value_out = newValue
 

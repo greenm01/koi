@@ -135,7 +135,7 @@ proc runHeadlessTest(name: string) =
 
 # Windowed integration tests run against a real (hidden) WebGPU window/context,
 # so they use the wgpu flags and need a GPU/display.
-const WindowTests = ["textinput", "textarea", "slider", "renderer"]
+const WindowTests = ["textinput", "textarea", "slider", "scrollbar", "renderer"]
 
 proc runWindowTest(name: string) =
   nimRun(
@@ -180,6 +180,9 @@ task testWindowTextArea, "run windowed text area tests (wgpu)":
 
 task testWindowSlider, "run windowed slider cursor-capture tests (wgpu)":
   runWindowTest("slider")
+
+task testWindowScrollbar, "run windowed scrollbar cursor-capture tests (wgpu)":
+  runWindowTest("scrollbar")
 
 task testWindowRenderer, "run windowed WebGPU renderer readback tests":
   runWindowTest("renderer")

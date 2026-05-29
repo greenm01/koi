@@ -12,10 +12,8 @@ to the deferred candidates that still look useful.
 
 ## Widgets And Input
 
-- Extract deeper slider and scrollbar drag-state logic now that focused tests
-  cover drag, hidden cursor behavior, and track-repeat behavior.
-- Unify horizontal and vertical scrollbar implementations around one orientation
-  helper after the pure math tests settle.
+- Extract deeper slider drag-state logic after focused tests cover drag and
+  hidden cursor behavior.
 - Normalize disabled state and custom draw hooks across remaining widgets.
 
 ## Text And Editing

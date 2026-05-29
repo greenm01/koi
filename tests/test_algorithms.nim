@@ -133,6 +133,58 @@ suite "scrollbar algorithms":
     checkClose(scrollBarTrackClickValue(5, 0, 100, -1, 10), 0)
     checkClose(scrollBarTrackClickValue(5, 100, 0, -1, 10), 0)
 
+  test "track click direction follows value direction":
+    checkClose(scrollBarTrackClickDir(0, 100, 20, 30), -1)
+    checkClose(scrollBarTrackClickDir(0, 100, 40, 30), 1)
+    checkClose(scrollBarTrackClickDir(100, 0, 20, 30), 1)
+    checkClose(scrollBarTrackClickDir(100, 0, 40, 30), -1)
+
+  test "repeat track click stops when the thumb crosses the cursor":
+    let moveForward = scrollBarRepeatTrackClick(
+      value = 20,
+      startVal = 0,
+      endVal = 100,
+      clickDir = 1,
+      clickStep = 10,
+      thumbPos = 20,
+      thumbLength = 10,
+      thumbMin = 0,
+      thumbMax = 100,
+      cursorPos = 80,
+    )
+    checkClose(moveForward.value, 30)
+    checkClose(moveForward.thumbPos, 30)
+
+    let stopForward = scrollBarRepeatTrackClick(
+      value = 50,
+      startVal = 0,
+      endVal = 100,
+      clickDir = 1,
+      clickStep = 10,
+      thumbPos = 50,
+      thumbLength = 20,
+      thumbMin = 0,
+      thumbMax = 100,
+      cursorPos = 62,
+    )
+    checkClose(stopForward.value, 50)
+    checkClose(stopForward.thumbPos, 50)
+
+    let stopBackward = scrollBarRepeatTrackClick(
+      value = 50,
+      startVal = 0,
+      endVal = 100,
+      clickDir = -1,
+      clickStep = 10,
+      thumbPos = 50,
+      thumbLength = 20,
+      thumbMin = 0,
+      thumbMax = 100,
+      cursorPos = 48,
+    )
+    checkClose(stopBackward.value, 50)
+    checkClose(stopBackward.thumbPos, 50)
+
 suite "text editing algorithms":
   test "text input filters keep only allowed characters":
     check filterTextInput("a-12.5eX", tffAny) == "a-12.5eX"
