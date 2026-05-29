@@ -165,6 +165,7 @@ type
     capturedPixels: seq[uint8]
     capturedWidth: uint32
     capturedHeight: uint32
+    lastSubmittedDrawCalls: int
     vertexBuffer: Buffer
     vertexBytes: uint64
     width: float32
@@ -266,6 +267,28 @@ proc textureId(paint: ptr nvg.Paint): int =
   else:
     int(paint.image)
 
+func sameDrawState(a, b: DrawCall): bool =
+  a.textureId == b.textureId and a.blend == b.blend and a.scissor == b.scissor
+
+proc appendDrawCall(
+    b: var KoiWgpuBackend,
+    first, count: uint32,
+    textureId: int,
+    blend: WebGpuBlend,
+    scissor: WebGpuScissor,
+) =
+  let call = DrawCall(
+    first: first, count: count, textureId: textureId, blend: blend, scissor: scissor
+  )
+  if b.drawCalls.len > 0:
+    let last = b.drawCalls.high
+    if b.drawCalls[last].first + b.drawCalls[last].count == first and
+        sameDrawState(b.drawCalls[last], call):
+      b.drawCalls[last].count += count
+      return
+
+  b.drawCalls.add call
+
 func drawScissor(b: KoiWgpuBackend, scissor: ptr NvgScissor): WebGpuScissor =
   if scissor.isNil:
     return WebGpuScissor(active: false)
@@ -336,13 +359,7 @@ proc appendTriangleList(
 
   let added = b.vertices.len.uint32 - first
   if added > 0:
-    b.drawCalls.add DrawCall(
-      first: first,
-      count: added,
-      textureId: textureId(paint),
-      blend: blend,
-      scissor: scissor,
-    )
+    b.appendDrawCall(first, added, textureId(paint), blend, scissor)
 
 proc appendFan(
     b: var KoiWgpuBackend,
@@ -367,13 +384,7 @@ proc appendFan(
 
   let added = b.vertices.len.uint32 - first
   if added > 0:
-    b.drawCalls.add DrawCall(
-      first: first,
-      count: added,
-      textureId: textureId(paint),
-      blend: blend,
-      scissor: scissor,
-    )
+    b.appendDrawCall(first, added, textureId(paint), blend, scissor)
 
 proc appendStrip(
     b: var KoiWgpuBackend,
@@ -398,13 +409,7 @@ proc appendStrip(
 
   let added = b.vertices.len.uint32 - first
   if added > 0:
-    b.drawCalls.add DrawCall(
-      first: first,
-      count: added,
-      textureId: textureId(paint),
-      blend: blend,
-      scissor: scissor,
-    )
+    b.appendDrawCall(first, added, textureId(paint), blend, scissor)
 
 proc createTexture(
     b: var KoiWgpuBackend, width, height: int, alphaOnly: bool, data: ptr uint8
@@ -897,11 +902,13 @@ proc renderFlush(userPtr: pointer) {.cdecl.} =
   let b = backend(userPtr)
   if b.vertices.len == 0:
     b.capturePending = false
+    b.lastSubmittedDrawCalls = 0
     return
 
   let byteLen = (b.vertices.len * sizeof(GpuVertex)).uint64
   b[].ensureVertexBuffer(byteLen)
   b.queue.write(b.vertexBuffer, 0'u64, b.vertices[0].addr, byteLen.csize_t)
+  b.lastSubmittedDrawCalls = b.drawCalls.len
 
   if b.capturePending:
     b[].renderCaptureFrame(byteLen)
@@ -928,69 +935,7 @@ proc renderDelete(userPtr: pointer) {.cdecl.} =
     dealloc(b.params)
     b.params = nil
 
-const shaderCode =
-  """
-struct VertexIn {
-  @location(0) pos: vec2<f32>,
-  @location(1) uv: vec2<f32>,
-  @location(2) maskUv: vec2<f32>,
-  @location(3) color: vec4<f32>,
-  @location(4) mode: f32,
-  @location(5) aaMult: f32,
-};
-
-struct VertexOut {
-  @builtin(position) pos: vec4<f32>,
-  @location(0) uv: vec2<f32>,
-  @location(1) maskUv: vec2<f32>,
-  @location(2) color: vec4<f32>,
-  @location(3) mode: f32,
-  @location(4) aaMult: f32,
-};
-
-@group(0) @binding(0) var image: texture_2d<f32>;
-@group(0) @binding(1) var imageSampler: sampler;
-
-@vertex
-fn vs_main(input: VertexIn) -> VertexOut {
-  var out: VertexOut;
-  out.pos = vec4<f32>(input.pos, 0.0, 1.0);
-  out.uv = input.uv;
-  out.maskUv = input.maskUv;
-  out.color = input.color;
-  out.mode = input.mode;
-  out.aaMult = input.aaMult;
-  return out;
-}
-
-fn edge_alpha(uv: vec2<f32>, aaMult: f32) -> f32 {
-  if aaMult <= 0.0 {
-    return 1.0;
-  }
-
-  let x = min(1.0, (1.0 - abs(uv.x * 2.0 - 1.0)) * aaMult);
-  let y = min(1.0, uv.y);
-  return x * y;
-}
-
-@fragment
-fn fs_main(input: VertexOut) -> @location(0) vec4<f32> {
-  let edgeAlpha = edge_alpha(input.maskUv, input.aaMult);
-  if input.mode < 0.5 {
-    let alpha = input.color.a * edgeAlpha;
-    return vec4<f32>(input.color.rgb * alpha, alpha);
-  }
-
-  let sample = textureSample(image, imageSampler, input.uv);
-  if input.mode < 1.5 {
-    let alpha = input.color.a * sample.a * edgeAlpha;
-    return vec4<f32>(input.color.rgb * sample.rgb * alpha, alpha);
-  }
-
-  let alpha = input.color.a * sample.r * edgeAlpha;
-  return vec4<f32>(input.color.rgb * alpha, alpha);
-}
-"""
+const shaderCode = staticRead("shaders/nanovg.wgsl")
 
 func blendState(blend: WebGpuBlend): BlendState =
   BlendState(
@@ -1291,6 +1236,9 @@ proc capturedFramePixels*(b: KoiWgpuBackend): seq[uint8] =
 
 proc capturedFrameSize*(b: KoiWgpuBackend): tuple[width, height: uint32] =
   (b.capturedWidth, b.capturedHeight)
+
+proc lastSubmittedDrawCallCount*(b: KoiWgpuBackend): int =
+  b.lastSubmittedDrawCalls
 
 proc createNanoVgContext*(
     b: var KoiWgpuBackend, flags: set[nvg.NVGInitFlag] = {}

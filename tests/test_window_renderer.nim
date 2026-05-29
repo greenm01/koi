@@ -94,3 +94,12 @@ suite "wgpu renderer readback":
     check sampled.g in 95'u8 .. 160'u8
     check sampled.b < 30
     check sampled.a > 240
+
+  test "adjacent matching state coalesces into one draw call":
+    let pixels = capturePixels(64, 64):
+      drawRect(8, 8, 16, 16, rgba(255, 0, 0, 255))
+      drawRect(32, 32, 16, 16, rgba(255, 0, 0, 255))
+
+    check gBackend.lastSubmittedDrawCallCount() == 1
+    check pixels.pixelAt(64, 16, 16).r > 220
+    check pixels.pixelAt(64, 40, 40).r > 220

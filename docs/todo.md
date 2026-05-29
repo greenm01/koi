@@ -7,10 +7,6 @@ to the deferred candidates that still look useful.
 
 - Wire the native Wayland window path into the default wgpu surface creation
   path, beyond the current ABI and smoke examples.
-- Move inline wgpu shader source out of Nim modules and into dedicated shader
-  files once the backend API has settled.
-- Coalesce adjacent wgpu draw calls with the same texture and blend state after
-  image-based coverage exists.
 - Complete broader Wayland input support, especially keyboard/xkb mapping,
   modifiers, repeat, cursor shape, output scale, and robust close/resize flow.
 
