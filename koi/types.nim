@@ -317,7 +317,7 @@ type
     lineCount*: int
 
   MeasureTextProc* = proc(
-    text: string, fontSize: float, fontId: int, maxWidth: float
+    text: string, fontSize: float, fontFace: string, maxWidth: float
   ): TextMeasure {.closure.}
 
   LayoutNode* = object
@@ -341,7 +341,7 @@ type
     contentSize*: Size
     text*: string
     fontSize*: float
-    fontId*: int
+    fontFace*: string
 
   LayoutArena* = object
     nodes*: seq[LayoutNode]

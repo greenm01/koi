@@ -18,7 +18,7 @@ proc label*(
   alias(ui, g_uiState)
 
   let (x, y) = addDrawOffset(x, y)
-  let slot = layoutSlot(id, rect(x, y, w, h))
+  let slot = textLayoutSlot(id, rect(x, y, w, h), labelText, style)
 
   addLayoutDrawLayer(ui.currentLayer, slot.nodeId, vg, bounds):
     vg.drawLabel(bounds.x, bounds.y, bounds.w, bounds.h, labelText, state, style)

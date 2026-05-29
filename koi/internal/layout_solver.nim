@@ -173,7 +173,7 @@ func layoutNode*(
     itemId: ItemId = 0,
     text: string = "",
     fontSize: float = 0,
-    fontId: int = 0,
+    fontFace: string = "",
 ): LayoutNode =
   LayoutNode(
     id: NullLayoutNodeId,
@@ -190,7 +190,7 @@ func layoutNode*(
     alignCross: alignCross,
     text: text,
     fontSize: fontSize,
-    fontId: fontId,
+    fontFace: fontFace,
   )
 
 func resolvedOwnSize(node: LayoutNode, horizontal: bool, parentInner: float): float =
@@ -214,7 +214,7 @@ proc measureNode(arena: var LayoutArena, id: LayoutNodeId) =
   var prefSize = node.intrinsicPref
 
   if node.kind == lnkText and arena.measureText != nil:
-    let m = arena.measureText(node.text, node.fontSize, node.fontId, LayoutInfinity)
+    let m = arena.measureText(node.text, node.fontSize, node.fontFace, LayoutInfinity)
     minSize = size(m.minWidth, m.lineHeight * max(1, m.lineCount).float)
     prefSize = size(m.prefWidth, m.lineHeight * max(1, m.lineCount).float)
 
@@ -286,6 +286,8 @@ func resolvedChildSizes(
     return
 
   var growIndices: seq[int]
+  var shrinkIndices: seq[int]
+  var shrinkFloors = newSeq[float](int(parent.childCount))
   var used = 0.0
   var pos = 0
   for childId in arena.children(parent):
@@ -309,10 +311,16 @@ func resolvedChildSizes(
         of lskPercent:
           clamp(inner * spec.percent, spec.min, spec.max)
         of lskFit:
-          clampSize(child.intrinsicPref.axis(horizontal), spec)
+          let preferred = clampSize(child.intrinsicPref.axis(horizontal), spec)
+          if child.placement.kind == lpkFlow:
+            shrinkIndices.add(pos)
+            shrinkFloors[pos] = max(spec.min, child.intrinsicMin.axis(horizontal))
+          preferred
         of lskGrow:
           if child.placement.kind == lpkFlow:
             growIndices.add(pos)
+            shrinkIndices.add(pos)
+            shrinkFloors[pos] = spec.min
           max(spec.min, child.intrinsicMin.axis(horizontal))
     result[pos] = value
     if horizontal != parent.mainIsHorizontal or child.placement.kind == lpkFlow:
@@ -331,30 +339,107 @@ func resolvedChildSizes(
           arena.nodes[childId.toIndex].height
       result[index] = clampSize(result[index] + share, spec)
 
-proc resolveSizes(arena: var LayoutArena, id: LayoutNodeId) =
+  if horizontal == parent.mainIsHorizontal and used > inner and shrinkIndices.len > 0:
+    var overflow = used - inner
+    var candidates = shrinkIndices
+    while overflow > 0.0001 and candidates.len > 0:
+      let share = overflow / candidates.len.float
+      var nextCandidates: seq[int]
+      var remainingOverflow = 0.0
+      for index in candidates:
+        let floor = shrinkFloors[index]
+        let shrinkBy = min(share, max(0.0, result[index] - floor))
+        result[index] -= shrinkBy
+        remainingOverflow += share - shrinkBy
+        if result[index] > floor + 0.0001:
+          nextCandidates.add(index)
+      overflow = remainingOverflow
+      candidates = nextCandidates
+
+proc resolveAxis(arena: var LayoutArena, id: LayoutNodeId, horizontal: bool) =
   let i = id.toIndex
   var node = arena.nodes[i]
   if node.parent.isNull:
-    node.rect.w = node.resolvedOwnSize(true, node.rect.w)
-    node.rect.h = node.resolvedOwnSize(false, node.rect.h)
-    arena.nodes[i] = node
-  elif node.rect.w <= 0 or node.rect.h <= 0:
-    if node.rect.w <= 0:
-      node.rect.w = node.resolvedOwnSize(true, node.rect.w)
-    if node.rect.h <= 0:
-      node.rect.h = node.resolvedOwnSize(false, node.rect.h)
+    node.rect.setAxis(
+      horizontal, node.resolvedOwnSize(horizontal, node.rect.axis(horizontal))
+    )
     arena.nodes[i] = node
 
   node = arena.nodes[i]
-  let widths = arena.resolvedChildSizes(node, true)
-  let heights = arena.resolvedChildSizes(node, false)
+  let sizes = arena.resolvedChildSizes(node, horizontal)
 
   for childOffset in 0 ..< int(node.childCount):
     let childId = arena.childIndices[int(node.firstChild) + childOffset]
     let childIndex = childId.toIndex
-    arena.nodes[childIndex].rect.w = widths[childOffset]
-    arena.nodes[childIndex].rect.h = heights[childOffset]
-    arena.resolveSizes(childId)
+    arena.nodes[childIndex].rect.setAxis(horizontal, sizes[childOffset])
+    arena.resolveAxis(childId, horizontal)
+
+proc wrapTextNodes(arena: var LayoutArena, id: LayoutNodeId) =
+  let i = id.toIndex
+  var node = arena.nodes[i]
+
+  if node.kind == lnkText and arena.measureText != nil:
+    let width = max(0.0, node.rect.w)
+    let m = arena.measureText(node.text, node.fontSize, node.fontFace, width)
+    let wrappedHeight = m.lineHeight * max(1, m.lineCount).float
+    node.intrinsicMin.h = wrappedHeight
+    node.intrinsicPref.h = wrappedHeight
+    if node.height.kind == lskFit:
+      node.rect.h = clampSize(wrappedHeight, node.height)
+    arena.nodes[i] = node
+
+  for childId in arena.children(arena.nodes[i]):
+    arena.wrapTextNodes(childId)
+
+proc refreshFitIntrinsic(arena: var LayoutArena, id: LayoutNodeId) =
+  let i = id.toIndex
+  for childId in arena.children(arena.nodes[i]):
+    arena.refreshFitIntrinsic(childId)
+
+  var node = arena.nodes[i]
+  if node.kind != lnkText and node.childCount > 0:
+    let mainHorizontal = node.mainIsHorizontal
+    var minMain = 0.0
+    var prefMain = 0.0
+    var minCross = 0.0
+    var prefCross = 0.0
+
+    for childId in arena.children(node):
+      let child = arena.nodes[childId.toIndex]
+      minMain += child.intrinsicMin.axis(mainHorizontal)
+      prefMain += child.intrinsicPref.axis(mainHorizontal)
+      minCross = max(minCross, child.intrinsicMin.axis(not mainHorizontal))
+      prefCross = max(prefCross, child.intrinsicPref.axis(not mainHorizontal))
+
+    let gap = node.childGap * max(0, int(node.childCount) - 1).float
+    var minSize = node.intrinsicMin
+    var prefSize = node.intrinsicPref
+
+    minSize.setAxis(mainHorizontal, minMain + gap + node.paddingMain)
+    prefSize.setAxis(mainHorizontal, prefMain + gap + node.paddingMain)
+    minSize.setAxis(not mainHorizontal, minCross + node.paddingCross)
+    prefSize.setAxis(not mainHorizontal, prefCross + node.paddingCross)
+
+    for horizontal in [true, false]:
+      let spec = if horizontal: node.width else: node.height
+      case spec.kind
+      of lskFixed:
+        minSize.setAxis(horizontal, max(0.0, spec.value))
+        prefSize.setAxis(horizontal, max(0.0, spec.value))
+      of lskPercent:
+        minSize.setAxis(horizontal, spec.min)
+        prefSize.setAxis(horizontal, max(spec.min, prefSize.axis(horizontal)))
+      of lskFit, lskGrow:
+        minSize.setAxis(horizontal, max(minSize.axis(horizontal), spec.min))
+        prefSize.setAxis(
+          horizontal, clamp(prefSize.axis(horizontal), spec.min, spec.max)
+        )
+
+    node.intrinsicMin = minSize
+    node.intrinsicPref = prefSize
+    if node.height.kind == lskFit:
+      node.rect.h = clampSize(node.intrinsicPref.h, node.height)
+    arena.nodes[i] = node
 
 proc placeChildren(arena: var LayoutArena, id: LayoutNodeId) =
   var parent = arena.nodes[id.toIndex]
@@ -455,7 +540,10 @@ proc solveLayout*(arena: var LayoutArena, root: LayoutNodeId = LayoutNodeId(0'i3
     return
 
   arena.measureNode(root)
-  arena.resolveSizes(root)
+  arena.resolveAxis(root, horizontal = true)
+  arena.wrapTextNodes(root)
+  arena.refreshFitIntrinsic(root)
+  arena.resolveAxis(root, horizontal = false)
   arena.placeChildren(root)
 
 proc solveLayout*(

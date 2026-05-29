@@ -13,6 +13,7 @@ import koi/types
 import koi/widgets/button
 import koi/widgets/colorpicker
 import koi/widgets/groupbox
+import koi/widgets/label
 import koi/widgets/menu
 import koi/widgets/popup
 import koi/widgets/progress
@@ -189,6 +190,16 @@ suite "image widget behavior":
     check buttonImageLabel(50, 0, 0, 30, 20, paint, "Image")
 
 suite "layout-integrated widget behavior":
+  test "label registers a text node and queues solved-rect drawing":
+    resetUi()
+
+    label(23, 0, 0, 40, 12, "Text")
+
+    check g_uiState.layoutArena.nodes.len == 1
+    check g_uiState.layoutArena.nodes[0].kind == lnkText
+    check g_uiState.layoutArena.nodes[0].text == "Text"
+    check g_drawLayers.layers[ord(layerDefault)].len == 1
+
   test "button hit testing uses a previous solved rect when present":
     resetUi()
     g_uiState.layoutRects[20] = rect(40, 40, 20, 20)

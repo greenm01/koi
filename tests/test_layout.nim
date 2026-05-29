@@ -247,6 +247,18 @@ suite "layout frame integration":
 
     checkRect(g_uiState.layoutRects[12], rect(13, 5, 100, 21))
 
+  test "frame layout installs default text measurement":
+    resetLayout()
+    beginFrameLayout()
+
+    check g_uiState.layoutArena.measureText != nil
+    let m =
+      g_uiState.layoutArena.measureText("wide word", 10, "sans-bold", LayoutInfinity)
+    checkClose(m.minWidth, 20)
+    checkClose(m.prefWidth, 45)
+    checkClose(m.lineHeight, 14)
+    check m.lineCount == 1
+
 suite "unified layout solver":
   test "horizontal flow distributes remaining space to grow children":
     var arena: LayoutArena
@@ -343,6 +355,86 @@ suite "unified layout solver":
 
     checkRect(arena.layoutRect(centered), rect(40, 60, 40, 20))
     checkRect(arena.layoutRect(manualChild), rect(7, 9, 10, 10))
+
+  test "fixed-width text wraps and updates a fit-height parent":
+    proc measureText(
+        text: string, fontSize: float, fontFace: string, maxWidth: float
+    ): TextMeasure =
+      let lineCount =
+        if maxWidth >= LayoutInfinity * 0.5:
+          1
+        else:
+          max(1, ceil(100.0 / maxWidth).int)
+      TextMeasure(minWidth: 20, prefWidth: 100, lineHeight: 10, lineCount: lineCount)
+
+    var arena: LayoutArena
+    arena.initLayoutArena(measureText)
+
+    let root = arena.beginLayoutNode(layoutNode(width = fixed(50), height = fit()))
+    let text = arena.addLayoutNode(
+      layoutNode(kind = lnkText, width = grow(), height = fit(), text = "wrapped")
+    )
+    discard arena.endLayoutNode()
+
+    arena.solveLayout(rect(0, 0, 50, 0), root)
+
+    checkRect(arena.layoutRect(root), rect(0, 0, 50, 20))
+    checkRect(arena.layoutRect(text), rect(0, 0, 50, 20))
+    checkClose(arena.nodes[root.int].contentSize.h, 20)
+
+  test "fit-height bubbles through nested containers":
+    proc measureText(
+        text: string, fontSize: float, fontFace: string, maxWidth: float
+    ): TextMeasure =
+      TextMeasure(
+        minWidth: 10,
+        prefWidth: 60,
+        lineHeight: 8,
+        lineCount: if maxWidth >= 30: 2 else: 3,
+      )
+
+    var arena: LayoutArena
+    arena.initLayoutArena(measureText)
+
+    let root = arena.beginLayoutNode(layoutNode(width = fixed(30), height = fit()))
+    let group = arena.beginLayoutNode(layoutNode(width = grow(), height = fit()))
+    let text = arena.addLayoutNode(
+      layoutNode(kind = lnkText, width = grow(), height = fit(), text = "nested")
+    )
+    discard arena.endLayoutNode()
+    discard arena.endLayoutNode()
+
+    arena.solveLayout(rect(0, 0, 30, 0), root)
+
+    checkRect(arena.layoutRect(root), rect(0, 0, 30, 16))
+    checkRect(arena.layoutRect(group), rect(0, 0, 30, 16))
+    checkRect(arena.layoutRect(text), rect(0, 0, 30, 16))
+
+  test "overflow shrinks fit and grow children toward minimums":
+    var arena: LayoutArena
+    arena.initLayoutArena()
+
+    let root = arena.beginLayoutNode(
+      layoutNode(width = fixed(100), height = fixed(20), direction = ldLeftToRight)
+    )
+    let exact = arena.addLayoutNode(layoutNode(width = fixed(70), height = fixed(20)))
+
+    var fitChild = layoutNode(width = fit(min = 20), height = fixed(20))
+    fitChild.intrinsicMin = size(20, 20)
+    fitChild.intrinsicPref = size(60, 20)
+    let fitted = arena.addLayoutNode(fitChild)
+
+    var growChild = layoutNode(width = grow(min = 10), height = fixed(20))
+    growChild.intrinsicMin = size(40, 20)
+    growChild.intrinsicPref = size(40, 20)
+    let grown = arena.addLayoutNode(growChild)
+    discard arena.endLayoutNode()
+
+    arena.solveLayout(rect(0, 0, 100, 20), root)
+
+    checkRect(arena.layoutRect(exact), rect(0, 0, 70, 20))
+    checkRect(arena.layoutRect(fitted), rect(70, 0, 20, 20))
+    checkRect(arena.layoutRect(grown), rect(90, 0, 10, 20))
 
 suite "NEP1 naming aliases":
   test "style aliases and compatibility wrappers refer to the same defaults":

@@ -203,7 +203,7 @@ The layout arena holds a `measureText` callback provided at init:
 type MeasureTextProc* = proc(
   text: string,
   fontSize: float,
-  fontId: int,
+  fontFace: string,
   maxWidth: float,
 ): TextMeasure {.closure.}
 
@@ -218,7 +218,9 @@ The callback bridges the solver and the font atlas. It is called during the
 intrinsic-size pass (step 2) with `maxWidth = Inf` for preferred width and during
 the text-wrap pass (step 4) with the solved container width. The implementation
 wires to the existing `textBreakLines` (`koi/drawing.nim`) and NanoVG
-`textWidth`. The solver must not call into the renderer directly.
+`textWidth`. Headless tests use the same callback with a deterministic fallback
+when no NanoVG context is active. The solver must not call into the renderer
+directly.
 
 ## Scroll State
 
