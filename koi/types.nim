@@ -462,6 +462,9 @@ type
     rowSlotOwned*: bool
     savedActiveSlotParent*: LayoutNodeId
     savedActiveSlotUsed*: bool
+    savedHitClip*: Rect
+    savedFocusCaptured*: bool
+    capturePointer*: bool
 
 type
   DrawOffset* = object

@@ -1074,6 +1074,61 @@ suite "unified layout solver":
     checkRect(g_uiState.layoutRects[213], rect(43, 39, 10, 6))
     check g_uiState.layoutArena.nodes[container.nodeId.int].placement.kind == lpkAttach
 
+  test "attached parent and root containers are convenience wrappers":
+    resetLayout()
+
+    beginFrameLayout()
+    let parentContainer = beginLayoutAttachParentContainerSlotAt(
+      221, rect(0, 0, 20, 10), rect(0, 0, 20, 10), lapCenter, lapCenter
+    )
+    endLayoutContainerSlot()
+    let rootContainer = beginLayoutAttachRootContainerSlotAt(
+      222,
+      rect(0, 0, 10, 10),
+      rect(0, 0, 10, 10),
+      lapBottomRight,
+      lapBottomRight,
+      windowPad = 5,
+      clipToRoot = true,
+    )
+    endLayoutContainerSlot()
+    finishFrameLayout()
+
+    check g_uiState.layoutArena.nodes[parentContainer.nodeId.int].placement.attach.targetKind ==
+      latParent
+    check g_uiState.layoutArena.nodes[rootContainer.nodeId.int].placement.attach.targetKind ==
+      latRoot
+    checkRect(g_uiState.layoutRects[221], rect(490, 495, 20, 10))
+    checkRect(g_uiState.layoutRects[222], rect(985, 985, 10, 10))
+
+  test "attached capture pointer containers temporarily scope hit testing":
+    resetLayout()
+    resetHitClip()
+    g_uiState.layoutRects[231] = rect(20, 20, 30, 20)
+    g_uiState.focusCaptured = true
+    g_uiState.mx = 25
+    g_uiState.my = 25
+
+    beginFrameLayout()
+    discard beginLayoutAttachRootContainerSlotAt(
+      231,
+      rect(20, 20, 30, 20),
+      rect(20, 20, 30, 20),
+      lapTopLeft,
+      lapTopLeft,
+      capturePointer = true,
+    )
+
+    check not g_uiState.focusCaptured
+    check isHit(20, 20, 30, 20)
+    check not isHit(0, 0, 10, 10)
+
+    endLayoutContainerSlot()
+    finishFrameLayout()
+
+    check g_uiState.focusCaptured
+    checkRect(g_uiState.hitClipRect, rect(0, 0, 1000, 1000))
+
   test "draw layers render lower z-index entries first while preserving insertion order":
     g_drawLayers.init()
     var order: seq[int]

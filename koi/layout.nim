@@ -8,6 +8,7 @@ import std/unicode
 import nanovg
 import koi/core
 import koi/drawing
+import koi/input
 import koi/internal/layout_solver
 import koi/rect
 import koi/types
@@ -491,10 +492,17 @@ proc beginLayoutAttachContainerSlotAt*(
       nodeId: nodeId,
       savedActiveSlotParent: a.activeSlotParent,
       savedActiveSlotUsed: a.activeSlotUsed,
+      savedHitClip: ui.hitClipRect,
+      savedFocusCaptured: ui.focusCaptured,
+      capturePointer: placement.attach.capturePointer,
     )
   )
   a.activeSlotParent = NullLayoutNodeId
   a.activeSlotUsed = false
+  if placement.attach.capturePointer:
+    let hitBounds = previousLayoutRect(id, fallback)
+    ui.focusCaptured = false
+    hitClip(hitBounds.x, hitBounds.y, hitBounds.w, hitBounds.h)
 
   result = LayoutSlot(
     itemId: id,
@@ -526,6 +534,48 @@ proc beginLayoutAttachContainerSlotAt*(
     scrollOffset,
   )
 
+proc beginLayoutAttachParentContainerSlotAt*(
+    id: ItemId,
+    fallback, frameBounds: Rect,
+    targetPoint, selfPoint: LayoutAttachPoint,
+    offset: Size = size(0, 0),
+    windowPad: float = 0.0,
+    clipToRoot: bool = false,
+    zIndex: int = 0,
+    capturePointer: bool = false,
+    scrollOffset: Size = size(0, 0),
+): LayoutSlot =
+  beginLayoutAttachContainerSlotAt(
+    id,
+    fallback,
+    frameBounds,
+    attachParent(
+      targetPoint, selfPoint, offset, windowPad, clipToRoot, zIndex, capturePointer
+    ),
+    scrollOffset,
+  )
+
+proc beginLayoutAttachRootContainerSlotAt*(
+    id: ItemId,
+    fallback, frameBounds: Rect,
+    targetPoint, selfPoint: LayoutAttachPoint,
+    offset: Size = size(0, 0),
+    windowPad: float = 0.0,
+    clipToRoot: bool = false,
+    zIndex: int = 0,
+    capturePointer: bool = false,
+    scrollOffset: Size = size(0, 0),
+): LayoutSlot =
+  beginLayoutAttachContainerSlotAt(
+    id,
+    fallback,
+    frameBounds,
+    attachRoot(
+      targetPoint, selfPoint, offset, windowPad, clipToRoot, zIndex, capturePointer
+    ),
+    scrollOffset,
+  )
+
 proc endLayoutContainerSlot*() =
   alias(ui, g_uiState)
   if ui.layoutStack.len == 0 or ui.layoutStack[^1].mode != lpmViewport:
@@ -536,6 +586,9 @@ proc endLayoutContainerSlot*() =
     discard ui.layoutArena.endLayoutNode()
   ui.autoLayoutState.activeSlotParent = frame.savedActiveSlotParent
   ui.autoLayoutState.activeSlotUsed = frame.savedActiveSlotUsed
+  if frame.capturePointer:
+    ui.hitClipRect = frame.savedHitClip
+    ui.focusCaptured = frame.savedFocusCaptured
 
 proc beginLayoutViewportForSlot*(slot: LayoutSlot, frameBounds: Rect = slot.bounds) =
   alias(ui, g_uiState)

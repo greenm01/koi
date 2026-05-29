@@ -102,11 +102,13 @@ target node anchor point. Attached nodes do not consume row/content size.
 | `layoutAttachSlot(...)` | Registers an attached leaf slot. |
 | `layoutAttachParentSlot(...)` / `layoutAttachRootSlot(...)` | Convenience attached slots for parent/root targets. |
 | `beginLayoutAttachContainerSlotAt(...)` / `endLayoutContainerSlot()` | Scoped attached container for popup-like content. |
+| `beginLayoutAttachParentContainerSlotAt(...)` / `beginLayoutAttachRootContainerSlotAt(...)` | Convenience attached containers for parent/root targets. |
 | `layoutFollowerSlot(...)` | Compatibility wrapper for existing scrollbar, match-target, inset, and dropdown followers. |
 
 Attached layout stores `zIndex`; layout-backed draw calls inherit it and are
 sorted within their draw layer while preserving insertion order for equal
-z-index values.
+z-index values. Attached containers with `capturePointer = true` temporarily
+scope hit testing to their previous solved rect while their body is being built.
 
 ### Grouping and queries (shipped)
 
