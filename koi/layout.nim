@@ -907,17 +907,24 @@ proc clearUnbalancedLayoutPresetFrames(ui: var UIState) =
   ui.autoLayoutState.activeSlotParent = NullLayoutNodeId
   ui.autoLayoutState.activeSlotUsed = false
 
+func layoutInspectorPickNode(arena: LayoutArena, x, y: float): LayoutNodeId =
+  result = NullLayoutNodeId
+  var bestZ = low(int)
+  var bestOrder = -1
+  for i, node in arena.nodes:
+    if node.rect.contains(x, y):
+      let zIndex = arena.layoutZIndex(node.id)
+      if result.isNull or zIndex > bestZ or (zIndex == bestZ and i > bestOrder):
+        result = node.id
+        bestZ = zIndex
+        bestOrder = i
+
 proc queueLayoutInspectorDraw() =
   alias(ui, g_uiState)
   if not ui.layoutDebug.enabled:
     return
 
-  ui.layoutDebug.hoveredNode = NullLayoutNodeId
-  for i in countdown(ui.layoutArena.nodes.high, 0):
-    let node = ui.layoutArena.nodes[i]
-    if node.rect.contains(ui.mx, ui.my):
-      ui.layoutDebug.hoveredNode = node.id
-      break
+  ui.layoutDebug.hoveredNode = ui.layoutArena.layoutInspectorPickNode(ui.mx, ui.my)
   if ui.mbLeftDown and not ui.layoutDebug.hoveredNode.isNull:
     ui.layoutDebug.selectedNode = ui.layoutDebug.hoveredNode
 
@@ -972,6 +979,7 @@ proc queueLayoutInspectorDraw() =
         &"intrinsic pref: {node.intrinsicPref.w:.1f}, {node.intrinsicPref.h:.1f}",
         &"size: {node.width.kind} x {node.height.kind}",
         &"placement: {node.placement.kind}",
+        &"z-index: {g_uiState.layoutArena.layoutZIndex(node.id)}",
         &"aspect: {node.aspectRatio:.3f}",
       ]
       for line in lines:

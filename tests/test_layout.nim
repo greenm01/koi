@@ -1071,6 +1071,23 @@ suite "unified layout solver":
     check int32(layoutInspectorHoveredNode()) >= 0
     check g_drawLayers.layers[ord(layerGlobalOverlay)].len == 1
 
+  test "layout inspector picks the top z-index node under the cursor":
+    resetLayout()
+    g_drawLayers.init()
+    g_uiState.mx = 15
+    g_uiState.my = 15
+    setLayoutInspectorEnabled(true)
+
+    beginFrameLayout()
+    let anchor = layoutSlot(301, rect(0, 0, 10, 10))
+    let high = layoutAttachSlot(
+      302, rect(0, 0, 20, 20), anchor.nodeId, lapBottomRight, lapTopLeft, zIndex = 9
+    )
+    discard layoutSlot(303, rect(12, 12, 20, 20))
+    finishFrameLayout()
+
+    check int32(layoutInspectorHoveredNode()) == int32(high.nodeId)
+
   test "attached slots follow frame-local targets and expose z-index to draws":
     resetLayout()
     g_drawLayers.init()

@@ -284,7 +284,9 @@ clearLayoutErrors()
 
 The built-in inspector is opt-in and drawn on `layerGlobalOverlay` after the
 frame is solved. It visualizes solved node rectangles and shows the hovered
-node's sizing, intrinsic, placement, and aspect-ratio data.
+node's sizing, intrinsic, placement, z-index, and aspect-ratio data. When
+rectangles overlap, hover selection follows layout z-index first and insertion
+order second, matching draw-layer ordering.
 
 ```nim
 setLayoutInspectorEnabled(true)
