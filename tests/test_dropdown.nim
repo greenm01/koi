@@ -8,8 +8,15 @@ type Choice = enum
   choiceA
   choiceB
   choiceC
+  choiceD
+  choiceE
+  choiceF
+  choiceG
+  choiceH
+  choiceI
+  choiceJ
 
-const Items = @["A", "B", "C"]
+const Items = @["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"]
 
 # Button geometry reused across tests.
 const
@@ -83,7 +90,7 @@ suite "dropdown keyboard navigation":
 
   test "down arrow clamps at the last item":
     resetUi()
-    var selected = choiceC
+    var selected = choiceJ
     openDropDown(selected)
 
     releaseLeft()
@@ -92,7 +99,7 @@ suite "dropdown keyboard navigation":
       sendKey(keyDown)
       dropDown(DdId, BtnX, BtnY, BtnW, BtnH, Items, selected, "", disabled = false)
 
-    check dropDownStateOf(DdId).keyboardItem == ord(choiceC)
+    check dropDownStateOf(DdId).keyboardItem == ord(choiceJ)
 
   test "enter commits the keyboard item and closes":
     resetUi()
@@ -124,6 +131,40 @@ suite "dropdown keyboard navigation":
     check selected == choiceB
     check not isPopupOpen(DdId)
     check eventHandled()
+
+  test "home and end jump to the first and last items":
+    resetUi()
+    var selected = choiceC
+    openDropDown(selected)
+
+    releaseLeft()
+    mouseTo(0, 0)
+    sendKey(keyEnd)
+    dropDown(DdId, BtnX, BtnY, BtnW, BtnH, Items, selected, "", disabled = false)
+    check dropDownStateOf(DdId).keyboardItem == ord(choiceJ)
+
+    sendKey(keyHome)
+    dropDown(DdId, BtnX, BtnY, BtnW, BtnH, Items, selected, "", disabled = false)
+    check dropDownStateOf(DdId).keyboardItem == ord(choiceA)
+
+  test "page keys move by the visible item count and clamp":
+    resetUi()
+    var selected = choiceA
+    openDropDown(selected)
+
+    releaseLeft()
+    mouseTo(0, 0)
+    sendKey(keyPageDown)
+    dropDown(DdId, BtnX, BtnY, BtnW, BtnH, Items, selected, "", disabled = false)
+    check dropDownStateOf(DdId).keyboardItem == ord(choiceF)
+
+    sendKey(keyPageDown)
+    dropDown(DdId, BtnX, BtnY, BtnW, BtnH, Items, selected, "", disabled = false)
+    check dropDownStateOf(DdId).keyboardItem == ord(choiceJ)
+
+    sendKey(keyPageUp)
+    dropDown(DdId, BtnX, BtnY, BtnW, BtnH, Items, selected, "", disabled = false)
+    check dropDownStateOf(DdId).keyboardItem == ord(choiceE)
 
 suite "dropdown mouse selection":
   test "release over an item selects it and closes":

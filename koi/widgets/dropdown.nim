@@ -81,27 +81,6 @@ proc dropDown*[T](
     if ds.keyboardItem < 0:
       ds.keyboardItem = ord(selectedItem)
 
-    # Handle keyboard navigation before mouse hover can override it.
-    if ui.hasEvent and (not ui.eventHandled) and ui.currEvent.kind == ekKey and
-        ui.currEvent.action in {kaDown}:
-      case ui.currEvent.key
-      of keyEscape:
-        markEventHandled()
-        closeDropDown()
-      of keyUp, keyKp8:
-        ds.keyboardItem = dropDownKeyboardItem(ds.keyboardItem, numItems, -1)
-        markEventHandled()
-      of keyDown, keyKp2:
-        ds.keyboardItem = dropDownKeyboardItem(ds.keyboardItem, numItems, 1)
-        markEventHandled()
-      of keyEnter, keyKpEnter:
-        if ds.keyboardItem >= 0:
-          selectedItem = T(ds.keyboardItem)
-        markEventHandled()
-        closeDropDown()
-      else:
-        discard
-
     # Calculate the position of the box around the drop-down items
     var maxItemWidth = 0.0
 
@@ -151,6 +130,40 @@ proc dropDown*[T](
       let (x, _) =
         fitRectWithinWindow(itemListW, fullItemListH, x, y, w, h, s.itemListAlign)
       itemListX = x
+
+    # Handle keyboard navigation before mouse hover can override it.
+    if ui.hasEvent and (not ui.eventHandled) and ui.currEvent.kind == ekKey and
+        ui.currEvent.action in {kaDown}:
+      let pageStep = max(maxDisplayItems, 1)
+      case ui.currEvent.key
+      of keyEscape:
+        markEventHandled()
+        closeDropDown()
+      of keyUp, keyKp8:
+        ds.keyboardItem = dropDownKeyboardItem(ds.keyboardItem, numItems, -1)
+        markEventHandled()
+      of keyDown, keyKp2:
+        ds.keyboardItem = dropDownKeyboardItem(ds.keyboardItem, numItems, 1)
+        markEventHandled()
+      of keyHome, keyKp7:
+        ds.keyboardItem = 0
+        markEventHandled()
+      of keyEnd, keyKp1:
+        ds.keyboardItem = numItems - 1
+        markEventHandled()
+      of keyPageUp, keyKp9:
+        ds.keyboardItem = dropDownKeyboardItem(ds.keyboardItem, numItems, -pageStep)
+        markEventHandled()
+      of keyPageDown, keyKp3:
+        ds.keyboardItem = dropDownKeyboardItem(ds.keyboardItem, numItems, pageStep)
+        markEventHandled()
+      of keyEnter, keyKpEnter:
+        if ds.keyboardItem >= 0:
+          selectedItem = T(ds.keyboardItem)
+        markEventHandled()
+        closeDropDown()
+      else:
+        discard
 
     let (itemListX, itemListY, itemListW, itemListH) =
       snapToGrid(itemListX, itemListY, itemListW, itemListH, s.itemListStrokeWidth)
