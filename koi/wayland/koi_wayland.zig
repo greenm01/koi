@@ -32,6 +32,7 @@ const KoiWaylandDisplay = extern struct {
     wl_seat: ?*c.struct_wl_seat,
     wl_pointer: ?*c.struct_wl_pointer,
     wl_keyboard: ?*c.struct_wl_keyboard,
+    wl_output: ?*c.struct_wl_output,
     xdg_wm_base: ?*c.struct_xdg_wm_base,
     xkb_context: ?*c.struct_xkb_context,
     xkb_keymap: ?*c.struct_xkb_keymap,
@@ -41,6 +42,7 @@ const KoiWaylandDisplay = extern struct {
     mod_alt: c.xkb_mod_index_t,
     mod_super: c.xkb_mod_index_t,
     mods: u32,
+    output_scale: f64,
     active_window: ?*KoiWaylandWindow,
     pointer_window: ?*KoiWaylandWindow,
     keyboard_window: ?*KoiWaylandWindow,
@@ -54,6 +56,7 @@ const KoiWaylandWindow = extern struct {
     callbacks: KoiWaylandCallbacks,
     width: u32,
     height: u32,
+    scale: f64,
 };
 
 fn cStringEquals(value: [*c]const u8, expected: []const u8) bool {
@@ -119,6 +122,17 @@ fn registryGlobal(
         if (display.wl_seat) |seat| {
             _ = c.wl_seat_add_listener(seat, &wl_seat_listener, display);
         }
+    } else if (cStringEquals(interface, "wl_output") and display.wl_output == null) {
+        display.wl_output = bindGlobal(
+            c.struct_wl_output,
+            reg,
+            name,
+            &c.wl_output_interface,
+            @min(version, 2),
+        );
+        if (display.wl_output) |output| {
+            _ = c.wl_output_add_listener(output, &wl_output_listener, display);
+        }
     }
 }
 
@@ -183,6 +197,86 @@ fn wlSeatName(
 const wl_seat_listener = c.struct_wl_seat_listener{
     .capabilities = wlSeatCapabilities,
     .name = wlSeatName,
+};
+
+fn notifyWindowScale(window: *KoiWaylandWindow, scale: f64) void {
+    if (window.scale == scale) {
+        return;
+    }
+    window.scale = scale;
+    if (window.callbacks.on_scale) |on_scale| {
+        on_scale(scale, window.callbacks.userdata);
+    }
+}
+
+fn notifyActiveWindowScale(display: *KoiWaylandDisplay) void {
+    if (display.active_window) |window| {
+        notifyWindowScale(window, display.output_scale);
+    }
+}
+
+fn wlOutputGeometry(
+    data: ?*anyopaque,
+    wl_output: ?*c.struct_wl_output,
+    x: i32,
+    y: i32,
+    physical_width: i32,
+    physical_height: i32,
+    subpixel: i32,
+    make: [*c]const u8,
+    model: [*c]const u8,
+    transform: i32,
+) callconv(.c) void {
+    _ = data;
+    _ = wl_output;
+    _ = x;
+    _ = y;
+    _ = physical_width;
+    _ = physical_height;
+    _ = subpixel;
+    _ = make;
+    _ = model;
+    _ = transform;
+}
+
+fn wlOutputMode(
+    data: ?*anyopaque,
+    wl_output: ?*c.struct_wl_output,
+    flags: u32,
+    width: i32,
+    height: i32,
+    refresh: i32,
+) callconv(.c) void {
+    _ = data;
+    _ = wl_output;
+    _ = flags;
+    _ = width;
+    _ = height;
+    _ = refresh;
+}
+
+fn wlOutputDone(data: ?*anyopaque, wl_output: ?*c.struct_wl_output) callconv(.c) void {
+    _ = wl_output;
+    const display: *KoiWaylandDisplay = @ptrCast(@alignCast(data orelse return));
+    notifyActiveWindowScale(display);
+}
+
+fn wlOutputScale(
+    data: ?*anyopaque,
+    wl_output: ?*c.struct_wl_output,
+    factor: i32,
+) callconv(.c) void {
+    _ = wl_output;
+    const display: *KoiWaylandDisplay = @ptrCast(@alignCast(data orelse return));
+    display.output_scale = @floatFromInt(@max(factor, 1));
+    notifyActiveWindowScale(display);
+}
+
+const wl_output_listener = c.struct_wl_output_listener{
+    .geometry = wlOutputGeometry,
+    .mode = wlOutputMode,
+    .done = wlOutputDone,
+    .scale = wlOutputScale,
 };
 
 fn pointerWindowForSurface(
@@ -699,6 +793,9 @@ fn destroyDisplayResources(display: *KoiWaylandDisplay) void {
     if (display.wl_seat) |seat| {
         c.wl_seat_destroy(seat);
     }
+    if (display.wl_output) |output| {
+        c.wl_output_destroy(output);
+    }
     if (display.xdg_wm_base) |wm_base| {
         c.xdg_wm_base_destroy(wm_base);
     }
@@ -727,6 +824,7 @@ export fn koi_wayland_init() ?*KoiWaylandDisplay {
         .wl_seat = null,
         .wl_pointer = null,
         .wl_keyboard = null,
+        .wl_output = null,
         .xdg_wm_base = null,
         .xkb_context = c.xkb_context_new(c.XKB_CONTEXT_NO_FLAGS),
         .xkb_keymap = null,
@@ -736,6 +834,7 @@ export fn koi_wayland_init() ?*KoiWaylandDisplay {
         .mod_alt = c.XKB_MOD_INVALID,
         .mod_super = c.XKB_MOD_INVALID,
         .mods = 0,
+        .output_scale = 1.0,
         .active_window = null,
         .pointer_window = null,
         .keyboard_window = null,
@@ -788,6 +887,7 @@ export fn koi_wayland_create_window(
         .callbacks = std.mem.zeroes(KoiWaylandCallbacks),
         .width = w,
         .height = h,
+        .scale = d.output_scale,
     };
     if (window.wl_surface == null) {
         allocator.destroy(window);
@@ -817,6 +917,7 @@ export fn koi_wayland_create_window(
         _ = c.wl_display_flush(wl_display);
     }
     d.active_window = window;
+    notifyWindowScale(window, d.output_scale);
 
     return window;
 }
@@ -828,6 +929,9 @@ export fn koi_wayland_set_callbacks(
     const win = window orelse return;
     if (callbacks) |cb| {
         win.callbacks = @as(*const KoiWaylandCallbacks, @ptrCast(@alignCast(cb))).*;
+        if (win.callbacks.on_scale) |on_scale| {
+            on_scale(win.scale, win.callbacks.userdata);
+        }
     } else {
         win.callbacks = std.mem.zeroes(KoiWaylandCallbacks);
     }
