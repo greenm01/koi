@@ -7,6 +7,7 @@ import wgpu/extras/helpers
 import wgpu/extras/shaders
 import wgpu/extras/strings
 
+import koi/backends/surface
 import koi/internal/webgpu_draw_state
 
 const
@@ -1032,27 +1033,27 @@ proc createPipeline(b: var KoiWgpuBackend) =
   var whitePixel = [255'u8, 255'u8, 255'u8, 255'u8]
   b.white = b.createTexture(1, 1, false, cast[ptr cuchar](whitePixel[0].addr))
 
-proc initKoiWgpuBackend*(
-    b: var KoiWgpuBackend, display, wlSurface: pointer, width, height: uint32
+proc initKoiWgpuBackendWithSurface*(
+    b: var KoiWgpuBackend, handle: KoiWgpuSurfaceHandle, width, height: uint32
 ) =
   b.instance = wgpu.create(vaddr InstanceDescriptor(nextInChain: nil))
   doAssert not b.instance.isNil, "Could not initialize WebGPU"
-  b.surface = b.instance.create(
-    vaddr SurfaceDescriptor(
-      label: "Koi WebGPU Wayland surface".toStringView(),
-      nextInChain: cast[ptr ChainedStruct](vaddr SurfaceSourceWaylandSurface(
-        chain: ChainedStruct(next: nil, sType: SType.SurfaceSourceWaylandSurface),
-        display: display,
-        surface: wlSurface,
-      )),
-    )
-  )
+  b.surface = b.instance.createSurface(handle)
   doAssert not b.surface.isNil, "Could not create WebGPU surface"
   b.nextTextureId = 1
   b.requestAdapter()
   b.requestDevice()
   b.configureSurface(width, height)
   b.createPipeline()
+
+proc initKoiWgpuBackend*(
+    b: var KoiWgpuBackend, display, wlSurface: pointer, width, height: uint32
+) =
+  b.initKoiWgpuBackendWithSurface(
+    waylandSurfaceHandle(display, wlSurface),
+    width,
+    height,
+  )
 
 proc resizeKoiWgpuBackend*(b: var KoiWgpuBackend, width, height: uint32) =
   if width == 0 or height == 0:

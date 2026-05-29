@@ -19,19 +19,7 @@ proc setCommonCompileParams() =
   --hint:
     "Name:off"
 
-task test, "build test":
-  --d:
-    debug
-  setCommand "c", "examples/test"
-  setCommonCompileParams()
-
-task paneltest, "build panel test":
-  --d:
-    debug
-  setCommand "c", "examples/paneltest"
-  setCommonCompileParams()
-
-task webgpuMinimal, "build WebGPU minimal example":
+proc setWebGpuCompileParams() =
   let webgpuPath = gorge("nimble path webgpu").strip()
 
   --gc:
@@ -56,8 +44,23 @@ task webgpuMinimal, "build WebGPU minimal example":
   switch("passC", "-Wno-incompatible-pointer-types")
   --hint:
     "Name:off"
+
+task test, "build test":
   --d:
     debug
+  setCommand "c", "examples/test"
+  setCommonCompileParams()
+
+task paneltest, "build panel test":
+  --d:
+    debug
+  setCommand "c", "examples/paneltest"
+  setCommonCompileParams()
+
+task webgpuMinimal, "build WebGPU minimal example":
+  --d:
+    debug
+  setWebGpuCompileParams()
   setCommand "c", "examples/webgpu_minimal"
 
 task testLayout, "run headless layout tests":

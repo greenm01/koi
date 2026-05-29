@@ -7,7 +7,8 @@ from glfw/wrapper import nil
 import nanovg
 
 import koi
-import koi/webgpu_backend
+import koi/backends/surface
+import koi/backends/wgpu_renderer
 
 {.
   emit:
@@ -164,10 +165,14 @@ when isMainModule:
 
   let
     display = glfwGetWaylandDisplay()
-    surface = glfwGetWaylandWindow(win.getHandle())
+    wlSurface = glfwGetWaylandWindow(win.getHandle())
     (width, height) = win.surfaceSize()
 
-  backend.initKoiWgpuBackend(display, surface, width.uint32, height.uint32)
+  backend.initKoiWgpuBackendWithSurface(
+    waylandSurfaceHandle(display, wlSurface),
+    width.uint32,
+    height.uint32,
+  )
   vg = backend.createNanoVgContext({nifAntialias})
   init(vg, glfw.getProcAddress)
   loadData(vg)
