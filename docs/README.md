@@ -6,9 +6,9 @@
 
 GLFW is currently a hard requirement, but it should be easy to adapt it to other frameworks or backends.
 
-Layout and widget references live in [toolset.md](./toolset.md) and
-[layout-model.md](./layout-model.md). Check the [examples](/examples) and
-Gridmonger for complete usage.
+Layout, widget, and style references live in [toolset.md](./toolset.md),
+[layout-model.md](./layout-model.md), and [theming.md](./theming.md). Check the
+[examples](/examples) and Gridmonger for complete usage.
 
 Current follow-up work is tracked in [todo.md](./todo.md).
 

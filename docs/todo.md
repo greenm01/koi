@@ -17,7 +17,5 @@ to the deferred candidates that still look useful.
 
 - Finish complete theming coverage, including global theme parameters such as
   font, corner roundness, and colors.
-- Decide whether gradient, shadow, and text-shadow style support belongs in core
-  Koi or in renderer-specific extensions.
 - Revisit tooltip sizing and formatting against the shipped wrapped-text
   measurement path.
