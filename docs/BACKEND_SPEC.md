@@ -20,8 +20,8 @@ renderer on all platforms.
 
 ```
 ┌─────────────────────────────────────────────────┐
-│                   Koi (Nim)                      │
-│           layout · widgets · input state         │
+│                   Koi (Nim)                     │
+│           layout · widgets · input state        │
 └───────────────────┬─────────────────────────────┘
                     │
         ┌───────────┴───────────┐
@@ -32,8 +32,8 @@ renderer on all platforms.
 │  (Zig · C ABI)│       │  (C · existing)│
 └───────┬───────┘       └───────┬────────┘
         │                       │
-        │  wl_display            │  GLFWwindow
-        │  wl_surface            │
+        │  wl_display           │  GLFWwindow
+        │  wl_surface           │
         └───────────┬───────────┘
                     │ WGPUSurface
           ┌─────────▼──────────┐
