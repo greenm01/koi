@@ -8,6 +8,7 @@ import koi/drawing
 import koi/layout
 import koi/input
 import koi/defaults
+import koi/internal/widget_behavior
 import koi/widgets/common
 import koi/utils
 
@@ -78,33 +79,18 @@ proc checkBox*(
 
   # Hit testing
   if isHit(x, y, w, w):
-    markHot(id)
-    if not disabled and ui.mbLeftDown and hasNoActiveItem():
-      markActive(id)
+    captureSimpleWidget(id, disabled)
 
-  # LMB released over active widget means it was clicked
-  checked =
-    if not ui.mbLeftDown and isHot(id) and isActive(id):
-      not checked
-    else:
-      checked
+  let behavior = selectableWidgetBehavior(id, disabled, checked)
+  if behavior.clicked:
+    checked = not checked
 
   checked_out = checked
 
   addDrawLayer(ui.currentLayer, vg):
-    let state =
-      if disabled:
-        wsDisabled
-      elif isHot(id) and hasNoActiveItem():
-        if checked: wsActiveHover else: wsHover
-      elif isHot(id) and isActive(id):
-        wsDown
-      else:
-        if checked: wsActive else: wsNormal
-
     let drawProc = if drawProc.isSome: drawProc.get else: DefaultCheckBoxDrawProc
 
-    drawProc(vg, id, x, y, w, checked, state, style)
+    drawProc(vg, id, x, y, w, checked, behavior.state, style)
 
   if isHot(id):
     handleTooltip(id, tooltip)

@@ -10,6 +10,7 @@ import koi/drawing
 import koi/layout
 import koi/input
 import koi/defaults
+import koi/internal/widget_behavior
 import koi/widgets/common
 import koi/utils
 
@@ -146,9 +147,8 @@ proc radioButtons*[T](
   var hotButton = -1
 
   proc markHotAndActive() =
-    markHot(id)
-    if ui.mbLeftDown and hasNoActiveItem():
-      markActive(id)
+    captureSimpleWidget(id, disabled = false)
+    if isActive(id):
       rs.activeItem = hotButton
 
   proc markHotButton(button: int) =
@@ -199,7 +199,7 @@ proc radioButtons*[T](
       markHotAndActive()
 
   # LMB released over active widget means it was clicked
-  if not ui.mbLeftDown and isHot(id) and isActive(id) and rs.activeItem == hotButton:
+  if simpleWidgetBehavior(id, disabled = false).clicked and rs.activeItem == hotButton:
     let activeButton = T(hotButton)
 
     if multiselect and not ctrlDown():
@@ -216,34 +216,14 @@ proc radioButtons*[T](
 
   # Draw radio buttons
   proc buttonDrawState(i: Natural): WidgetState =
-    let state =
-      if isHot(id) and hasNoActiveItem():
-        wsHover
-      elif isHot(id) and isActive(id):
-        wsDown
-      else:
-        wsNormal
-
-    if T(i) in activeButtons:
-      if hotButton == i:
-        if state == wsHover:
-          wsActiveHover
-        elif state == wsDown:
-          wsActiveDown
-        else:
-          wsActive
-      else:
-        wsActive
-    else:
-      if hotButton == i:
-        if state == wsHover:
-          wsHover
-        elif state == wsDown:
-          wsDown
-        else:
-          wsNormal
-      else:
-        wsNormal
+    radioButtonState(
+      isHot(id),
+      isActive(id),
+      hasNoActiveItem(),
+      T(i) in activeButtons,
+      hotButton,
+      i.int,
+    )
 
   addDrawLayer(ui.currentLayer, vg):
     var x = x

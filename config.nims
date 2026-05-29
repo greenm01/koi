@@ -80,6 +80,16 @@ task testAlgorithms, "run headless algorithm tests":
   setCommonCompileParams()
   setCommand "r", "tests/test_algorithms"
 
+task testWidgetBehavior, "run headless widget behavior tests":
+  --d:
+    debug
+  --nimcache:
+    "/tmp/koi_test_widget_behavior_d"
+  --out:
+    "/tmp/koi_test_widget_behavior"
+  setCommonCompileParams()
+  setCommand "r", "tests/test_widget_behavior"
+
 task testRelease, "build test":
   --d:
     release

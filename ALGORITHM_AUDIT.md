@@ -50,12 +50,21 @@ work that needs broader design or visual validation.
    - Double-click word selection and advanced selection gestures remain
      deferred.
 
+8. Simple widget behavior duplicated hot/active/click state.
+   - Added internal behavior helpers for hot/active capture, release-click
+     detection, plain widget states, selectable widget states, and radio button
+     draw states.
+   - Button, toggle button, checkbox, and radio buttons now share the tested
+     helper layer while keeping their public APIs and draw procs unchanged.
+   - Slider and scrollbar behavior remains deferred because their drag and
+     repeat states need separate coverage.
+
 ## High-Value Follow-Ups
 
-1. Widget behavior duplication.
-   - Button, toggle button, checkbox, radio buttons, sliders, and scrollbars
-   repeat hot/active/disabled state transitions.
-   - Extract this only after the current behavior has tests, because small
+1. Drag widget behavior duplication.
+   - Sliders and scrollbars still repeat hot/active/disabled state transitions
+   around drag, hidden cursor, and repeat modes.
+   - Extract this only after drag and repeat behavior has tests, because small
    differences are user-visible.
 
 2. WebGPU backend draw expansion.

@@ -8,6 +8,7 @@ import koi/drawing
 import koi/layout
 import koi/input
 import koi/defaults
+import koi/internal/widget_behavior
 import koi/widgets/common
 import koi/utils
 
@@ -70,28 +71,15 @@ proc button*(
 
   # Hit testing
   if isHit(x, y, w, h):
-    markHot(id)
-    if not disabled and ui.mbLeftDown and hasNoActiveItem():
-      markActive(id)
+    captureSimpleWidget(id, disabled)
 
-  # LMB released over active widget means it was clicked
-  if not ui.mbLeftDown and isHot(id) and isActive(id):
-    result = true
+  let behavior = simpleWidgetBehavior(id, disabled)
+  result = behavior.clicked
 
   addDrawLayer(ui.currentLayer, vg):
-    let state =
-      if disabled:
-        wsDisabled
-      elif isHot(id) and hasNoActiveItem():
-        wsHover
-      elif isHot(id) and isActive(id):
-        wsDown
-      else:
-        wsNormal
-
     let drawProc = if drawProc.isSome: drawProc.get else: DefaultButtonDrawProc
 
-    drawProc(vg, id, x, y, w, h, label, state, style)
+    drawProc(vg, id, x, y, w, h, label, behavior.state, style)
 
   if isHot(id):
     handleTooltip(id, tooltip)
