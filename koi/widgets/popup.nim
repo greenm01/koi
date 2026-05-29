@@ -4,6 +4,8 @@ import glfw
 import koi/types
 import koi/core
 import koi/drawing
+import koi/layout
+import koi/rect
 import koi/input
 import koi/defaults
 import koi/internal/algorithms
@@ -43,6 +45,8 @@ proc beginPopup*(
     return false
 
   let (x, y) = addDrawOffset(x, y)
+  let slot = layoutSlot(id, rect(x, y, w, h))
+  let hitBounds = slot.previousBounds
 
   if ui.hasEvent and not ui.eventHandled and ui.currEvent.kind == ekKey and
       ui.currEvent.action == kaDown and ui.currEvent.key == keyEscape:
@@ -55,7 +59,14 @@ proc beginPopup*(
       ps.state = psOpen
   elif ui.mbLeftDown and
       popupShouldAutoClose(
-        ui.mx, ui.my, x, y, w, h, style.autoCloseBorder, style.autoClose
+        ui.mx,
+        ui.my,
+        hitBounds.x,
+        hitBounds.y,
+        hitBounds.w,
+        hitBounds.h,
+        style.autoCloseBorder,
+        style.autoClose,
       ):
     closePopup()
     return false
@@ -65,11 +76,12 @@ proc beginPopup*(
   ps.prevFocusCaptured = ui.focusCaptured
   ui.currentLayer = layerPopup
   ui.focusCaptured = false
-  hitClip(x, y, w, h)
+  hitClip(hitBounds.x, hitBounds.y, hitBounds.w, hitBounds.h)
 
-  addDrawLayer(layerPopup, vg):
-    drawShadow(vg, x, y, w, h, style.shadow)
-    let (rx, ry, rw, rh) = snapToGrid(x, y, w, h, style.backgroundStrokeWidth)
+  addLayoutDrawLayer(layerPopup, slot.nodeId, vg, bounds):
+    drawShadow(vg, bounds.x, bounds.y, bounds.w, bounds.h, style.shadow)
+    let (rx, ry, rw, rh) =
+      snapToGrid(bounds.x, bounds.y, bounds.w, bounds.h, style.backgroundStrokeWidth)
     vg.fillColor(style.backgroundFillColor)
     vg.strokeColor(style.backgroundStrokeColor)
     vg.strokeWidth(style.backgroundStrokeWidth)

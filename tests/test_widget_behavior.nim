@@ -16,6 +16,7 @@ import koi/types
 import koi/widgets/button
 import koi/widgets/checkbox
 import koi/widgets/colorpicker
+import koi/widgets/dropdown
 import koi/widgets/groupbox
 import koi/widgets/label
 import koi/widgets/menu
@@ -93,6 +94,35 @@ suite "popup behavior":
 
     check not beginPopup(30, 10, 10, 30, 30)
     check not isPopupOpen(30)
+
+  test "popup hit clipping uses a previous solved rect":
+    resetUi()
+    g_uiState.layoutRects[31] = rect(40, 40, 20, 10)
+
+    openPopup(31)
+    g_uiState.mbLeftDown = false
+
+    check beginPopup(31, 0, 0, 10, 10)
+    checkRect(g_uiState.hitClipRect, rect(40, 40, 20, 10))
+    check g_uiState.layoutArena.nodes.len == 1
+    check g_drawLayers.layers[ord(layerPopup)].len == 1
+
+    endPopup()
+
+  test "popup auto close uses a previous solved rect":
+    resetUi()
+    g_uiState.layoutRects[32] = rect(40, 40, 20, 20)
+    let style = borrowDefaultPopupStyle().deepCopy
+    style.autoCloseBorder = 0
+
+    openPopup(32)
+    g_uiState.popupState.state = psOpen
+    g_uiState.mx = 15
+    g_uiState.my = 15
+    g_uiState.mbLeftDown = true
+
+    check not beginPopup(32, 10, 10, 20, 20, style)
+    check not isPopupOpen(32)
 
 suite "menu behavior":
   test "context menu opens from right click inside bounds":
@@ -640,6 +670,59 @@ suite "layout-integrated widget behavior":
 
     check int32(viewParent) == int32(viewRow)
     check int32(scrollParent) == int32(scrollRow)
+
+  test "dropdown button hover testing uses a previous solved rect":
+    resetUi()
+    type Choice = enum
+      choiceA
+      choiceB
+
+    var selected = choiceA
+    g_uiState.layoutRects[47] = rect(40, 40, 20, 10)
+    g_uiState.mx = 45
+    g_uiState.my = 45
+
+    dropDown(47, 0, 0, 10, 10, @["A", "B"], selected, "", disabled = false)
+
+    check isHot(47)
+    check g_uiState.layoutArena.nodes.len == 1
+    check g_drawLayers.layers[ord(layerDefault)].len == 1
+
+  test "auto-layout dropdown registers under active rows":
+    resetUi()
+    type Choice = enum
+      choiceA
+      choiceB
+
+    var params = DefaultAutoLayoutParams
+    params.itemsPerRow = 1
+    params.rowWidth = 20
+    params.leftPad = 0
+    params.rightPad = 0
+    params.rowPad = 0
+    params.sectionPad = 0
+    params.defaultRowHeight = 10
+    params.defaultItemHeight = 10
+    initAutoLayout(params)
+    beginFrameLayout()
+
+    var selected = choiceA
+    autoLayoutPre()
+    let dropdownRow = g_uiState.autoLayoutState.autoRow
+    dropDown(
+      48,
+      g_uiState.autoLayoutState.x,
+      autoLayoutNextY(),
+      autoLayoutNextItemWidth(),
+      autoLayoutNextItemHeight(),
+      @["A", "B"],
+      selected,
+      "",
+      disabled = false,
+    )
+    autoLayoutPost()
+
+    check int32(g_uiState.layoutArena.nodes[3].parent) == int32(dropdownRow)
 
   test "auto-layout label registers a fit-height text node under the active row":
     resetUi()

@@ -9,6 +9,7 @@ import koi/types
 import koi/core
 import koi/drawing
 import koi/layout
+import koi/rect
 import koi/input
 import koi/defaults
 import koi/internal/algorithms
@@ -37,12 +38,15 @@ proc dropDown*[T](
   alias(s, style)
 
   let (x, y) = addDrawOffset(x, y)
+  let buttonSlot = layoutSlot(id, rect(x, y, w, h))
+  let buttonBounds = buttonSlot.previousBounds
 
   var
     itemListX, itemListY, itemListW, itemListH: float
     maxDisplayItems = items.len
     scrollBarVisible = false
     hoverItem = -1
+    itemListNodeId = NullLayoutNodeId
 
   discard ui.itemState.hasKeyOrPut(id, DropDownStateVars())
   var ds = cast[DropDownStateVars](ui.itemState[id])
@@ -59,7 +63,7 @@ proc dropDown*[T](
     ui.focusCaptured = false
 
   if ds.state == dsClosed:
-    if isHit(x, y, w, h):
+    if isHit(buttonBounds.x, buttonBounds.y, buttonBounds.w, buttonBounds.h):
       markHot(id)
       if not disabled and ui.mbLeftDown and hasNoActiveItem():
         markActive(id)
@@ -149,11 +153,22 @@ proc dropDown*[T](
 
     let (itemListX, itemListY, itemListW, itemListH) =
       snapToGrid(itemListX, itemListY, itemListW, itemListH, s.itemListStrokeWidth)
+    let
+      itemListSlot =
+        layoutSlot(
+          hashId($id & ":popupList"), rect(itemListX, itemListY, itemListW, itemListH)
+        )
+      itemListBounds = itemListSlot.previousBounds
+    itemListNodeId = itemListSlot.nodeId
 
     # Hit testing
     let
-      insideButton = mouseInside(x, y, w, h)
-      insideItemList = mouseInside(itemListX, itemListY, itemListW, itemListH)
+      insideButton =
+        mouseInside(buttonBounds.x, buttonBounds.y, buttonBounds.w, buttonBounds.h)
+      insideItemList =
+        mouseInside(
+          itemListBounds.x, itemListBounds.y, itemListBounds.w, itemListBounds.h
+        )
 
     # Handle scrollwheel
     if scrollBarVisible:
@@ -180,10 +195,18 @@ proc dropDown*[T](
 
     if insideItemList:
       if not scrollBarVisible or
-          (scrollBarVisible and ui.mx < itemListX + itemListW - s.scrollBarWidth):
+          (
+            scrollBarVisible and
+            ui.mx < itemListBounds.x + itemListBounds.w - s.scrollBarWidth
+          ):
         hoverItem = dropDownHoverItem(
-          ui.my, itemListY, s.itemListPadVert, itemHeight, ds.displayStartItem.Natural,
-          maxDisplayItems.Natural, numItems.Natural,
+          ui.my,
+          itemListBounds.y,
+          s.itemListPadVert,
+          itemHeight,
+          ds.displayStartItem.Natural,
+          maxDisplayItems.Natural,
+          numItems.Natural,
         )
         if hoverItem >= 0:
           ds.keyboardItem = hoverItem
@@ -218,9 +241,10 @@ proc dropDown*[T](
       wsNormal
 
   # Drop-down button
-  addDrawLayer(ui.currentLayer, vg):
+  addLayoutDrawLayer(ui.currentLayer, buttonSlot.nodeId, vg, bounds):
     let sw = s.buttonStrokeWidth
-    let (x, y, w, h) = snapToGrid(x, y, w, h, sw)
+    let (x, y, w, h) =
+      snapToGrid(bounds.x, bounds.y, bounds.w, bounds.h, sw)
 
     let (fillColor, strokeColor) =
       case state
@@ -268,9 +292,10 @@ proc dropDown*[T](
       vg.drawLabel(x, y, w, h, itemText, state, s.label)
 
   # Drop-down items
-  if isActive(id) and isPopupOpen(id) and ds.state >= dsOpenLMBPressed:
-    addDrawLayer(layerPopup, vg):
-      drawShadow(vg, itemListX, itemListY, itemListW, itemListH, s.shadow)
+  if isActive(id) and isPopupOpen(id) and ds.state >= dsOpenLMBPressed and
+      not itemListNodeId.isNull:
+    addLayoutDrawLayer(layerPopup, itemListNodeId, vg, bounds):
+      drawShadow(vg, bounds.x, bounds.y, bounds.w, bounds.h, s.shadow)
 
       # Draw item list box
       vg.fillColor(s.itemListFillColor)
@@ -278,14 +303,14 @@ proc dropDown*[T](
       vg.strokeWidth(s.itemListStrokeWidth)
 
       vg.beginPath()
-      vg.roundedRect(itemListX, itemListY, itemListW, itemListH, s.itemListCornerRadius)
+      vg.roundedRect(bounds.x, bounds.y, bounds.w, bounds.h, s.itemListCornerRadius)
       vg.fill()
       vg.stroke()
 
       # Draw items
       var
-        ix = itemListX + s.itemListPadHoriz
-        iy = itemListY + s.itemListPadVert
+        ix = bounds.x + s.itemListPadHoriz
+        iy = bounds.y + s.itemListPadVert
 
       let start = ds.displayStartItem.Natural
 
@@ -293,23 +318,23 @@ proc dropDown*[T](
         var state = wsNormal
         if i == hoverItem or (hoverItem < 0 and i == ds.keyboardItem):
           vg.beginPath()
-          vg.rect(itemListX, iy, itemListW, h)
+          vg.rect(bounds.x, iy, bounds.w, h)
           vg.fillColor(s.itemBackgroundColorHover)
           vg.fill()
           state = wsHover
 
         if i < itemPaints.len and itemPaints[i].image != NoImage:
           let
-            imagePad = max(3.0, min(itemListW, h) * 0.18)
-            imageSize = max(0.0, min(h - imagePad * 2, itemListW - imagePad * 2))
+            imagePad = max(3.0, min(bounds.w, h) * 0.18)
+            imageSize = max(0.0, min(h - imagePad * 2, bounds.w - imagePad * 2))
             imageX = ix
             imageY = iy + (h - imageSize) * 0.5
           vg.drawImage(imageX, imageY, imageSize, imageSize, itemPaints[i])
           vg.drawLabel(
-            imageX + imageSize, iy, itemListW - imageSize, h, items[i], state, s.item
+            imageX + imageSize, iy, bounds.w - imageSize, h, items[i], state, s.item
           )
         else:
-          vg.drawLabel(ix, iy, itemListW, h, items[i], state, s.item)
+          vg.drawLabel(ix, iy, bounds.w, h, items[i], state, s.item)
 
         iy += itemHeight
 
