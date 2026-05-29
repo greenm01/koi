@@ -712,6 +712,65 @@ suite "layout-integrated widget behavior":
     check int32(g_uiState.layoutArena.nodes[3].parent) == int32(fieldRow)
     check int32(g_uiState.layoutArena.nodes[5].parent) == int32(areaRow)
 
+  test "overflowing auto-layout text area scrollbar follows solved text area rect":
+    resetUi()
+    var params = DefaultAutoLayoutParams
+    params.itemsPerRow = 1
+    params.rowWidth = 80
+    params.leftPad = 0
+    params.rightPad = 0
+    params.rowPad = 0
+    params.sectionPad = 0
+    params.defaultRowHeight = 20
+    params.defaultItemHeight = 20
+    initAutoLayout(params)
+    beginFrameLayout()
+
+    let areaId: ItemId = 50
+    let scrollBarId = hashId($areaId & ":scrollBar")
+    var areaText = "one two three four five six seven eight nine ten"
+    let style = borrowDefaultTextAreaStyle()
+    autoLayoutPre()
+    let areaRow = g_uiState.autoLayoutState.autoRow
+    textArea(
+      areaId,
+      g_uiState.autoLayoutState.x,
+      autoLayoutNextY(),
+      autoLayoutNextItemWidth(),
+      autoLayoutNextItemHeight(),
+      areaText,
+      style = style,
+    )
+    autoLayoutPost()
+    finishFrameLayout()
+
+    var rowChildren = 0
+    var areaNode = NullLayoutNodeId
+    var scrollBarNode = NullLayoutNodeId
+    for node in g_uiState.layoutArena.nodes:
+      if int32(node.parent) == int32(areaRow):
+        inc rowChildren
+      if node.itemId == areaId:
+        areaNode = node.id
+      if node.itemId == scrollBarId:
+        scrollBarNode = node.id
+
+    check rowChildren == 1
+    check not areaNode.isNull
+    check not scrollBarNode.isNull
+    check g_uiState.layoutArena.nodes[scrollBarNode.int].placement.kind == lpkFollow
+    check g_uiState.layoutArena.nodes[scrollBarNode.int].placement.followKind ==
+      lfkVerticalScrollBar
+    check int32(g_uiState.layoutArena.nodes[scrollBarNode.int].placement.target) ==
+      int32(areaNode)
+
+    let
+      areaRect = g_uiState.layoutRects[areaId]
+      scrollBarRect = g_uiState.layoutRects[scrollBarId]
+    check scrollBarRect.x == areaRect.x + areaRect.w - scrollBarRect.w
+    check scrollBarRect.y == areaRect.y + style.textPadVert
+    check scrollBarRect.h == areaRect.h - style.textPadVert * 2
+
   test "view hit clipping uses a previous solved rect":
     resetUi()
     g_uiState.layoutRects[43] = rect(40, 40, 20, 10)

@@ -320,6 +320,7 @@ type
       target*: LayoutNodeId
       followKind*: LayoutFollowerKind
       followAlign*: HorizontalAlign
+      followInset*: Padding
       windowPad*: float
 
   TextMeasure* = object

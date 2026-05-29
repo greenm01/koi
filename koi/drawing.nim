@@ -222,9 +222,59 @@ const TextBreakRunes = @[
   "\u2012", "\u2013", "\u007c",
 ].mapIt(it.runeAt(0))
 
+proc fallbackTextBreakLines(text: string, maxWidth: float): seq[types.TextRow] =
+  const Advance = 7.0
+  if text == "":
+    return
+      @[
+        types.TextRow(
+          startPos: 0,
+          startBytePos: 0,
+          endPos: 0,
+          endBytePos: 0,
+          nextRowPos: -1,
+          nextRowBytePos: -1,
+          width: 0,
+        )
+      ]
+
+  var
+    byteStarts: seq[int]
+    byteEnds: seq[int]
+  var bytePos = 0
+  for rune in text.runes:
+    byteStarts.add(bytePos)
+    inc(bytePos, rune.size)
+    byteEnds.add(bytePos - 1)
+
+  let maxRunes =
+    if maxWidth <= 0:
+      1
+    else:
+      max(floor(maxWidth / Advance).int, 1)
+
+  var start = 0
+  while start < byteStarts.len:
+    let stop = min(start + maxRunes, byteStarts.len)
+    result.add(
+      types.TextRow(
+        startPos: start.Natural,
+        startBytePos: byteStarts[start],
+        endPos: (stop - 1).Natural,
+        endBytePos: byteEnds[stop - 1],
+        nextRowPos: if stop < byteStarts.len: stop else: -1,
+        nextRowBytePos: if stop < byteStarts.len: byteStarts[stop] else: -1,
+        width: (stop - start).float * Advance,
+      )
+    )
+    start = stop
+
 proc textBreakLines*(
     text: string, maxWidth: float, maxRows: int = -1
 ): seq[types.TextRow] =
+  if g_nvgContext == nil:
+    return fallbackTextBreakLines(text, maxWidth)
+
   var glyphs: array[1024, GlyphPosition]
   result = newSeq[types.TextRow]()
   if text == "":

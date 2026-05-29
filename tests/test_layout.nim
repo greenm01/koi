@@ -754,6 +754,17 @@ suite "unified layout solver":
         placement = follow(target, lfkMatchTarget),
       )
     )
+    let insetFollower = arena.addLayoutNode(
+      layoutNode(
+        width = fixed(5),
+        height = fixed(10),
+        placement = follow(
+          target,
+          lfkVerticalScrollBar,
+          followInset = padding(0, 0, 3, 4),
+        ),
+      )
+    )
     discard arena.endLayoutNode()
 
     arena.solveLayout(rect(0, 0, 100, 80), root)
@@ -761,6 +772,7 @@ suite "unified layout solver":
     checkRect(arena.layoutRect(target), rect(10, 20, 50, 30))
     checkRect(arena.layoutRect(follower), rect(55, 20, 5, 30))
     checkRect(arena.layoutRect(matchFollower), rect(10, 20, 50, 30))
+    checkRect(arena.layoutRect(insetFollower), rect(55, 23, 5, 23))
     checkClose(arena.nodes[root.int].contentSize.w, 60)
     checkClose(arena.nodes[root.int].contentSize.h, 50)
 

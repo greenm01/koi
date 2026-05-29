@@ -339,15 +339,24 @@ proc textArea*(
         else:
           visibleRows.float * (maxStart / rows.len.float)
 
-    vertScrollBar(
+    let scrollSlot = layoutFollowerSlot(
       scrollBarId,
-      x = x + w - s.scrollBarWidth,
-      y = y + s.textPadVert,
-      w = s.scrollBarWidth,
-      h = h - s.textPadVert * 2,
-      startVal = 0,
-      endVal = maxStart,
-      value_out = scrollValue,
+      rect(
+        x + w - s.scrollBarWidth,
+        y + s.textPadVert,
+        s.scrollBarWidth,
+        h - s.textPadVert * 2,
+      ),
+      slot.nodeId,
+      lfkVerticalScrollBar,
+      followInset = padding(0, 0, s.textPadVert, s.textPadVert),
+    )
+    vertScrollBarWithSlot(
+      scrollSlot,
+      scrollBarId,
+      0,
+      maxStart,
+      scrollValue,
       thumbSize = thumbSize,
       clickStep = visibleRows.float,
       style = if ta.activeItem == id: s.scrollBarStyleEdit else: s.scrollBarStyleNormal,

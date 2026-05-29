@@ -161,8 +161,8 @@ proc dropDown*[T](
           rect(itemListX, itemListY, itemListW, itemListH),
           buttonSlot.nodeId,
           lfkDropdownPopup,
-          s.itemListAlign,
-          WindowEdgePad,
+          followAlign = s.itemListAlign,
+          windowPad = WindowEdgePad,
         )
       itemListBounds = itemListSlot.previousBounds
     itemListNodeId = itemListSlot.nodeId

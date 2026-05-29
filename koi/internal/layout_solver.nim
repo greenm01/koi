@@ -47,12 +47,14 @@ func follow*(
     followKind: LayoutFollowerKind,
     followAlign: HorizontalAlign = haLeft,
     windowPad: float = 10.0,
+    followInset: Padding = Padding(),
 ): LayoutPlacement =
   LayoutPlacement(
     kind: lpkFollow,
     target: target,
     followKind: followKind,
     followAlign: followAlign,
+    followInset: followInset,
     windowPad: windowPad,
   )
 
@@ -540,17 +542,24 @@ proc placeChildren(arena: var LayoutArena, id: LayoutNodeId) =
       contributesContent = false
       if not child.placement.target.isNull:
         let target = arena.nodes[child.placement.target.toIndex].rect
+        let inset = child.placement.followInset
+        let insetTarget = rect(
+          target.x + inset.left,
+          target.y + inset.top,
+          max(0.0, target.w - inset.left - inset.right),
+          max(0.0, target.h - inset.top - inset.bottom),
+        )
         case child.placement.followKind
         of lfkVerticalScrollBar:
-          child.rect.x = target.x + target.w - child.rect.w
-          child.rect.y = target.y
-          child.rect.h = target.h
+          child.rect.x = insetTarget.x + insetTarget.w - child.rect.w
+          child.rect.y = insetTarget.y
+          child.rect.h = insetTarget.h
         of lfkHorizontalScrollBar:
-          child.rect.x = target.x
-          child.rect.y = target.y + target.h - child.rect.h
-          child.rect.w = target.w
+          child.rect.x = insetTarget.x
+          child.rect.y = insetTarget.y + insetTarget.h - child.rect.h
+          child.rect.w = insetTarget.w
         of lfkMatchTarget:
-          child.rect = target
+          child.rect = insetTarget
         of lfkDropdownPopup:
           let pad = max(child.placement.windowPad, 0.0)
           let
