@@ -66,16 +66,19 @@ work that needs broader design or visual validation.
      APIs, draw behavior, and drag state machines unchanged.
    - Full slider/scrollbar drag-state unification remains deferred.
 
+10. WebGPU backend draw expansion ignored draw state while expanding geometry.
+   - The backend expands fans and strips into triangle lists on the CPU and
+     binds per draw call.
+   - Added pure geometry, antialiasing, scissor, and blend-state helpers with
+     headless tests.
+   - Draw calls now carry scissor and blend state. Flush applies WebGPU scissor
+     rectangles and selects cached pipelines by blend state.
+   - Texture bind coalescing and broader image-based backend validation remain
+     deferred.
+
 ## High-Value Follow-Ups
 
-1. WebGPU backend draw expansion.
-   - The backend expands fans and strips into triangle lists on the CPU and
-   binds per draw call.
-   - Before optimizing, add image-based or geometry tests for scissor,
-   composite-operation behavior, and antialiasing so performance changes do
-   not regress rendering.
-
-2. Default style copies.
+1. Default style copies.
    - Default style accessors deep-copy ref-object styles on every call.
    - This is correct for isolation, but expensive if done in hot paths. Cache or
    borrowing APIs would need an explicit mutability policy.
@@ -91,5 +94,5 @@ work that needs broader design or visual validation.
   after the basic multiline behavior settles.
 - Replace repeated rune-length scans in text editing with cached rune metadata
   only if profiling shows it matters for real text sizes.
-- Coalesce adjacent WebGPU draw calls with the same texture after correctness
-  coverage exists for layer order and paint state.
+- Coalesce adjacent WebGPU draw calls with the same texture and blend state
+  after image-based coverage exists for layer order and paint state.

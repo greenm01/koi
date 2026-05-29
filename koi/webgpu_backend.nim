@@ -7,6 +7,8 @@ import wgpu/extras/helpers
 import wgpu/extras/shaders
 import wgpu/extras/strings
 
+import koi/internal/webgpu_draw_state
+
 const
   NvgTextureAlpha = 0x01
   NvgTextureRgba = 0x02
@@ -122,17 +124,14 @@ type
     ) {.cdecl.}
     renderDelete: proc(userPtr: pointer) {.cdecl.}
 
-  GpuVertex = object
-    x, y: float32
-    u, v: float32
-    r, g, b, a: float32
-    mode: float32
-    aaMult: float32
+  GpuVertex = WebGpuDrawVertex
 
   DrawCall = object
     first: uint32
     count: uint32
     textureId: int
+    blend: WebGpuBlend
+    scissor: WebGpuScissor
 
   GpuTexture = object
     texture: Texture
@@ -151,7 +150,7 @@ type
     surfaceFormat: TextureFormat
     surfaceAlpha: CompositeAlphaMode
     config: SurfaceConfiguration
-    pipeline: RenderPipeline
+    pipelines: Table[WebGpuBlend, RenderPipeline]
     pipelineLayout: PipelineLayout
     bindLayout: BindGroupLayout
     sampler: Sampler
@@ -206,8 +205,14 @@ proc errorCb(
 proc rgba(c: nvg.Color): array[4, float32] =
   [c.r.float32, c.g.float32, c.b.float32, c.a.float32]
 
+func inputVertex(v: NvgVertex): WebGpuInputVertex =
+  WebGpuInputVertex(x: v.x.float32, y: v.y.float32, u: v.u.float32, v: v.v.float32)
+
 proc backend(userPtr: pointer): ptr KoiWgpuBackend =
   cast[ptr KoiWgpuBackend](userPtr)
+
+func viewport(b: KoiWgpuBackend): WebGpuViewport =
+  WebGpuViewport(width: b.width, height: b.height)
 
 proc textureMode(b: KoiWgpuBackend, paint: ptr nvg.Paint): float32 =
   if paint.image == nvg.NoImage:
@@ -225,6 +230,41 @@ proc textureId(paint: ptr nvg.Paint): int =
   else:
     int(paint.image)
 
+func drawScissor(b: KoiWgpuBackend, scissor: ptr NvgScissor): WebGpuScissor =
+  if scissor.isNil:
+    return WebGpuScissor(active: false)
+
+  var
+    xform: array[6, float32]
+    extent: array[2, float32]
+  for i in 0 ..< xform.len:
+    xform[i] = scissor.xform[i].float32
+  for i in 0 ..< extent.len:
+    extent[i] = scissor.extent[i].float32
+
+  scissorFromNanoVg(
+    xform,
+    extent,
+    max(b.width, 0'f32).uint32,
+    max(b.height, 0'f32).uint32,
+    b.devicePixelRatio,
+  )
+
+func toWgpuBlendFactor(factor: WebGpuBlendFactor): wgpu.BlendFactor =
+  case factor
+  of wgbfZero: wgpu.BlendFactor.Zero
+  of wgbfOne: wgpu.BlendFactor.One
+  of wgbfSrc: wgpu.BlendFactor.Src
+  of wgbfOneMinusSrc: wgpu.BlendFactor.OneMinusSrc
+  of wgbfSrcAlpha: wgpu.BlendFactor.SrcAlpha
+  of wgbfOneMinusSrcAlpha: wgpu.BlendFactor.OneMinusSrcAlpha
+  of wgbfDst: wgpu.BlendFactor.Dst
+  of wgbfOneMinusDst: wgpu.BlendFactor.OneMinusDst
+  of wgbfDstAlpha: wgpu.BlendFactor.DstAlpha
+  of wgbfOneMinusDstAlpha: wgpu.BlendFactor.OneMinusDstAlpha
+  of wgbfSrcAlphaSaturated: wgpu.BlendFactor.SrcAlphaSaturated
+  of wgbfUndefined: wgpu.BlendFactor.Undefined
+
 proc appendVertex(
     b: var KoiWgpuBackend,
     v: NvgVertex,
@@ -232,26 +272,21 @@ proc appendVertex(
     mode: float32,
     aaMult: float32,
 ) =
-  if b.width <= 0'f32 or b.height <= 0'f32:
+  let viewport = b.viewport()
+  if not hasDrawableViewport(viewport):
     return
 
-  b.vertices.add GpuVertex(
-    x: (v.x.float32 / b.width) * 2'f32 - 1'f32,
-    y: 1'f32 - (v.y.float32 / b.height) * 2'f32,
-    u: v.u.float32,
-    v: v.v.float32,
-    r: color[0],
-    g: color[1],
-    b: color[2],
-    a: color[3],
-    mode: mode,
-    aaMult: aaMult,
-  )
+  b.vertices.add clipVertex(inputVertex(v), viewport, color, mode, aaMult)
 
 proc appendTriangleList(
-    b: var KoiWgpuBackend, verts: ptr NvgVertex, count: int, paint: ptr nvg.Paint
+    b: var KoiWgpuBackend,
+    verts: ptr NvgVertex,
+    count: int,
+    paint: ptr nvg.Paint,
+    blend: WebGpuBlend,
+    scissor: WebGpuScissor,
 ) =
-  if verts.isNil or count < 3:
+  if verts.isNil or count < 3 or not hasDrawableViewport(b.viewport()):
     return
 
   let
@@ -260,12 +295,18 @@ proc appendTriangleList(
     mode = b.textureMode(paint)
     src = cast[ptr UncheckedArray[NvgVertex]](verts)
 
-  for i in 0 ..< count:
+  for i in triangleListIndices(count):
     b.appendVertex(src[i], color, mode, 0'f32)
 
-  b.drawCalls.add DrawCall(
-    first: first, count: count.uint32, textureId: textureId(paint)
-  )
+  let added = b.vertices.len.uint32 - first
+  if added > 0:
+    b.drawCalls.add DrawCall(
+      first: first,
+      count: added,
+      textureId: textureId(paint),
+      blend: blend,
+      scissor: scissor,
+    )
 
 proc appendFan(
     b: var KoiWgpuBackend,
@@ -273,8 +314,10 @@ proc appendFan(
     count: int,
     paint: ptr nvg.Paint,
     aaMult: float32,
+    blend: WebGpuBlend,
+    scissor: WebGpuScissor,
 ) =
-  if verts.isNil or count < 3:
+  if verts.isNil or count < 3 or not hasDrawableViewport(b.viewport()):
     return
 
   let
@@ -283,14 +326,18 @@ proc appendFan(
     mode = b.textureMode(paint)
     src = cast[ptr UncheckedArray[NvgVertex]](verts)
 
-  for i in 1 ..< count - 1:
-    b.appendVertex(src[0], color, mode, aaMult)
+  for i in fanIndices(count):
     b.appendVertex(src[i], color, mode, aaMult)
-    b.appendVertex(src[i + 1], color, mode, aaMult)
 
   let added = b.vertices.len.uint32 - first
   if added > 0:
-    b.drawCalls.add DrawCall(first: first, count: added, textureId: textureId(paint))
+    b.drawCalls.add DrawCall(
+      first: first,
+      count: added,
+      textureId: textureId(paint),
+      blend: blend,
+      scissor: scissor,
+    )
 
 proc appendStrip(
     b: var KoiWgpuBackend,
@@ -298,8 +345,10 @@ proc appendStrip(
     count: int,
     paint: ptr nvg.Paint,
     aaMult: float32,
+    blend: WebGpuBlend,
+    scissor: WebGpuScissor,
 ) =
-  if verts.isNil or count < 3:
+  if verts.isNil or count < 3 or not hasDrawableViewport(b.viewport()):
     return
 
   let
@@ -308,19 +357,18 @@ proc appendStrip(
     mode = b.textureMode(paint)
     src = cast[ptr UncheckedArray[NvgVertex]](verts)
 
-  for i in 0 ..< count - 2:
-    if (i and 1) == 0:
-      b.appendVertex(src[i], color, mode, aaMult)
-      b.appendVertex(src[i + 1], color, mode, aaMult)
-      b.appendVertex(src[i + 2], color, mode, aaMult)
-    else:
-      b.appendVertex(src[i + 1], color, mode, aaMult)
-      b.appendVertex(src[i], color, mode, aaMult)
-      b.appendVertex(src[i + 2], color, mode, aaMult)
+  for i in stripIndices(count):
+    b.appendVertex(src[i], color, mode, aaMult)
 
   let added = b.vertices.len.uint32 - first
   if added > 0:
-    b.drawCalls.add DrawCall(first: first, count: added, textureId: textureId(paint))
+    b.drawCalls.add DrawCall(
+      first: first,
+      count: added,
+      textureId: textureId(paint),
+      blend: blend,
+      scissor: scissor,
+    )
 
 proc createTexture(
     b: var KoiWgpuBackend, width, height: int, alphaOnly: bool, data: ptr cuchar
@@ -510,10 +558,17 @@ proc renderFill(
 ) {.cdecl.} =
   let b = backend(userPtr)
   let pathArray = cast[ptr UncheckedArray[NvgPath]](paths)
-  let aaMult = if fringe > 0: 1'f32 else: 0'f32
+  let
+    aaMult = fillAaMult(fringe.float32)
+    blend = webGpuBlend(compositeOperation)
+    scissor = b[].drawScissor(scissor)
   for i in 0 ..< npaths.int:
-    b[].appendFan(pathArray[i].fill, pathArray[i].nfill.int, paint, aaMult)
-    b[].appendStrip(pathArray[i].stroke, pathArray[i].nstroke.int, paint, aaMult)
+    b[].appendFan(
+      pathArray[i].fill, pathArray[i].nfill.int, paint, aaMult, blend, scissor
+    )
+    b[].appendStrip(
+      pathArray[i].stroke, pathArray[i].nstroke.int, paint, aaMult, blend, scissor
+    )
 
 proc renderStroke(
     userPtr: pointer,
@@ -526,13 +581,14 @@ proc renderStroke(
 ) {.cdecl.} =
   let b = backend(userPtr)
   let pathArray = cast[ptr UncheckedArray[NvgPath]](paths)
-  let aaMult =
-    if fringe > 0:
-      ((strokeWidth * 0.5 + fringe * 0.5) / fringe).float32
-    else:
-      0'f32
+  let
+    aaMult = strokeAaMult(fringe.float32, strokeWidth.float32)
+    blend = webGpuBlend(compositeOperation)
+    scissor = b[].drawScissor(scissor)
   for i in 0 ..< npaths.int:
-    b[].appendStrip(pathArray[i].stroke, pathArray[i].nstroke.int, paint, aaMult)
+    b[].appendStrip(
+      pathArray[i].stroke, pathArray[i].nstroke.int, paint, aaMult, blend, scissor
+    )
 
 proc renderTriangles(
     userPtr: pointer,
@@ -543,7 +599,10 @@ proc renderTriangles(
     nverts: cint,
     fringe: cfloat,
 ) {.cdecl.} =
-  backend(userPtr)[].appendTriangleList(verts, nverts.int, paint)
+  let b = backend(userPtr)
+  b[].appendTriangleList(
+    verts, nverts.int, paint, webGpuBlend(compositeOperation), b[].drawScissor(scissor)
+  )
 
 proc ensureVertexBuffer(b: var KoiWgpuBackend, bytes: uint64) =
   if bytes <= b.vertexBytes and not b.vertexBuffer.isNil:
@@ -562,6 +621,16 @@ proc ensureVertexBuffer(b: var KoiWgpuBackend, bytes: uint64) =
       mappedAtCreation: false,
     )
   )
+
+proc pipelineForBlend(b: var KoiWgpuBackend, blend: WebGpuBlend): RenderPipeline
+
+proc applyDrawScissor(
+    pass: RenderPassEncoder, b: KoiWgpuBackend, scissor: WebGpuScissor
+) =
+  if scissor.active:
+    pass.setScissorRect(scissor.x, scissor.y, scissor.width, scissor.height)
+  else:
+    pass.setScissorRect(0, 0, b.config.width, b.config.height)
 
 proc renderFlush(userPtr: pointer) {.cdecl.} =
   let b = backend(userPtr)
@@ -607,9 +676,13 @@ proc renderFlush(userPtr: pointer) {.cdecl.} =
     timestampWrites: nil,
   )
   let pass = encoder.begin(renderPassDesc.addr)
-  pass.set(b.pipeline)
   pass.setVertexBuffer(0, b.vertexBuffer, 0, byteLen)
   for call in b.drawCalls:
+    if call.scissor.active and (call.scissor.width == 0 or call.scissor.height == 0):
+      continue
+
+    pass.set(b[].pipelineForBlend(call.blend))
+    applyDrawScissor(pass, b[], call.scissor)
     if call.textureId != 0 and b.textures.hasKey(call.textureId):
       pass.set(0, b.textures[call.textureId].bindGroup, 0, nil)
     else:
@@ -634,6 +707,9 @@ proc renderDelete(userPtr: pointer) {.cdecl.} =
   for texture in b.textures.values:
     releaseTexture(texture)
   b.textures.clear()
+  for pipeline in b.pipelines.values:
+    pipeline.release()
+  b.pipelines.clear()
   releaseTexture(b.white)
   if not b.vertexBuffer.isNil:
     b.vertexBuffer.release()
@@ -701,6 +777,89 @@ fn fs_main(input: VertexOut) -> @location(0) vec4<f32> {
   return vec4<f32>(input.color.rgb * alpha, alpha);
 }
 """
+
+func blendState(blend: WebGpuBlend): BlendState =
+  BlendState(
+    alpha: BlendComponent(
+      operation: wgpu.BlendOperation.Add,
+      srcFactor: toWgpuBlendFactor(blend.srcAlpha),
+      dstFactor: toWgpuBlendFactor(blend.dstAlpha),
+    ),
+    color: BlendComponent(
+      operation: wgpu.BlendOperation.Add,
+      srcFactor: toWgpuBlendFactor(blend.srcRgb),
+      dstFactor: toWgpuBlendFactor(blend.dstRgb),
+    ),
+  )
+
+proc createRenderPipeline(b: KoiWgpuBackend, blendKey: WebGpuBlend): RenderPipeline =
+  var attributes = [
+    VertexAttribute(format: VertexFormat.Float32x2, offset: 0, shaderLocation: 0),
+    VertexAttribute(format: VertexFormat.Float32x2, offset: 8, shaderLocation: 1),
+    VertexAttribute(format: VertexFormat.Float32x4, offset: 16, shaderLocation: 2),
+    VertexAttribute(format: VertexFormat.Float32, offset: 32, shaderLocation: 3),
+    VertexAttribute(format: VertexFormat.Float32, offset: 36, shaderLocation: 4),
+  ]
+  var vertexLayout = VertexBufferLayout(
+    arrayStride: sizeof(GpuVertex).uint64,
+    stepMode: VertexStepMode.Vertex,
+    attributeCount: attributes.len.uint32,
+    attributes: attributes[0].addr,
+  )
+
+  var shaderDesc = wgsl.toDescriptor(shaderCode, label = "Koi NanoVG shader")
+  let shader = b.device.create(shaderDesc.addr)
+  var blend = blendState(blendKey)
+  var target = ColorTargetState(
+    nextInChain: nil,
+    format: b.surfaceFormat,
+    blend: blend.addr,
+    writeMask: ColorWriteMask_All,
+  )
+
+  result = b.device.create(
+    vaddr RenderPipelineDescriptor(
+      nextInChain: nil,
+      label: "Koi NanoVG render pipeline".toStringView(),
+      layout: b.pipelineLayout,
+      vertex: VertexState(
+        module: shader,
+        entryPoint: "vs_main".toStringView(),
+        constantCount: 0,
+        constants: nil,
+        bufferCount: 1,
+        buffers: vertexLayout.addr,
+      ),
+      primitive: PrimitiveState(
+        nextInChain: nil,
+        topology: PrimitiveTopology.TriangleList,
+        stripIndexFormat: IndexFormat.Undefined,
+        frontFace: FrontFace.CCW,
+        cullMode: CullMode.None,
+      ),
+      depthStencil: nil,
+      multisample: MultisampleState(
+        nextInChain: nil,
+        count: 1,
+        mask: uint32.high,
+        alphaToCoverageEnabled: false.uint32,
+      ),
+      fragment: vaddr FragmentState(
+        nextInChain: nil,
+        module: shader,
+        entryPoint: "fs_main".toStringView(),
+        constantCount: 0,
+        constants: nil,
+        targetCount: 1,
+        targets: target.addr,
+      ),
+    )
+  )
+
+proc pipelineForBlend(b: var KoiWgpuBackend, blend: WebGpuBlend): RenderPipeline =
+  if not b.pipelines.hasKey(blend):
+    b.pipelines[blend] = b.createRenderPipeline(blend)
+  b.pipelines[blend]
 
 proc requestAdapter(b: var KoiWgpuBackend) =
   let future = b.instance.request(
@@ -850,79 +1009,8 @@ proc createPipeline(b: var KoiWgpuBackend) =
     )
   )
 
-  var attributes = [
-    VertexAttribute(format: VertexFormat.Float32x2, offset: 0, shaderLocation: 0),
-    VertexAttribute(format: VertexFormat.Float32x2, offset: 8, shaderLocation: 1),
-    VertexAttribute(format: VertexFormat.Float32x4, offset: 16, shaderLocation: 2),
-    VertexAttribute(format: VertexFormat.Float32, offset: 32, shaderLocation: 3),
-    VertexAttribute(format: VertexFormat.Float32, offset: 36, shaderLocation: 4),
-  ]
-  var vertexLayout = VertexBufferLayout(
-    arrayStride: sizeof(GpuVertex).uint64,
-    stepMode: VertexStepMode.Vertex,
-    attributeCount: attributes.len.uint32,
-    attributes: attributes[0].addr,
-  )
-
-  var shaderDesc = wgsl.toDescriptor(shaderCode, label = "Koi NanoVG shader")
-  let shader = b.device.create(shaderDesc.addr)
-  var blend = BlendState(
-    alpha: BlendComponent(
-      operation: wgpu.BlendOperation.Add,
-      srcFactor: wgpu.BlendFactor.One,
-      dstFactor: wgpu.BlendFactor.OneMinusSrcAlpha,
-    ),
-    color: BlendComponent(
-      operation: wgpu.BlendOperation.Add,
-      srcFactor: wgpu.BlendFactor.One,
-      dstFactor: wgpu.BlendFactor.OneMinusSrcAlpha,
-    ),
-  )
-  var target = ColorTargetState(
-    nextInChain: nil,
-    format: b.surfaceFormat,
-    blend: blend.addr,
-    writeMask: ColorWriteMask_All,
-  )
-
-  b.pipeline = b.device.create(
-    vaddr RenderPipelineDescriptor(
-      nextInChain: nil,
-      label: "Koi NanoVG render pipeline".toStringView(),
-      layout: b.pipelineLayout,
-      vertex: VertexState(
-        module: shader,
-        entryPoint: "vs_main".toStringView(),
-        constantCount: 0,
-        constants: nil,
-        bufferCount: 1,
-        buffers: vertexLayout.addr,
-      ),
-      primitive: PrimitiveState(
-        nextInChain: nil,
-        topology: PrimitiveTopology.TriangleList,
-        stripIndexFormat: IndexFormat.Undefined,
-        frontFace: FrontFace.CCW,
-        cullMode: CullMode.None,
-      ),
-      depthStencil: nil,
-      multisample: MultisampleState(
-        nextInChain: nil,
-        count: 1,
-        mask: uint32.high,
-        alphaToCoverageEnabled: false.uint32,
-      ),
-      fragment: vaddr FragmentState(
-        nextInChain: nil,
-        module: shader,
-        entryPoint: "fs_main".toStringView(),
-        constantCount: 0,
-        constants: nil,
-        targetCount: 1,
-        targets: target.addr,
-      ),
-    )
-  )
+  let defaultBlend = defaultWebGpuBlend()
+  b.pipelines[defaultBlend] = b.createRenderPipeline(defaultBlend)
 
   b.sampler = b.device.create(
     vaddr SamplerDescriptor(

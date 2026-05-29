@@ -90,6 +90,16 @@ task testWidgetBehavior, "run headless widget behavior tests":
   setCommonCompileParams()
   setCommand "r", "tests/test_widget_behavior"
 
+task testWebGpuDrawState, "run headless WebGPU draw-state tests":
+  --d:
+    debug
+  --nimcache:
+    "/tmp/koi_test_webgpu_draw_state_d"
+  --out:
+    "/tmp/koi_test_webgpu_draw_state"
+  setCommonCompileParams()
+  setCommand "r", "tests/test_webgpu_draw_state"
+
 task testRelease, "build test":
   --d:
     release
