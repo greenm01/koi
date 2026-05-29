@@ -24,6 +24,7 @@ type ScrollViewState = ref object of RootObj
   autoContentHeight: bool
   viewportNode: LayoutNodeId
   style: ScrollViewStyle
+  disabled: bool
 
 proc clampedStartX(ss: ScrollViewState): float =
   ss.viewStartX.clamp(0, max(ss.contentWidth - ss.w, 0))
@@ -131,6 +132,7 @@ proc beginScrollViewWithSlot*(
     slot: LayoutSlot,
     drawOffsetBounds: Rect,
     style: ScrollViewStyle = borrowDefaultScrollViewStyle(),
+    disabled: bool = false,
 ) =
   alias(ui, g_uiState)
   discard prepareScrollViewState(
@@ -151,6 +153,7 @@ proc beginScrollViewWithSlot*(
   ss.hitBounds = slot.previousBounds
   ss.viewportNode = slot.nodeId
   ss.style = style
+  ss.disabled = disabled
   pushDrawOffset(DrawOffset(ox: drawOffsetBounds.x, oy: drawOffsetBounds.y))
   ui.itemState[id] = ss
 
@@ -160,6 +163,7 @@ proc beginScrollViewWithFollowerSlot*(
     target: LayoutNodeId,
     followInset: Padding,
     style: ScrollViewStyle = borrowDefaultScrollViewStyle(),
+    disabled: bool = false,
 ) =
   let (scrollX, scrollY) =
     prepareScrollViewState(id, fallback.x, fallback.y, fallback.w, fallback.h, style)
@@ -174,26 +178,31 @@ proc beginScrollViewWithFollowerSlot*(
     followInset = followInset,
     scrollOffset = size(scrollX, scrollY),
   )
-  beginScrollViewWithSlot(id, slot, drawBounds, style)
+  beginScrollViewWithSlot(id, slot, drawBounds, style, disabled)
 
 proc beginScrollView*(
     id: ItemId,
     x, y, w, h: float,
     style: ScrollViewStyle = borrowDefaultScrollViewStyle(),
+    disabled: bool = false,
 ) =
   let (x, y) = addDrawOffset(x, y)
   let (scrollX, scrollY) = prepareScrollViewState(id, x, y, w, h, style)
   let slot = beginLayoutContainerSlotAt(
     id, rect(x, y, w, h), rect(x - scrollX, y - scrollY, w, h), size(scrollX, scrollY)
   )
-  beginScrollViewWithSlot(id, slot, rect(x - scrollX, y - scrollY, w, h), style)
+  beginScrollViewWithSlot(
+    id, slot, rect(x - scrollX, y - scrollY, w, h), style, disabled
+  )
 
 template beginScrollView*(
-    x, y, w, h: float, style: ScrollViewStyle = borrowDefaultScrollViewStyle()
+    x, y, w, h: float,
+    style: ScrollViewStyle = borrowDefaultScrollViewStyle(),
+    disabled: bool = false,
 ) =
   let i = instantiationInfo(fullPaths = true)
   let id = nextId(i.filename, i.line, "")
-  beginScrollView(id, x, y, w, h, style)
+  beginScrollView(id, x, y, w, h, style, disabled)
 
 proc endScrollView*(contentW, contentH: float) =
   alias(ui, g_uiState)
@@ -239,7 +248,8 @@ proc endScrollView*(contentW, contentH: float) =
       thumbSize = visibleHeight * ((contentHeight - visibleHeight) / contentHeight)
       endVal = contentHeight - visibleHeight
 
-    if isHit(ss.hitBounds.x, ss.hitBounds.y, ss.hitBounds.w, ss.hitBounds.h):
+    if not ss.disabled and
+        isHit(ss.hitBounds.x, ss.hitBounds.y, ss.hitBounds.w, ss.hitBounds.h):
       if hasEvent() and ui.currEvent.kind == ekScroll:
         viewStartY -= ui.currEvent.oy * ss.style.scrollWheelSensitivity
         markEventHandled()
@@ -267,6 +277,7 @@ proc endScrollView*(contentW, contentH: float) =
       thumbSize = thumbSize,
       clickStep = 20,
       style = ss.style.scrollBarStyle,
+      disabled = ss.disabled,
     )
   else:
     viewStartY = 0
@@ -299,6 +310,7 @@ proc endScrollView*(contentW, contentH: float) =
       thumbSize = thumbSize,
       clickStep = 20,
       style = ss.style.scrollBarStyle,
+      disabled = ss.disabled,
     )
   else:
     viewStartX = 0
@@ -320,19 +332,23 @@ proc endScrollView*(contentW, contentH: float) =
 proc endScrollView*(height: float = -1.0) =
   endScrollView(-1.0, height)
 
-template scrollView*(x, y, w, h: float, contentH: float, body: untyped) =
+template scrollView*(
+    x, y, w, h: float, contentH: float, disabled: bool = false, body: untyped
+) =
   let i = instantiationInfo(fullPaths = true)
   let id = nextId(i.filename, i.line)
-  beginScrollView(id, x, y, w, h)
+  beginScrollView(id, x, y, w, h, borrowDefaultScrollViewStyle(), disabled)
   try:
     body
   finally:
     endScrollView(contentH)
 
-template scrollView*(x, y, w, h: float, contentW, contentH: float, body: untyped) =
+template scrollView*(
+    x, y, w, h: float, contentW, contentH: float, disabled: bool = false, body: untyped
+) =
   let i = instantiationInfo(fullPaths = true)
   let id = nextId(i.filename, i.line)
-  beginScrollView(id, x, y, w, h)
+  beginScrollView(id, x, y, w, h, borrowDefaultScrollViewStyle(), disabled)
   try:
     body
   finally:

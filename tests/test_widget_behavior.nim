@@ -1281,6 +1281,26 @@ suite "layout-integrated widget behavior":
     check scrollViewStartY(44) > 0
     check g_uiState.layoutArena.nodes.len == 2
 
+  test "disabled scroll view ignores wheel and disables scrollbars":
+    resetUi()
+    let id = generateId("disabled-scroll-view.nim", 1, "scroll")
+    let sbId = hashId(lastIdString() & ":scrollBar")
+    g_uiState.layoutRects[id] = rect(0, 0, 50, 30)
+    g_uiState.layoutRects[sbId] = rect(40, 0, 10, 30)
+    g_uiState.mx = 45
+    g_uiState.my = 5
+    g_uiState.mbLeftDown = true
+    g_uiState.hasEvent = true
+    g_uiState.currEvent = Event(kind: ekScroll, ox: 0, oy: -1, mods: {})
+
+    beginScrollView(id, 0, 0, 50, 30, disabled = true)
+    endScrollView(100)
+
+    check not eventHandled()
+    check scrollViewStartY(id) == 0
+    check isHot(sbId)
+    check not isActive(sbId)
+
   test "scroll view restore does not register another layout node":
     resetUi()
 
