@@ -10,11 +10,6 @@ to the deferred candidates that still look useful.
 - Complete broader Wayland input support, especially keyboard/xkb mapping,
   modifiers, repeat, cursor shape, output scale, and robust close/resize flow.
 
-## Widgets And Input
-
-- Continue normalizing disabled state and custom draw hooks across remaining
-  composite widgets.
-
 ## Text And Editing
 
 - Replace repeated rune-length scans in text editing with cached rune metadata
