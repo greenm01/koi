@@ -1997,6 +1997,14 @@ suite "feature widget behavior":
     check g_uiState.layoutArena.nodes.len == 1
     check g_drawLayers.layers[ord(layerTooltip)].len == 1
 
+  test "short multiline tooltip uses compact wrapped-text bounds":
+    resetUi()
+
+    let bounds = tooltipBounds(20, 20, "A\nB")
+
+    check bounds.w < 100
+    check bounds.h > 40
+
   test "dialog background registers a layout-backed draw node":
     resetUi()
 
