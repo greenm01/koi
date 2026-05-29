@@ -10,6 +10,7 @@ import koi/layout
 import koi/rect
 import koi/input
 import koi/defaults
+import koi/internal/algorithms
 import koi/internal/widget_behavior
 import koi/widgets/common
 import koi/widgets/textfield
@@ -68,10 +69,13 @@ proc horizSlider*(
             sl.cursorPosY = ui.my
             ui.widgetMouseDrag = true
           else:
-            let t = invLerp(
-              hitBounds.x + s.trackPad, hitBounds.x + hitBounds.w - s.trackPad, ui.mx
+            newValue = sliderValueFromTrackPos(
+              ui.mx,
+              hitBounds.x + s.trackPad,
+              hitBounds.x + hitBounds.w - s.trackPad,
+              startVal,
+              endVal,
             )
-            newValue = lerp(startVal, endVal, t).clampToRange(startVal, endVal)
 
         # Transition to edit mode on double click or simple click without move
         if isDoubleClick():
@@ -87,10 +91,8 @@ proc horizSlider*(
       if shiftDown():
         let d = if altDown(): SliderUltraFineDragDivisor else: SliderFineDragDivisor
         let dx = (ui.dx - ui.x0) / d
-        let range = abs(endVal - startVal)
-        newValue = (value + (dx / (hitBounds.w - s.trackPad * 2)) * range).clampToRange(
-          startVal, endVal
-        )
+        newValue =
+          sliderFineDragValue(value, startVal, endVal, dx, hitBounds.w - s.trackPad * 2)
         ui.x0 = ui.dx
         sl.cursorPosX = (sl.cursorPosX + dx).clamp(
           hitBounds.x + s.trackPad, hitBounds.x + hitBounds.w - s.trackPad
@@ -206,8 +208,7 @@ proc vertSlider*(
     posMaxY = hitBounds.y + s.trackPad
 
   func calcPosY(val: float): float =
-    let t = invLerp(startVal, endVal, val)
-    lerp(posMinY, posMaxY, t)
+    sliderPosFromValue(val, posMinY, posMaxY, startVal, endVal)
 
   let posY = calcPosY(value)
 
@@ -237,8 +238,7 @@ proc vertSlider*(
 
       let dy = (ui.dy - ui.y0) / d
       newPosY = clamp(posY + dy, posMaxY, posMinY)
-      let t = invLerp(posMinY, posMaxY, newPosY)
-      value = lerp(startVal, endVal, t)
+      value = sliderValueFromTrackPos(newPosY, posMinY, posMaxY, startVal, endVal)
       ui.y0 = ui.dy
 
       sl.cursorPosY = if s.cursorFollowsValue: newPosY else: ui.dragY
@@ -274,7 +274,7 @@ proc vertSlider*(
     let
       drawPosMinY = ry + rh - s.trackPad
       drawPosMaxY = ry + s.trackPad
-      drawPosY = lerp(drawPosMinY, drawPosMaxY, invLerp(startVal, endVal, value))
+      drawPosY = sliderPosFromValue(value, drawPosMinY, drawPosMaxY, startVal, endVal)
       vx = rx + s.trackPad
       vy = drawPosY
       vw = rw - s.trackPad * 2

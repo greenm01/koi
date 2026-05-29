@@ -12,8 +12,6 @@ to the deferred candidates that still look useful.
 
 ## Widgets And Input
 
-- Extract deeper slider drag-state logic after focused tests cover drag and
-  hidden cursor behavior.
 - Normalize disabled state and custom draw hooks across remaining widgets.
 
 ## Text And Editing

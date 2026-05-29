@@ -551,6 +551,40 @@ func listViewRange*(
   result.last = last.Natural
   result.startY = first.float * rowHeight - scrollY
 
+func sliderClampValue(value, startVal, endVal: float): float =
+  if startVal <= endVal:
+    clamp(value, startVal, endVal)
+  else:
+    clamp(value, endVal, startVal)
+
+func sliderValueFromTrackPos*(
+    cursorPos, trackMin, trackMax, startVal, endVal: float
+): float =
+  if trackMin == trackMax:
+    return sliderClampValue(startVal, startVal, endVal)
+
+  sliderClampValue(
+    lerp(startVal, endVal, invLerp(trackMin, trackMax, cursorPos)), startVal, endVal
+  )
+
+func sliderPosFromValue*(value, trackMin, trackMax, startVal, endVal: float): float =
+  if startVal == endVal:
+    return trackMin
+
+  lerp(
+    trackMin,
+    trackMax,
+    invLerp(startVal, endVal, sliderClampValue(value, startVal, endVal)),
+  )
+
+func sliderFineDragValue*(value, startVal, endVal, delta, trackLength: float): float =
+  if trackLength <= 0:
+    return sliderClampValue(value, startVal, endVal)
+
+  sliderClampValue(
+    value + delta / trackLength * abs(endVal - startVal), startVal, endVal
+  )
+
 func scrollBarRange*(startVal, endVal: float): float =
   abs(startVal - endVal)
 

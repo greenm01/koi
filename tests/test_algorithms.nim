@@ -121,6 +121,24 @@ suite "nuklear-inspired widget algorithms":
     checkClose(propertyStepValue(0.9, 0.0, 1.0, 0.25, 1), 1.0)
     checkClose(propertyStepValue(0.1, 0.0, 1.0, 0.25, -1), 0.0)
 
+suite "slider algorithms":
+  test "track positions map to clamped values":
+    checkClose(sliderValueFromTrackPos(50, 0, 100, 0, 10), 5)
+    checkClose(sliderValueFromTrackPos(-20, 0, 100, 0, 10), 0)
+    checkClose(sliderValueFromTrackPos(120, 0, 100, 0, 10), 10)
+    checkClose(sliderValueFromTrackPos(25, 0, 100, 100, 0), 75)
+
+  test "values map back to track positions":
+    checkClose(sliderPosFromValue(5, 0, 100, 0, 10), 50)
+    checkClose(sliderPosFromValue(15, 0, 100, 0, 10), 100)
+    checkClose(sliderPosFromValue(50, 100, 0, 0, 100), 50)
+
+  test "fine drag applies scaled deltas and clamps":
+    checkClose(sliderFineDragValue(50, 0, 100, 10, 100), 60)
+    checkClose(sliderFineDragValue(95, 0, 100, 10, 100), 100)
+    checkClose(sliderFineDragValue(5, 0, 100, -10, 100), 0)
+    checkClose(sliderFineDragValue(50, 0, 100, 10, 0), 50)
+
 suite "scrollbar algorithms":
   test "thumb math handles degenerate value ranges":
     checkClose(scrollBarThumbLength(100, 2, 12, -1, 5, 5), 96)
