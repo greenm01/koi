@@ -168,6 +168,7 @@ proc horizScrollBarWithSlot*(
     clickStep: float = -1.0,
     style: ScrollBarStyle = borrowDefaultScrollBarStyle(),
     allowFocusCaptured: bool = false,
+    disabled: bool = false,
 ) =
   alias(ui, g_uiState)
   alias(s, style)
@@ -200,7 +201,9 @@ proc horizScrollBarWithSlot*(
     else:
       isHit(hitBounds.x, hitBounds.y, hitBounds.w, hitBounds.h)
 
-  discard captureDragWidget(id, hit, allowActiveCapture = allowFocusCaptured)
+  discard captureDragWidget(
+    id, hit, allowActiveCapture = allowFocusCaptured, disabled = disabled
+  )
 
   let insideThumb = mouseInside(thumbX, hitBounds.y, thumbW, hitBounds.h)
 
@@ -209,12 +212,13 @@ proc horizScrollBarWithSlot*(
     newThumbX = thumbX
     newValue = value
 
-  let next = updateScrollBarInteraction(
-    sbaHorizontal, id, startVal, endVal, value, clickStep, thumbX, thumbW, thumbMinX,
-    thumbMaxX, insideThumb,
-  )
-  newValue = next.value
-  newThumbX = next.thumbPos
+  if not disabled:
+    let next = updateScrollBarInteraction(
+      sbaHorizontal, id, startVal, endVal, value, clickStep, thumbX, thumbW, thumbMinX,
+      thumbMaxX, insideThumb,
+    )
+    newValue = next.value
+    newThumbX = next.thumbPos
 
   value_out = newValue
 
@@ -227,7 +231,7 @@ proc horizScrollBarWithSlot*(
       s.autoFade and dy < s.autoFadeDistance and withinX and
       (not ui.focusCaptured or allowFocusCaptured)
     ):
-      let state = dragWidgetState(id)
+      let state = dragWidgetState(id, disabled)
 
       var sw = s.trackStrokeWidth
       var (x, y, w, h) = snapToGrid(bounds.x, bounds.y, bounds.w, bounds.h, sw)
@@ -312,12 +316,13 @@ proc horizScrollBar*(
     clickStep: float = -1.0,
     style: ScrollBarStyle = borrowDefaultScrollBarStyle(),
     allowFocusCaptured: bool = false,
+    disabled: bool = false,
 ) =
   let (x, y) = addDrawOffset(x, y)
   let slot = layoutSlot(id, rect(x, y, w, h))
   horizScrollBarWithSlot(
     slot, id, startVal, endVal, value_out, tooltip, thumbSize, clickStep, style,
-    allowFocusCaptured,
+    allowFocusCaptured, disabled,
   )
 
 # Must be kept in sync with horizScrollBar!
@@ -332,6 +337,7 @@ proc vertScrollBarWithSlot*(
     clickStep: float = -1.0,
     style: ScrollBarStyle = borrowDefaultScrollBarStyle(),
     allowFocusCaptured: bool = false,
+    disabled: bool = false,
 ) =
   alias(ui, g_uiState)
   alias(s, style)
@@ -364,7 +370,9 @@ proc vertScrollBarWithSlot*(
     else:
       isHit(hitBounds.x, hitBounds.y, hitBounds.w, hitBounds.h)
 
-  discard captureDragWidget(id, hit, allowActiveCapture = allowFocusCaptured)
+  discard captureDragWidget(
+    id, hit, allowActiveCapture = allowFocusCaptured, disabled = disabled
+  )
 
   let insideThumb = mouseInside(hitBounds.x, thumbY, hitBounds.w, thumbH)
 
@@ -373,12 +381,13 @@ proc vertScrollBarWithSlot*(
     newThumbY = thumbY
     newValue = value
 
-  let next = updateScrollBarInteraction(
-    sbaVertical, id, startVal, endVal, value, clickStep, thumbY, thumbH, thumbMinY,
-    thumbMaxY, insideThumb,
-  )
-  newValue = next.value
-  newThumbY = next.thumbPos
+  if not disabled:
+    let next = updateScrollBarInteraction(
+      sbaVertical, id, startVal, endVal, value, clickStep, thumbY, thumbH, thumbMinY,
+      thumbMaxY, insideThumb,
+    )
+    newValue = next.value
+    newThumbY = next.thumbPos
 
   value_out = newValue
 
@@ -391,7 +400,7 @@ proc vertScrollBarWithSlot*(
       s.autoFade and dx < s.autoFadeDistance and withinY and
       (not ui.focusCaptured or allowFocusCaptured)
     ):
-      let state = dragWidgetState(id)
+      let state = dragWidgetState(id, disabled)
 
       var sw = s.trackStrokeWidth
       var (x, y, w, h) = snapToGrid(bounds.x, bounds.y, bounds.w, bounds.h, sw)
@@ -476,12 +485,13 @@ proc vertScrollBar*(
     clickStep: float = -1.0,
     style: ScrollBarStyle = borrowDefaultScrollBarStyle(),
     allowFocusCaptured: bool = false,
+    disabled: bool = false,
 ) =
   let (x, y) = addDrawOffset(x, y)
   let slot = layoutSlot(id, rect(x, y, w, h))
   vertScrollBarWithSlot(
     slot, id, startVal, endVal, value_out, tooltip, thumbSize, clickStep, style,
-    allowFocusCaptured,
+    allowFocusCaptured, disabled,
   )
 
 proc scrollBarPost*() =
@@ -503,13 +513,14 @@ template horizScrollBar*(
     clickStep: float = -1.0,
     style: ScrollBarStyle = borrowDefaultScrollBarStyle(),
     allowFocusCaptured: bool = false,
+    disabled: bool = false,
 ) =
   let i = instantiationInfo(fullPaths = true)
   let id = nextId(i.filename, i.line)
 
   horizScrollBar(
     id, x, y, w, h, startVal, endVal, value, tooltip, thumbSize, clickStep, style,
-    allowFocusCaptured,
+    allowFocusCaptured, disabled,
   )
 
 template vertScrollBar*(
@@ -521,11 +532,12 @@ template vertScrollBar*(
     clickStep: float = -1.0,
     style: ScrollBarStyle = borrowDefaultScrollBarStyle(),
     allowFocusCaptured: bool = false,
+    disabled: bool = false,
 ) =
   let i = instantiationInfo(fullPaths = true)
   let id = nextId(i.filename, i.line)
 
   vertScrollBar(
     id, x, y, w, h, startVal, endVal, value, tooltip, thumbSize, clickStep, style,
-    allowFocusCaptured,
+    allowFocusCaptured, disabled,
   )

@@ -35,6 +35,7 @@ proc horizSlider*(
     label: string = "",
     tooltip: string = "",
     style: SliderStyle = borrowDefaultSliderStyle(),
+    disabled: bool = false,
 ) =
   alias(ui, g_uiState)
   alias(sl, ui.sliderState)
@@ -47,14 +48,16 @@ proc horizSlider*(
   let hitBounds = slot.previousBounds
 
   # Hit testing
-  if captureDragWidget(id, isHit(hitBounds.x, hitBounds.y, hitBounds.w, hitBounds.h)):
+  if captureDragWidget(
+    id, isHit(hitBounds.x, hitBounds.y, hitBounds.w, hitBounds.h), disabled = disabled
+  ):
     sl.state = ssDefault
     sl.oldValue = value
     sl.cursorMoved = false
 
   var newValue = value
 
-  if isActive(id):
+  if not disabled and isActive(id):
     case sl.state
     of ssDefault:
       if ui.mbLeftDown:
@@ -137,7 +140,7 @@ proc horizSlider*(
   # Draw slider
   if sl.editModeItem != id:
     addLayoutDrawLayer(ui.currentLayer, slot.nodeId, vg, bounds):
-      let state = dragWidgetState(id)
+      let state = dragWidgetState(id, disabled)
 
       var sw = s.trackStrokeWidth
       var (rx, ry, rw, rh) = snapToGrid(bounds.x, bounds.y, bounds.w, bounds.h, sw)
@@ -193,6 +196,7 @@ proc vertSlider*(
     value_out: var float,
     tooltip: string = "",
     style: SliderStyle = borrowDefaultSliderStyle(),
+    disabled: bool = false,
 ) =
   alias(ui, g_uiState)
   alias(sl, ui.sliderState)
@@ -212,12 +216,13 @@ proc vertSlider*(
 
   let posY = calcPosY(value)
 
-  discard
-    captureDragWidget(id, isHit(hitBounds.x, hitBounds.y, hitBounds.w, hitBounds.h))
+  discard captureDragWidget(
+    id, isHit(hitBounds.x, hitBounds.y, hitBounds.w, hitBounds.h), disabled = disabled
+  )
 
   var newPosY = posY
 
-  if isActive(id):
+  if not disabled and isActive(id):
     case sl.state
     of ssDefault:
       ui.y0 = ui.my
@@ -252,7 +257,7 @@ proc vertSlider*(
   value_out = value
 
   addLayoutDrawLayer(ui.currentLayer, slot.nodeId, vg, bounds):
-    let state = dragWidgetState(id)
+    let state = dragWidgetState(id, disabled)
 
     var sw = s.trackStrokeWidth
     var (rx, ry, rw, rh) = snapToGrid(bounds.x, bounds.y, bounds.w, bounds.h, sw)
@@ -310,10 +315,13 @@ template horizSlider*(
     label: string = "",
     tooltip: string = "",
     style: SliderStyle = borrowDefaultSliderStyle(),
+    disabled: bool = false,
 ) =
   let i = instantiationInfo(fullPaths = true)
   let id = nextId(i.filename, i.line)
-  horizSlider(id, x, y, w, h, startVal, endVal, value, grouping, label, tooltip, style)
+  horizSlider(
+    id, x, y, w, h, startVal, endVal, value, grouping, label, tooltip, style, disabled
+  )
 
 template horizSlider*(
     startVal, endVal: float,
@@ -322,6 +330,7 @@ template horizSlider*(
     label: string = "",
     tooltip: string = "",
     style: SliderStyle = borrowDefaultSliderStyle(),
+    disabled: bool = false,
 ) =
   let i = instantiationInfo(fullPaths = true)
   let id = nextId(i.filename, i.line)
@@ -339,6 +348,7 @@ template horizSlider*(
     label,
     tooltip,
     style,
+    disabled,
   )
   autoLayoutPost()
 
@@ -348,7 +358,8 @@ template vertSlider*(
     value: var float,
     tooltip: string = "",
     style: SliderStyle = borrowDefaultSliderStyle(),
+    disabled: bool = false,
 ) =
   let i = instantiationInfo(fullPaths = true)
   let id = nextId(i.filename, i.line)
-  vertSlider(id, x, y, w, h, startVal, endVal, value, tooltip, style)
+  vertSlider(id, x, y, w, h, startVal, endVal, value, tooltip, style, disabled)

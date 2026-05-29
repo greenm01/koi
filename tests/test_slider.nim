@@ -112,6 +112,19 @@ suite "horizontal slider value range":
     horizSlider(SlId, Sx, Sy, Sw, Sh, 0.0, 100.0, value)
     checkClose(value, 100.0)
 
+  test "disabled slider does not activate or change from mouse input":
+    resetUi()
+    let (lo, hi) = trackBounds()
+    var value = 25.0
+
+    placeRect(SlId, rect(Sx, Sy, Sw, Sh))
+    pressLeftAt((lo + hi) * 0.75, Sy + Sh * 0.5)
+    horizSlider(SlId, Sx, Sy, Sw, Sh, 0.0, 100.0, value, disabled = true)
+
+    check isHot(SlId)
+    check not isActive(SlId)
+    checkClose(value, 25.0)
+
 suite "vertical slider capture":
   test "hovering marks the slider hot without starting a drag":
     resetUi()
@@ -123,3 +136,15 @@ suite "vertical slider capture":
     check isHot(SlId)
     check not isActive(SlId)
     check g_uiState.sliderState.state == ssDefault
+
+  test "disabled vertical slider does not capture":
+    resetUi()
+    var value = 50.0
+    placeRect(SlId, rect(Sx, Sy, Sw, Sh))
+    pressLeftAt(Sx + Sw * 0.5, Sy + Sh * 0.5)
+    vertSlider(SlId, Sx, Sy, Sw, Sh, 0.0, 100.0, value, disabled = true)
+
+    check isHot(SlId)
+    check not isActive(SlId)
+    check g_uiState.sliderState.state == ssDefault
+    checkClose(value, 50.0)

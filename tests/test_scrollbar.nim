@@ -29,6 +29,20 @@ proc bar(value: var float, tooltip: string = "") =
     SbId, Bx, By, Bw, Bh, StartVal, EndVal, value, tooltip, thumbSize = ThumbSize
   )
 
+proc disabledBar(value: var float) =
+  horizScrollBar(
+    SbId,
+    Bx,
+    By,
+    Bw,
+    Bh,
+    StartVal,
+    EndVal,
+    value,
+    thumbSize = ThumbSize,
+    disabled = true,
+  )
+
 proc makeRepeatDue() =
   g_uiState.t0 = currentTime() - 1.0
 
@@ -70,6 +84,20 @@ suite "scrollbar thumb drag":
     g_uiState.dx = g_uiState.x0 - 1000.0
     bar(value)
     check abs(value - StartVal) < 1e-9
+
+  test "disabled scrollbar does not activate or change value":
+    resetUi()
+    var value = 50.0
+    let g = thumbGeom(value)
+
+    placeRect(SbId, rect(Bx, By, Bw, Bh))
+    pressLeftAt(g.x + g.w * 0.5, By + Bh * 0.5)
+    disabledBar(value)
+
+    check isHot(SbId)
+    check not isActive(SbId)
+    check g_uiState.scrollBarState.state == sbsDefault
+    check abs(value - 50.0) < 1e-9
 
 suite "scrollbar trough click":
   test "clicking right of the thumb steps the value up by 10%":

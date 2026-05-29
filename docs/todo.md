@@ -13,7 +13,7 @@ to the deferred candidates that still look useful.
 ## Widgets And Input
 
 - Continue normalizing disabled state and custom draw hooks across remaining
-  drag and composite widgets.
+  composite widgets.
 
 ## Text And Editing
 
