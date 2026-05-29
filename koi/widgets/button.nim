@@ -95,9 +95,9 @@ proc drawButtonImageLabel(
   elif label.len > 0:
     vg.drawLabel(x, y, w, h, label, state, s.label)
 
-proc button*(
+proc buttonWithSlot*(
+    slot: LayoutSlot,
     id: ItemId,
-    x, y, w, h: float,
     label: string,
     tooltip: string,
     disabled: bool,
@@ -105,9 +105,6 @@ proc button*(
     style: ButtonStyle = borrowDefaultButtonStyle(),
 ): bool =
   alias(ui, g_uiState)
-
-  let (x, y) = addDrawOffset(x, y)
-  let slot = layoutSlot(id, rect(x, y, w, h))
 
   # Hit testing
   if isHit(
@@ -128,6 +125,19 @@ proc button*(
 
   if isHot(id):
     handleTooltip(id, tooltip)
+
+proc button*(
+    id: ItemId,
+    x, y, w, h: float,
+    label: string,
+    tooltip: string,
+    disabled: bool,
+    drawProc: Option[ButtonDrawProc] = ButtonDrawProc.none,
+    style: ButtonStyle = borrowDefaultButtonStyle(),
+): bool =
+  let (x, y) = addDrawOffset(x, y)
+  let slot = layoutSlot(id, rect(x, y, w, h))
+  buttonWithSlot(slot, id, label, tooltip, disabled, drawProc, style)
 
 proc buttonImageLabel*(
     id: ItemId,

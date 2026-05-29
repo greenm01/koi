@@ -560,6 +560,9 @@ proc placeChildren(arena: var LayoutArena, id: LayoutNodeId) =
           child.rect.w = insetTarget.w
         of lfkMatchTarget:
           child.rect = insetTarget
+        of lfkInsetFixed:
+          child.rect.x = insetTarget.x
+          child.rect.y = insetTarget.y
         of lfkDropdownPopup:
           let pad = max(child.placement.windowPad, 0.0)
           let

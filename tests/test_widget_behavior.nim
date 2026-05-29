@@ -474,6 +474,57 @@ suite "layout-integrated widget behavior":
     check isHot(31)
     check isActive(31)
 
+  test "closed auto-layout color combo preview follows button without row content":
+    resetUi()
+    var params = DefaultAutoLayoutParams
+    params.itemsPerRow = 1
+    params.rowWidth = 60
+    params.leftPad = 0
+    params.rightPad = 0
+    params.rowPad = 0
+    params.sectionPad = 0
+    params.defaultRowHeight = 20
+    params.defaultItemHeight = 20
+    initAutoLayout(params)
+    beginFrameLayout()
+
+    let comboId: ItemId = 33
+    let previewId = hashId($comboId & ":preview")
+    var c = rgb(0.2, 0.4, 0.6)
+    autoLayoutPre()
+    let comboRow = g_uiState.autoLayoutState.autoRow
+    discard colorCombo(
+      comboId,
+      g_uiState.autoLayoutState.x,
+      autoLayoutNextY(),
+      autoLayoutNextItemWidth(),
+      autoLayoutNextItemHeight(),
+      c,
+      "Accent",
+    )
+    autoLayoutPost()
+    finishFrameLayout()
+
+    var rowChildren = 0
+    var comboNode = NullLayoutNodeId
+    var previewNode = NullLayoutNodeId
+    for node in g_uiState.layoutArena.nodes:
+      if int32(node.parent) == int32(comboRow):
+        inc rowChildren
+      if node.itemId == comboId:
+        comboNode = node.id
+      if node.itemId == previewId:
+        previewNode = node.id
+
+    check rowChildren == 1
+    check not comboNode.isNull
+    check not previewNode.isNull
+    check g_uiState.layoutArena.nodes[previewNode.int].placement.kind == lpkFollow
+    check g_uiState.layoutArena.nodes[previewNode.int].placement.followKind ==
+      lfkInsetFixed
+    check int32(g_uiState.layoutArena.nodes[previewNode.int].placement.target) ==
+      int32(comboNode)
+
   test "horizontal slider hit testing uses a previous solved rect":
     resetUi()
     var value = 0.0
@@ -1460,6 +1511,56 @@ suite "feature widget behavior":
     g_uiState.mbLeftDown = false
     discard colorCombo(80, 0, 0, 60, 20, color, "Accent")
     check isPopupOpen(80)
+
+  test "open auto-layout color combo popup does not add row content":
+    resetUi()
+    var params = DefaultAutoLayoutParams
+    params.itemsPerRow = 1
+    params.rowWidth = 60
+    params.leftPad = 0
+    params.rightPad = 0
+    params.rowPad = 0
+    params.sectionPad = 0
+    params.defaultRowHeight = 20
+    params.defaultItemHeight = 20
+    initAutoLayout(params)
+
+    let comboId: ItemId = 81
+    let popupId = hashId($comboId & ":popup")
+    openPopup(comboId)
+    beginFrameLayout()
+
+    var color = rgb(0.2, 0.4, 0.8)
+    autoLayoutPre()
+    let comboRow = g_uiState.autoLayoutState.autoRow
+    discard colorCombo(
+      comboId,
+      g_uiState.autoLayoutState.x,
+      autoLayoutNextY(),
+      autoLayoutNextItemWidth(),
+      autoLayoutNextItemHeight(),
+      color,
+      "Accent",
+    )
+    autoLayoutPost()
+    finishFrameLayout()
+
+    var rowChildren = 0
+    var popupNode = NullLayoutNodeId
+    for node in g_uiState.layoutArena.nodes:
+      if int32(node.parent) == int32(comboRow):
+        inc rowChildren
+      if node.itemId == popupId:
+        popupNode = node.id
+
+    check rowChildren == 1
+    check not popupNode.isNull
+    check g_uiState.layoutArena.nodes[popupNode.int].placement.kind == lpkFollow
+    check g_uiState.layoutArena.nodes[popupNode.int].placement.followKind ==
+      lfkDropdownPopup
+    check g_uiState.layoutRects.hasKey(comboId)
+    check g_uiState.layoutRects.hasKey(popupId)
+    check g_uiState.layoutRects[comboId] != g_uiState.layoutRects[popupId]
 
   test "group box content rect becomes the active draw offset":
     resetUi()

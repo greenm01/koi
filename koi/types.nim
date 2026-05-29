@@ -65,6 +65,8 @@ type
     prevLayer*: DrawLayer
     prevHitClip*: Rect
     prevFocusCaptured*: bool
+    prevActiveSlotParent*: int32
+    prevActiveSlotUsed*: bool
     closed*: bool
     widgetInsidePopupCapturedFocus*: bool
 
@@ -309,6 +311,7 @@ type
     lfkHorizontalScrollBar
     lfkMatchTarget
     lfkDropdownPopup
+    lfkInsetFixed
 
   LayoutPlacement* = object
     case kind*: LayoutPlacementKind

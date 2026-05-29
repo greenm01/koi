@@ -765,6 +765,17 @@ suite "unified layout solver":
         ),
       )
     )
+    let fixedInsetFollower = arena.addLayoutNode(
+      layoutNode(
+        width = fixed(8),
+        height = fixed(9),
+        placement = follow(
+          target,
+          lfkInsetFixed,
+          followInset = padding(6, 0, 7, 0),
+        ),
+      )
+    )
     discard arena.endLayoutNode()
 
     arena.solveLayout(rect(0, 0, 100, 80), root)
@@ -773,6 +784,7 @@ suite "unified layout solver":
     checkRect(arena.layoutRect(follower), rect(55, 20, 5, 30))
     checkRect(arena.layoutRect(matchFollower), rect(10, 20, 50, 30))
     checkRect(arena.layoutRect(insetFollower), rect(55, 23, 5, 23))
+    checkRect(arena.layoutRect(fixedInsetFollower), rect(16, 27, 8, 9))
     checkClose(arena.nodes[root.int].contentSize.w, 60)
     checkClose(arena.nodes[root.int].contentSize.h, 50)
 
