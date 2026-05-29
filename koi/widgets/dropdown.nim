@@ -13,6 +13,7 @@ import koi/input
 import koi/defaults
 import koi/internal/algorithms
 import koi/widgets/common
+import koi/widgets/popup
 import koi/widgets/scrollbar
 import koi/utils
 
@@ -52,6 +53,8 @@ proc dropDown*[T](
   proc closeDropDown() =
     ds.state = dsClosed
     ds.activeItem = 0
+    ds.keyboardItem = -1
+    closePopup()
     ui.focusCaptured = false
 
   if ds.state == dsClosed:
@@ -61,17 +64,36 @@ proc dropDown*[T](
         markActive(id)
         ds.state = dsOpenLMBPressed
         ds.activeItem = id
+        ds.keyboardItem = ord(selectedItem)
+        openPopup(id)
         ui.focusCaptured = true
 
   # We 'fall through' to the open state to avoid a 1-frame delay when clicking
   # the button
-  if ds.activeItem == id and ds.state >= dsOpenLMBPressed:
-    # Handle ESC
+  if ds.activeItem == id and isPopupOpen(id) and ds.state >= dsOpenLMBPressed:
+    if ds.keyboardItem < 0:
+      ds.keyboardItem = ord(selectedItem)
+
+    # Handle keyboard navigation before mouse hover can override it.
     if ui.hasEvent and (not ui.eventHandled) and ui.currEvent.kind == ekKey and
         ui.currEvent.action in {kaDown}:
-      if ui.currEvent.key == keyEscape:
+      case ui.currEvent.key
+      of keyEscape:
         markEventHandled()
         closeDropDown()
+      of keyUp, keyKp8:
+        ds.keyboardItem = dropDownKeyboardItem(ds.keyboardItem, numItems, -1)
+        markEventHandled()
+      of keyDown, keyKp2:
+        ds.keyboardItem = dropDownKeyboardItem(ds.keyboardItem, numItems, 1)
+        markEventHandled()
+      of keyEnter, keyKpEnter:
+        if ds.keyboardItem >= 0:
+          selectedItem = T(ds.keyboardItem)
+        markEventHandled()
+        closeDropDown()
+      else:
+        discard
 
     # Calculate the position of the box around the drop-down items
     var maxItemWidth = 0.0
@@ -144,10 +166,15 @@ proc dropDown*[T](
     else:
       ds.displayStartItem = 0
 
+    ds.displayStartItem = scrollStartForActiveItem(
+      ds.keyboardItem, ds.displayStartItem.Natural, maxDisplayItems.Natural,
+      numItems.Natural,
+    ).float
+
     if insideButton or insideItemList:
       markHot(id)
       markActive(id)
-    else:
+    elif ui.mbLeftDown:
       closeDropDown()
 
     if insideItemList:
@@ -157,6 +184,8 @@ proc dropDown*[T](
           ui.my, itemListY, s.itemListPadVert, itemHeight, ds.displayStartItem.Natural,
           maxDisplayItems.Natural, numItems.Natural,
         )
+        if hoverItem >= 0:
+          ds.keyboardItem = hoverItem
 
     # LMB released inside the box selects the item under the cursor and closes
     # the dropDown
@@ -217,7 +246,7 @@ proc dropDown*[T](
     vg.drawLabel(x, y, w, h, itemText, state, s.label)
 
   # Drop-down items
-  if isActive(id) and ds.state >= dsOpenLMBPressed:
+  if isActive(id) and isPopupOpen(id) and ds.state >= dsOpenLMBPressed:
     addDrawLayer(layerPopup, vg):
       drawShadow(vg, itemListX, itemListY, itemListW, itemListH, s.shadow)
 
@@ -240,7 +269,7 @@ proc dropDown*[T](
 
       for i in start ..< (start + maxDisplayItems):
         var state = wsNormal
-        if i == hoverItem:
+        if i == hoverItem or (hoverItem < 0 and i == ds.keyboardItem):
           vg.beginPath()
           vg.rect(itemListX, iy, itemListW, h)
           vg.fillColor(s.itemBackgroundColorHover)
@@ -252,7 +281,7 @@ proc dropDown*[T](
         iy += itemHeight
 
   # Scrollbar
-  if isActive(id) and scrollBarVisible:
+  if isActive(id) and isPopupOpen(id) and scrollBarVisible:
     # Display scroll bar
     let sbId = hashId(lastIdString() & ":scrollBar")
 

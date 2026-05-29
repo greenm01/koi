@@ -88,6 +88,15 @@ The first P0/P1 pass should be considered addressed when Koi has:
 - `treeNode` and `treeSubNode` wrappers over section headers;
 - focused headless tests for the new layout helpers and pure widget math.
 
+The next popup/list pass should be considered addressed when Koi has:
+
+- a single-popup helper that owns popup open/close state, Escape close, outside
+  click close, clipping, draw layer, and draw offset setup;
+- drop-down keyboard navigation for Up, Down, Enter, and Escape;
+- a minimal virtual list range helper and list-view template for large
+  scrollable lists;
+- focused tests for popup state, drop-down keyboard math, and list range math.
+
 ## Non-Goals
 
 - Do not copy Nuklear's C names as primary Koi API.

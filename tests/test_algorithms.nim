@@ -68,6 +68,44 @@ suite "dropdown algorithms":
     check dropDownHoverItem(184, 100, 4, 20, 0, 4, 10) == -1
     check dropDownHoverItem(164, 100, 4, 20, 8, 4, 10) == -1
 
+  test "keyboard navigation clamps active item":
+    check dropDownKeyboardItem(0, 4, -1) == 0
+    check dropDownKeyboardItem(0, 4, 1) == 1
+    check dropDownKeyboardItem(3, 4, 1) == 3
+    check dropDownKeyboardItem(3, 4, 1, wrap = true) == 0
+    check dropDownKeyboardItem(0, 4, -1, wrap = true) == 3
+
+  test "active item scrolls into visible dropdown range":
+    check scrollStartForActiveItem(0, 3, 4, 10) == 0
+    check scrollStartForActiveItem(5, 0, 4, 10) == 2
+    check scrollStartForActiveItem(9, 5, 4, 10) == 6
+    check scrollStartForActiveItem(-1, 5, 4, 10) == 0
+
+suite "popup algorithms":
+  test "auto close checks expanded popup bounds":
+    check popupShouldAutoClose(5, 5, 10, 10, 20, 20, 0, autoClose = true)
+    check not popupShouldAutoClose(15, 15, 10, 10, 20, 20, 0, autoClose = true)
+    check not popupShouldAutoClose(5, 5, 10, 10, 20, 20, 10, autoClose = true)
+    check not popupShouldAutoClose(5, 5, 10, 10, 20, 20, 0, autoClose = false)
+
+suite "list view algorithms":
+  test "visible range covers only rows that can appear":
+    let top = listViewRange(100, 20, 60, 0)
+    check top.first == 0
+    check top.last == 3
+    checkClose(top.startY, 0)
+    checkClose(top.contentHeight, 2000)
+
+    let scrolled = listViewRange(100, 20, 60, 45)
+    check scrolled.first == 2
+    check scrolled.last == 5
+    checkClose(scrolled.startY, -5)
+
+    let empty = listViewRange(0, 20, 60, 0)
+    check empty.first == 0
+    check empty.last == 0
+    checkClose(empty.contentHeight, 0)
+
 suite "nuklear-inspired widget algorithms":
   test "progress fraction clamps invalid and out-of-range values":
     checkClose(progressFraction(25, 100), 0.25)

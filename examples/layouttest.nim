@@ -13,11 +13,13 @@ var vg: NVGContext
 
 var
   selectedRow = false
+  popupId = hashId("layout-popup")
   progressValue = 0.45
   intValue = 4
   floatValue = 0.5
   treeOpen = true
   treeChildOpen = true
+  listSelected: array[30, bool]
 
 proc createWindow(): Window =
   var cfg = DefaultOpenglWindowConfig
@@ -101,6 +103,19 @@ proc renderUI() =
     label("Tree child")
     treeSubNode("Tree Subnode", treeChildOpen):
       label("Nested content")
+
+  label("Popup and Virtual List:")
+  if button("Open Popup"):
+    openPopup(popupId)
+
+  popup(popupId, 120, 120, 220, 80):
+    label(10, 8, 200, 22, "Popup content")
+    if button(10, 38, 90, 24, "Close"):
+      closePopup()
+
+  layoutSpace(130.0):
+    listView(0, 0, 300, 120, listSelected.len.Natural, 22.0, i):
+      discard selectable(0, i.float * 22.0, 280, 20, "List item " & $i, listSelected[i])
 
   koi.endFrame()
 

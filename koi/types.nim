@@ -3,6 +3,8 @@ import std/options
 import glfw
 import nanovg
 
+import koi/rect
+
 type ItemId* = int64
 
 type DrawLayer* = enum
@@ -50,6 +52,7 @@ type
     state*: DropDownState
     activeItem*: ItemId
     displayStartItem*: float
+    keyboardItem*: int
 
 type
   PopupState* = enum
@@ -58,7 +61,10 @@ type
 
   PopupStateVars* = object
     state*: PopupState
+    activeItem*: ItemId
     prevLayer*: DrawLayer
+    prevHitClip*: Rect
+    prevFocusCaptured*: bool
     closed*: bool
     widgetInsidePopupCapturedFocus*: bool
 
@@ -313,6 +319,12 @@ type TextRow* = object
   nextRowPos*: int
   nextRowBytePos*: int
   width*: float
+
+type ListViewRange* = object
+  first*: Natural
+  last*: Natural
+  startY*: float
+  contentHeight*: float
 
 # Style Types
 

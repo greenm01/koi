@@ -1,12 +1,21 @@
 import std/unittest
 
+import glfw
+
 import koi/core
 import koi/drawing
 import koi/input
 import koi/internal/widget_behavior
 import koi/rect
 import koi/types
+import koi/widgets/popup
 import koi/widgets/selectable
+
+template checkRect(actual, expected: Rect) =
+  check actual.x == expected.x
+  check actual.y == expected.y
+  check actual.w == expected.w
+  check actual.h == expected.h
 
 proc resetUi() =
   g_uiState = UIState.default
@@ -15,6 +24,54 @@ proc resetUi() =
   g_uiState.hitClipRect = rect(0, 0, 100, 100)
   g_uiState.drawOffsetStack = @[DrawOffset(ox: 0, oy: 0)]
   g_drawLayers.init()
+
+suite "popup behavior":
+  test "popup open begin and end preserve captured focus":
+    resetUi()
+
+    openPopup(30)
+    check isPopupOpen(30)
+    check isActive(30)
+    check g_uiState.focusCaptured
+
+    g_uiState.mbLeftDown = false
+    check beginPopup(30, 10, 10, 30, 30)
+    check currentLayer() == layerPopup
+    checkRect(g_uiState.hitClipRect, rect(10, 10, 30, 30))
+
+    endPopup()
+    check currentLayer() == layerDefault
+    check g_uiState.focusCaptured
+
+    closePopup()
+    check not isPopupOpen(30)
+    check not g_uiState.focusCaptured
+
+  test "popup closes on escape":
+    resetUi()
+
+    openPopup(30)
+    g_uiState.hasEvent = true
+    g_uiState.currEvent = Event(kind: ekKey, key: keyEscape, action: kaDown, mods: {})
+
+    check not beginPopup(30, 10, 10, 30, 30)
+    check not isPopupOpen(30)
+    check eventHandled()
+
+  test "popup closes on outside click after first release":
+    resetUi()
+
+    openPopup(30)
+    g_uiState.mbLeftDown = false
+    check beginPopup(30, 10, 10, 30, 30)
+    endPopup()
+
+    g_uiState.mx = 95
+    g_uiState.my = 95
+    g_uiState.mbLeftDown = true
+
+    check not beginPopup(30, 10, 10, 30, 30)
+    check not isPopupOpen(30)
 
 suite "simple widget behavior":
   test "disabled widgets do not become active":

@@ -278,6 +278,68 @@ func propertyStepValue*(value, minValue, maxValue, step: int, dir: int): int =
     hi = max(minValue, maxValue)
   clamp(value + step * dir, lo, hi)
 
+func popupShouldAutoClose*(
+    mouseX, mouseY, x, y, w, h, border: float, autoClose: bool
+): bool =
+  if not autoClose:
+    return false
+
+  not (
+    mouseX >= x - border and mouseX <= x + w + border and mouseY >= y - border and
+    mouseY <= y + h + border
+  )
+
+func dropDownKeyboardItem*(current, itemCount, dir: int, wrap: bool = false): int =
+  if itemCount <= 0:
+    return -1
+
+  let next = current + dir
+  if wrap:
+    if next < 0:
+      itemCount - 1
+    elif next >= itemCount:
+      0
+    else:
+      next
+  else:
+    clamp(next, 0, itemCount - 1)
+
+func scrollStartForActiveItem*(
+    activeItem: int, displayStartItem, maxDisplayItems, itemCount: Natural
+): Natural =
+  if itemCount == 0 or maxDisplayItems == 0 or activeItem < 0:
+    return 0.Natural
+
+  let
+    active = min(activeItem, itemCount.int - 1)
+    start = min(displayStartItem, itemCount - 1)
+    visibleCount = min(maxDisplayItems, itemCount)
+
+  if active < start.int:
+    active.Natural
+  elif active >= start.int + visibleCount.int:
+    min((active - visibleCount.int + 1).Natural, itemCount - visibleCount)
+  else:
+    start
+
+func listViewRange*(
+    itemCount: Natural, rowHeight, viewHeight, scrollY: float
+): ListViewRange =
+  result.contentHeight = itemCount.float * max(rowHeight, 0.0)
+  if itemCount == 0 or rowHeight <= 0 or viewHeight <= 0:
+    return
+
+  let
+    maxScroll = max(result.contentHeight - viewHeight, 0.0)
+    scrollY = clamp(scrollY, 0.0, maxScroll)
+    first = clamp(floor(scrollY / rowHeight).int, 0, itemCount.int - 1)
+    visibleRows = max(ceil(viewHeight / rowHeight).int + 1, 1)
+    last = clamp(first + visibleRows - 1, first, itemCount.int - 1)
+
+  result.first = first.Natural
+  result.last = last.Natural
+  result.startY = first.float * rowHeight - scrollY
+
 func scrollBarRange*(startVal, endVal: float): float =
   abs(startVal - endVal)
 
