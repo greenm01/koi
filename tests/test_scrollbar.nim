@@ -24,8 +24,13 @@ proc thumbGeom(value: float): tuple[x, w, minX, maxX: float] =
   let x = scrollBarThumbFromValue(value, StartVal, EndVal, minX, maxX)
   (x, w, minX, maxX)
 
-proc bar(value: var float) =
-  horizScrollBar(SbId, Bx, By, Bw, Bh, StartVal, EndVal, value, thumbSize = ThumbSize)
+proc bar(value: var float, tooltip: string = "") =
+  horizScrollBar(
+    SbId, Bx, By, Bw, Bh, StartVal, EndVal, value, tooltip, thumbSize = ThumbSize
+  )
+
+proc makeRepeatDue() =
+  g_uiState.t0 = currentTime() - 1.0
 
 suite "scrollbar thumb drag":
   test "pressing on the thumb begins a normal drag":
@@ -80,6 +85,72 @@ suite "scrollbar trough click":
 
     bar(value) # sbsTrackClickFirst applies one step (range * 0.1 = 10)
     check abs(value - 60.0) < 1e-9
+
+  test "holding the track repeats while the cursor remains past the thumb":
+    resetUi()
+    var value = 20.0
+    let g = thumbGeom(value)
+
+    placeRect(SbId, rect(Bx, By, Bw, Bh))
+    pressLeftAt(g.maxX + g.w + 1.0, By + Bh * 0.5)
+    bar(value) # -> sbsTrackClickFirst
+    bar(value) # first step
+    check abs(value - 30.0) < 1e-9
+
+    makeRepeatDue()
+    bar(value) # delay -> repeat
+    check g_uiState.scrollBarState.state == sbsTrackClickRepeat
+    check abs(value - 30.0) < 1e-9
+
+    makeRepeatDue()
+    bar(value) # repeat step
+    check abs(value - 40.0) < 1e-9
+
+  test "track repeat stops once the thumb moves under the cursor":
+    resetUi()
+    var value = 50.0
+    let g = thumbGeom(value)
+
+    placeRect(SbId, rect(Bx, By, Bw, Bh))
+    pressLeftAt(g.x + g.w + 2.0, By + Bh * 0.5)
+    bar(value) # -> sbsTrackClickFirst
+    bar(value) # first step moves the thumb under/near the cursor
+    check abs(value - 60.0) < 1e-9
+
+    makeRepeatDue()
+    bar(value) # delay -> repeat
+    makeRepeatDue()
+    bar(value) # repeat should be suppressed because the thumb passed the cursor
+    check abs(value - 60.0) < 1e-9
+
+    releaseLeft()
+    bar(value)
+    scrollBarPost()
+    let afterRightClick = thumbGeom(value)
+
+    pressLeftAt(afterRightClick.x - 2.0, By + Bh * 0.5)
+    bar(value) # -> sbsTrackClickFirst with opposite click direction
+    bar(value)
+    check abs(value - 50.0) < 1e-9
+
+  test "track repeat still runs while tooltip state is visible":
+    resetUi()
+    var value = 20.0
+    let g = thumbGeom(value)
+    g_uiState.tooltipState.state = tsShow
+    g_uiState.tooltipState.lastHotItem = SbId
+    g_uiState.tooltipState.text = "scroll"
+
+    placeRect(SbId, rect(Bx, By, Bw, Bh))
+    pressLeftAt(g.maxX + g.w + 1.0, By + Bh * 0.5)
+    bar(value, tooltip = "scroll")
+    bar(value, tooltip = "scroll")
+    makeRepeatDue()
+    bar(value, tooltip = "scroll")
+    makeRepeatDue()
+    bar(value, tooltip = "scroll")
+
+    check abs(value - 40.0) < 1e-9
 
 suite "scrollbar drag reset":
   test "releasing the button resets the drag state via scrollBarPost":
