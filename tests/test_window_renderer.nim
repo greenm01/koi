@@ -29,6 +29,35 @@ proc drawRectWithHole(x, y, w, h: float, hx, hy, hw, hh: float, color: Color) =
   gVg.fillColor(color)
   gVg.fill()
 
+proc drawTrianglePath(x1, y1, x2, y2, x3, y3: float) =
+  gVg.beginPath()
+  gVg.moveTo(x1, y1)
+  gVg.lineTo(x2, y2)
+  gVg.lineTo(x3, y3)
+  gVg.closePath()
+
+proc drawHsvTriangleLikePaint() =
+  let
+    x1 = 32.0
+    y1 = 52.0
+    x2 = 14.0
+    y2 = 12.0
+    x3 = 50.0
+    y3 = 12.0
+
+  drawTrianglePath(x1, y1, x2, y2, x3, y3)
+  var paint =
+    gVg.linearGradient(x3, y3, x2, y2, rgba(255, 0, 0, 255), rgba(255, 255, 255, 255))
+  gVg.fillPaint(paint)
+  gVg.fill()
+
+  drawTrianglePath(x1, y1, x2, y2, x3, y3)
+  paint = gVg.linearGradient(
+    x1, y1, (x2 + x3) * 0.5, (y2 + y3) * 0.5, rgba(0, 0, 0, 255), rgba(0, 0, 0, 0)
+  )
+  gVg.fillPaint(paint)
+  gVg.fill()
+
 proc drawConcaveNotch(color: Color) =
   gVg.beginPath()
   gVg.moveTo(8, 8)
@@ -116,6 +145,44 @@ suite "wgpu renderer readback":
     check sampled.g in 95'u8 .. 160'u8
     check sampled.b < 30
     check sampled.a > 240
+
+  test "linear gradient paint interpolates across filled geometry":
+    let pixels = capturePixels(64, 64):
+      let paint =
+        gVg.linearGradient(8, 16, 56, 16, rgba(255, 0, 0, 255), rgba(0, 0, 255, 255))
+      gVg.beginPath()
+      gVg.rect(8, 8, 48, 16)
+      gVg.fillPaint(paint)
+      gVg.fill()
+
+    let left = pixels.pixelAt(64, 12, 16)
+    check left.r > 180
+    check left.g < 40
+    check left.b < 100
+
+    let right = pixels.pixelAt(64, 52, 16)
+    check right.r < 100
+    check right.g < 40
+    check right.b > 180
+
+  test "overlaid HSV triangle gradients do not collapse to black":
+    let pixels = capturePixels(64, 64):
+      drawHsvTriangleLikePaint()
+
+    let redCorner = pixels.pixelAt(64, 46, 14)
+    check redCorner.r > 180
+    check redCorner.g < 80
+    check redCorner.b < 80
+
+    let whiteCorner = pixels.pixelAt(64, 18, 14)
+    check whiteCorner.r > 180
+    check whiteCorner.g > 180
+    check whiteCorner.b > 180
+
+    let body = pixels.pixelAt(64, 32, 24)
+    check body.r > 80
+    check body.g > 30
+    check body.b > 30
 
   test "filled paths preserve explicit holes":
     let pixels = capturePixels(64, 64):

@@ -53,6 +53,8 @@ type
     u*, v*: float32
     maskU*, maskV*: float32
     r*, g*, b*, a*: float32
+    outerR*, outerG*, outerB*, outerA*: float32
+    extentX*, extentY*, radius*, feather*: float32
     mode*: float32
     aaMult*: float32
 
@@ -114,6 +116,8 @@ func clipVertex*(
     vertex: WebGpuInputVertex,
     viewport: WebGpuViewport,
     color: array[4, float32],
+    outerColor: array[4, float32] = [0'f32, 0, 0, 0],
+    paintParams: array[4, float32] = [0'f32, 0, 0, 0],
     mode, aaMult: float32,
 ): WebGpuDrawVertex =
   WebGpuDrawVertex(
@@ -127,6 +131,14 @@ func clipVertex*(
     g: color[1],
     b: color[2],
     a: color[3],
+    outerR: outerColor[0],
+    outerG: outerColor[1],
+    outerB: outerColor[2],
+    outerA: outerColor[3],
+    extentX: paintParams[0],
+    extentY: paintParams[1],
+    radius: paintParams[2],
+    feather: paintParams[3],
     mode: mode,
     aaMult: aaMult,
   )

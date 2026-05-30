@@ -133,6 +133,12 @@ type
     dmStencilFringe
     dmStencilCover
 
+  PaintMode = enum
+    pmSolid
+    pmImage
+    pmAlphaImage
+    pmGradient
+
   PipelineKey = object
     mode: DrawMode
     blend: WebGpuBlend
@@ -243,9 +249,25 @@ func invertTransform(xform: array[6, cfloat], inverse: var array[6, float32]): b
   inverse[5] = (b * e - a * f) * invDet
   true
 
-proc patternVertex(v: NvgVertex, paint: ptr nvg.Paint): WebGpuInputVertex =
+proc isGradientPaint(paint: ptr nvg.Paint): bool =
+  paint.image == nvg.NoImage and paint.extent[0] != 0 and paint.extent[1] != 0 and
+    paint.feather > 0
+
+proc paintParams(paint: ptr nvg.Paint): array[4, float32] =
+  if paint.isGradientPaint:
+    [
+      paint.extent[0].float32,
+      paint.extent[1].float32,
+      paint.radius.float32,
+      paint.feather.float32,
+    ]
+  else:
+    [0'f32, 0, 0, 0]
+
+proc paintVertex(v: NvgVertex, paint: ptr nvg.Paint): WebGpuInputVertex =
   result = inputVertex(v)
-  if paint.image == nvg.NoImage or paint.extent[0] == 0 or paint.extent[1] == 0:
+  if (paint.image == nvg.NoImage and not paint.isGradientPaint) or paint.extent[0] == 0 or
+      paint.extent[1] == 0:
     return
 
   var inverse: array[6, float32]
@@ -258,8 +280,12 @@ proc patternVertex(v: NvgVertex, paint: ptr nvg.Paint): WebGpuInputVertex =
     px = inverse[0] * x + inverse[2] * y + inverse[4]
     py = inverse[1] * x + inverse[3] * y + inverse[5]
 
-  result.u = px / paint.extent[0].float32
-  result.v = py / paint.extent[1].float32
+  if paint.isGradientPaint:
+    result.u = px
+    result.v = py
+  else:
+    result.u = px / paint.extent[0].float32
+    result.v = py / paint.extent[1].float32
 
 proc backend(userPtr: pointer): ptr KoiWgpuBackend =
   cast[ptr KoiWgpuBackend](userPtr)
@@ -272,15 +298,24 @@ func hash(key: PipelineKey): Hash =
   result = result !& hash(key.blend)
   result = !$result
 
-proc textureMode(b: KoiWgpuBackend, paint: ptr nvg.Paint): float32 =
+proc paintMode(b: KoiWgpuBackend, paint: ptr nvg.Paint): PaintMode =
+  if paint.isGradientPaint:
+    return pmGradient
   if paint.image == nvg.NoImage:
-    0'f32
+    return pmSolid
+
+  let textureId = int(paint.image)
+  if b.textures.hasKey(textureId) and b.textures[textureId].alphaOnly:
+    pmAlphaImage
   else:
-    let textureId = int(paint.image)
-    if b.textures.hasKey(textureId) and b.textures[textureId].alphaOnly:
-      2'f32
-    else:
-      1'f32
+    pmImage
+
+func shaderMode(mode: PaintMode): float32 =
+  case mode
+  of pmSolid: 0'f32
+  of pmImage: 1'f32
+  of pmAlphaImage: 2'f32
+  of pmGradient: 3'f32
 
 proc textureId(paint: ptr nvg.Paint): int =
   if paint.image == nvg.NoImage:
@@ -359,6 +394,8 @@ proc appendVertex(
     b: var KoiWgpuBackend,
     v: WebGpuInputVertex,
     color: array[4, float32],
+    outerColor: array[4, float32],
+    paintParams: array[4, float32],
     mode: float32,
     aaMult: float32,
 ) =
@@ -366,7 +403,7 @@ proc appendVertex(
   if not hasDrawableViewport(viewport):
     return
 
-  b.vertices.add clipVertex(v, viewport, color, mode, aaMult)
+  b.vertices.add clipVertex(v, viewport, color, outerColor, paintParams, mode, aaMult)
 
 proc appendTriangleList(
     b: var KoiWgpuBackend,
@@ -383,11 +420,18 @@ proc appendTriangleList(
   let
     first = b.vertices.len.uint32
     color = rgba(paint.innerColor)
-    mode = b.textureMode(paint)
+    outerColor = rgba(paint.outerColor)
+    params = paintParams(paint)
+    mode = b.paintMode(paint)
     src = cast[ptr UncheckedArray[NvgVertex]](verts)
 
   for i in triangleListIndices(count):
-    b.appendVertex(inputVertex(src[i]), color, mode, 0'f32)
+    let vertex =
+      if mode == pmGradient:
+        paintVertex(src[i], paint)
+      else:
+        inputVertex(src[i])
+    b.appendVertex(vertex, color, outerColor, params, mode.shaderMode, 0'f32)
 
   let added = b.vertices.len.uint32 - first
   if added > 0:
@@ -409,11 +453,13 @@ proc appendFan(
   let
     first = b.vertices.len.uint32
     color = rgba(paint.innerColor)
-    mode = b.textureMode(paint)
+    outerColor = rgba(paint.outerColor)
+    params = paintParams(paint)
+    mode = b.paintMode(paint).shaderMode
     src = cast[ptr UncheckedArray[NvgVertex]](verts)
 
   for i in fanIndices(count):
-    b.appendVertex(patternVertex(src[i], paint), color, mode, aaMult)
+    b.appendVertex(paintVertex(src[i], paint), color, outerColor, params, mode, aaMult)
 
   let added = b.vertices.len.uint32 - first
   if added > 0:
@@ -435,11 +481,13 @@ proc appendStrip(
   let
     first = b.vertices.len.uint32
     color = rgba(paint.innerColor)
-    mode = b.textureMode(paint)
+    outerColor = rgba(paint.outerColor)
+    params = paintParams(paint)
+    mode = b.paintMode(paint).shaderMode
     src = cast[ptr UncheckedArray[NvgVertex]](verts)
 
   for i in stripIndices(count):
-    b.appendVertex(patternVertex(src[i], paint), color, mode, aaMult)
+    b.appendVertex(paintVertex(src[i], paint), color, outerColor, params, mode, aaMult)
 
   let added = b.vertices.len.uint32 - first
   if added > 0:
@@ -463,7 +511,9 @@ proc appendCoverQuad(
     maxY = boundArray[3].float32
     first = b.vertices.len.uint32
     color = rgba(paint.innerColor)
-    mode = b.textureMode(paint)
+    outerColor = rgba(paint.outerColor)
+    params = paintParams(paint)
+    mode = b.paintMode(paint).shaderMode
     verts = [
       NvgVertex(x: maxX.cfloat, y: maxY.cfloat, u: 0.5, v: 1),
       NvgVertex(x: maxX.cfloat, y: minY.cfloat, u: 0.5, v: 1),
@@ -472,7 +522,7 @@ proc appendCoverQuad(
     ]
 
   for i in stripIndices(verts.len):
-    b.appendVertex(patternVertex(verts[i], paint), color, mode, 0'f32)
+    b.appendVertex(paintVertex(verts[i], paint), color, outerColor, params, mode, 0'f32)
 
   let added = b.vertices.len.uint32 - first
   if added > 0:
@@ -1185,8 +1235,10 @@ proc createRenderPipeline(b: KoiWgpuBackend, key: PipelineKey): RenderPipeline =
     VertexAttribute(format: VertexFormat.Float32x2, offset: 8, shaderLocation: 1),
     VertexAttribute(format: VertexFormat.Float32x2, offset: 16, shaderLocation: 2),
     VertexAttribute(format: VertexFormat.Float32x4, offset: 24, shaderLocation: 3),
-    VertexAttribute(format: VertexFormat.Float32, offset: 40, shaderLocation: 4),
-    VertexAttribute(format: VertexFormat.Float32, offset: 44, shaderLocation: 5),
+    VertexAttribute(format: VertexFormat.Float32x4, offset: 40, shaderLocation: 4),
+    VertexAttribute(format: VertexFormat.Float32x4, offset: 56, shaderLocation: 5),
+    VertexAttribute(format: VertexFormat.Float32, offset: 72, shaderLocation: 6),
+    VertexAttribute(format: VertexFormat.Float32, offset: 76, shaderLocation: 7),
   ]
   var vertexLayout = VertexBufferLayout(
     arrayStride: sizeof(GpuVertex).uint64,
