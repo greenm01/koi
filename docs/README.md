@@ -8,8 +8,9 @@ Koi supports a GLFW path for OpenGL examples and non-Wayland WebGPU builds, plus
 a native Zig Wayland path for WebGPU apps on Linux Wayland sessions.
 
 Layout, widget, and style references live in [toolset.md](./toolset.md),
-[layout-model.md](./layout-model.md), and [theming.md](./theming.md). Check the
-[examples](/examples) and Gridmonger for complete usage.
+[layout-model.md](./layout-model.md), and [theming.md](./theming.md). WebGPU
+renderer context lives in [webgpu.md](./webgpu.md). Check the [examples](/examples)
+and Gridmonger for complete usage.
 
 Current follow-up work is tracked in [todo.md](./todo.md).
 
