@@ -118,6 +118,7 @@ proc horizSlider*(
     if sl.textFieldId == 0:
       sl.textFieldId = sliderTextFieldId(id)
     let oldVal = sl.valueText
+    let wasEditing = g_uiState.textFieldState.activeItem == sl.textFieldId
     let textSlot =
       layoutFollowerSlot(sl.textFieldId, rect(x, y, w, h), slot.nodeId, lfkMatchTarget)
     textFieldWithSlot(
@@ -127,7 +128,9 @@ proc horizSlider*(
       activate = (sl.state == ssEditValue),
       style = nil,
     ) # TODO handle style
-    if sl.valueText != oldVal:
+    let editClosed =
+      wasEditing and g_uiState.textFieldState.activeItem != sl.textFieldId
+    if sl.valueText != oldVal or editClosed:
       try:
         newValue = sl.valueText.parseFloat().clampToRange(startVal, endVal)
       except ValueError:

@@ -7,6 +7,10 @@ import std/math
 
 import wgpu_test_common
 
+const
+  TextSliderId: ItemId = 62
+  TextSliderFieldId = hashId($TextSliderId & ":textField")
+
 template checkInRange(v, lo, hi: float) =
   check v >= lo - 1e-6
   check v <= hi + 1e-6
@@ -44,6 +48,35 @@ suite "horizontal slider fine-drag (Shift)":
     horizSlider(60, sx, sy, sw, sh, 0.0, 100.0, value)
     sliderPost()
     checkInRange(value, 0.0, 100.0)
+
+suite "horizontal slider text entry":
+  test "enter commits text entry and returns to slider mode":
+    resetUi()
+    const
+      sx = 40.0
+      sy = 80.0
+      sw = 120.0
+      sh = 20.0
+    var value = 12.0
+    g_uiState.sliderState.editModeItem = TextSliderId
+    g_uiState.sliderState.textFieldId = TextSliderFieldId
+    g_uiState.sliderState.valueText = "42"
+    g_uiState.sliderState.state = ssEditValue
+    placeRect(TextSliderId, rect(sx, sy, sw, sh))
+    placeRect(TextSliderFieldId, rect(sx, sy, sw, sh))
+
+    releaseLeft()
+    horizSlider(TextSliderId, sx, sy, sw, sh, 0.0, 100.0, value)
+    check g_uiState.textFieldState.activeItem == TextSliderFieldId
+
+    sendKey(keyEnter)
+    horizSlider(TextSliderId, sx, sy, sw, sh, 0.0, 100.0, value)
+
+    check value == 42.0
+    check g_uiState.sliderState.editModeItem == 0
+    check g_uiState.sliderState.state == ssDefault
+    check g_uiState.textFieldState.activeItem == 0
+    check not isActive(TextSliderFieldId)
 
 suite "vertical slider drag":
   test "dragging changes the value and keeps it in range":

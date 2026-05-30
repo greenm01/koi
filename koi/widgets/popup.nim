@@ -19,6 +19,7 @@ proc openPopup*(id: ItemId) =
   ps.closed = false
   markActive(id)
   ui.focusCaptured = true
+  requestFrames()
 
 proc closePopup*() =
   alias(ui, g_uiState)
@@ -30,6 +31,7 @@ proc closePopup*() =
   if ui.activeItem != 0:
     ui.activeItem = 0
   ui.focusCaptured = false
+  requestFrames()
 
 proc isPopupOpen*(id: ItemId): bool =
   g_uiState.popupState.activeItem == id and not g_uiState.popupState.closed

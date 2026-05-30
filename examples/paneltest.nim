@@ -191,7 +191,7 @@ var
 
 ##############################################################################
 
-proc createWindow(): Window =
+proc createWindow(): koi.Window =
   var cfg = DefaultOpenglWindowConfig
   cfg.size = (w: 1000, h: 800)
   cfg.title = "Koi Test"
@@ -651,19 +651,19 @@ proc renderUI() =
 
   koi.endFrame()
 
-proc renderFrame(win: Window, res: tuple[w, h: int32] = (0, 0)) =
+proc renderFrame(win: koi.Window, res: tuple[w, h: int32] = (0, 0)) =
   if win.iconified:
     return
   renderUI()
   glfw.swapBuffers(win)
 
-proc windowPosCb(win: Window, pos: tuple[x, y: int32]) =
+proc windowPosCb(win: koi.Window, pos: tuple[x, y: int32]) =
   renderFrame(win)
 
-proc framebufSizeCb(win: Window, size: tuple[w, h: int32]) =
+proc framebufSizeCb(win: koi.Window, size: tuple[w, h: int32]) =
   renderFrame(win)
 
-proc init(): Window =
+proc init(): koi.Window =
   glfw.initialize()
 
   var win = createWindow()

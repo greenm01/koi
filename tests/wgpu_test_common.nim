@@ -29,7 +29,7 @@ export widget_test_common
 var
   gVg*: NVGContext
   gBackend*: KoiWgpuBackend
-  gWin*: Window
+  gWin*: koi_types.Window
 
 proc setupWgpuWindow() =
   if not gVg.isNil:

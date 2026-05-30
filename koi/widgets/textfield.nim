@@ -57,6 +57,8 @@ proc textFieldExitEditMode*(id: ItemId = 0, startX: float = 0) =
   tf.displayStartX = startX
   tf.originalText = ""
 
+  if ui.activeItem == id:
+    ui.activeItem = 0
   ui.focusCaptured = false
   cursorShape(csArrow)
 

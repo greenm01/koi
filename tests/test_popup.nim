@@ -14,6 +14,7 @@ suite "popup open/close and focus":
     check g_uiState.focusCaptured
     check g_uiState.popupState.state == psOpenLMBDown
     check not g_uiState.popupState.closed
+    check shouldRenderNextFrame()
 
   test "begin/end popup switch to the popup layer and clip to its rect":
     resetUi()
@@ -48,6 +49,7 @@ suite "popup open/close and focus":
     check not isPopupOpen(30)
     check not g_uiState.focusCaptured
     check g_uiState.popupState.closed
+    check shouldRenderNextFrame()
 
 suite "popup dismissal":
   test "escape key closes the popup and is consumed":

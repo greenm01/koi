@@ -94,6 +94,7 @@ suite "text field pre-pass and exit":
     g_uiState.textFieldState.activeItem = TfId
     g_uiState.textFieldState.state = tfsEdit
     g_uiState.textFieldState.cursorPos = 3
+    g_uiState.activeItem = TfId
     g_uiState.focusCaptured = true
 
     textFieldExitEditMode(TfId)
@@ -101,6 +102,7 @@ suite "text field pre-pass and exit":
     check g_uiState.textFieldState.activeItem == 0
     check g_uiState.textFieldState.state == tfsDefault
     check g_uiState.textFieldState.cursorPos == 0
+    check not isActive(TfId)
     check not g_uiState.focusCaptured
 
 suite "text area hit testing":
