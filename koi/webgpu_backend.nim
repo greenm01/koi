@@ -239,6 +239,42 @@ func inputVertex(v: NvgVertex): WebGpuInputVertex =
     maskV: v.v.float32,
   )
 
+func cross(a, b, c: NvgVertex): float32 =
+  let
+    abx = b.x.float32 - a.x.float32
+    aby = b.y.float32 - a.y.float32
+    bcx = c.x.float32 - b.x.float32
+    bcy = c.y.float32 - b.y.float32
+  abx * bcy - aby * bcx
+
+func isConvexFill(verts: ptr NvgVertex, count: int): bool =
+  if verts.isNil or count < 3:
+    return false
+
+  let src = cast[ptr UncheckedArray[NvgVertex]](verts)
+  var winding = 0
+  for i in 0 ..< count:
+    let
+      turn = cross(src[i], src[(i + 1) mod count], src[(i + 2) mod count])
+      nextWinding =
+        if turn > 1e-5'f32:
+          1
+        elif turn < -1e-5'f32:
+          -1
+        else:
+          0
+    if nextWinding == 0:
+      continue
+    if winding == 0:
+      winding = nextWinding
+    elif winding != nextWinding:
+      return false
+
+  winding != 0
+
+func isConvexPath(path: NvgPath): bool =
+  path.convex != 0 or isConvexFill(path.fill, path.nfill.int)
+
 func invertTransform(xform: array[6, cfloat], inverse: var array[6, float32]): bool =
   let
     a = xform[0].float32
@@ -804,7 +840,7 @@ proc renderFill(
     blend = webGpuBlend(compositeOperation)
     scissor = b[].drawScissor(scissor)
 
-  if npaths == 1 and pathArray[0].convex != 0:
+  if npaths == 1 and pathArray[0].isConvexPath:
     b[].appendFan(
       pathArray[0].fill, pathArray[0].nfill.int, paint, aaMult, blend, scissor
     )

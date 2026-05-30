@@ -21,6 +21,15 @@ proc drawRect(x, y, w, h: float, color: Color) =
   gVg.fillColor(color)
   gVg.fill()
 
+proc drawRoundedRectWithStroke(x, y, w, h, radius: float, fill, stroke: Color) =
+  gVg.beginPath()
+  gVg.roundedRect(x, y, w, h, radius)
+  gVg.fillColor(fill)
+  gVg.strokeColor(stroke)
+  gVg.strokeWidth(1)
+  gVg.fill()
+  gVg.stroke()
+
 proc drawRectWithHole(x, y, w, h: float, hx, hy, hw, hh: float, color: Color) =
   gVg.beginPath()
   gVg.rect(x, y, w, h)
@@ -231,6 +240,16 @@ suite "wgpu renderer readback":
     checkNear(notch.r, 20'u8, 6)
     checkNear(notch.g, 20'u8, 6)
     checkNear(notch.b, 20'u8, 6)
+
+  test "single convex paths use direct indexed draw":
+    let pixels = capturePixels(64, 64):
+      drawRoundedRectWithStroke(
+        8, 8, 48, 32, 6, rgba(255, 0, 0, 255), rgba(255, 255, 255, 255)
+      )
+
+    let stats = gBackend.lastSubmittedRenderStats()
+    check stats.drawCalls == 1
+    check pixels.pixelAt(64, 32, 24).r > 220
 
   test "adjacent matching state coalesces into one draw call":
     let pixels = capturePixels(64, 64):
