@@ -2,7 +2,6 @@ import std/math
 import std/options
 import std/unittest
 
-import glfw
 import nanovg
 
 import koi/core

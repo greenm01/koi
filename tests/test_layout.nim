@@ -3,7 +3,6 @@ import std/strutils
 import std/tables
 import std/unittest
 
-import glfw
 import nanovg
 
 import koi/core

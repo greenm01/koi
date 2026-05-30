@@ -3,7 +3,6 @@ import std/math
 import std/tables
 
 import nanovg
-import glfw
 
 import koi/types
 import koi/core

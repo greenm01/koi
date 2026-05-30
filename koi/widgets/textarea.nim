@@ -4,7 +4,6 @@ import std/unicode
 import std/math
 
 import nanovg
-import glfw
 
 import koi/types
 import koi/core

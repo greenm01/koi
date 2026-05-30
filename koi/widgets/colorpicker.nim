@@ -1,6 +1,5 @@
 import std/math
 
-import glfw
 import nanovg
 
 import koi/types

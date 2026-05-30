@@ -1,7 +1,6 @@
 import std/options
 import std/math
 
-import glfw
 import nanovg
 when not defined(koiWebGpu):
   import koi/glad/gl

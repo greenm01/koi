@@ -1,11 +1,185 @@
 import std/options
 
-import glfw
 import nanovg
 
 import koi/rect
 
+when not defined(waylandBackend):
+  from glfw as glfwLib import nil
+  type
+    Window* = glfwLib.Window
+    Cursor* = glfwLib.Cursor
+
+else:
+  type
+    Window* = ref object
+    Cursor* = pointer
+
 type ItemId* = int64
+
+type MouseButton* {.size: int32.sizeof.} = enum
+  mb1 = (0, "left mouse button")
+  mb2 = (1, "right mouse button")
+  mb3 = (2, "middle mouse button")
+  mb4 = (3, "mouse button 4")
+  mb5 = (4, "mouse button 5")
+  mb6 = (5, "mouse button 6")
+  mb7 = (6, "mouse button 7")
+  mb8 = (7, "mouse button 8")
+
+const
+  mbLeft* = mb1
+  mbRight* = mb2
+  mbMiddle* = mb3
+
+type
+  ModifierKey* {.size: int32.sizeof.} = enum
+    mkShift = (0x00000001, "shift")
+    mkCtrl = (0x00000002, "ctrl")
+    mkAlt = (0x00000004, "alt")
+    mkSuper = (0x00000008, "super")
+    mkCapsLock = (0x00000010, "capslock")
+    mkNumLock = (0x00000020, "numlock")
+
+  Key* {.size: int32.sizeof.} = enum
+    keyUnknown = (-1, "unknown")
+    keySpace = (32, "space")
+    keyApostrophe = (39, "apostrophe")
+    keyComma = (44, "comma")
+    keyMinus = (45, "minus")
+    keyPeriod = (46, "period")
+    keySlash = (47, "slash")
+    key0 = (48, "0")
+    key1 = (49, "1")
+    key2 = (50, "2")
+    key3 = (51, "3")
+    key4 = (52, "4")
+    key5 = (53, "5")
+    key6 = (54, "6")
+    key7 = (55, "7")
+    key8 = (56, "8")
+    key9 = (57, "9")
+    keySemicolon = (59, "semicolon")
+    keyEqual = (61, "equal")
+    keyA = (65, "a")
+    keyB = (66, "b")
+    keyC = (67, "c")
+    keyD = (68, "d")
+    keyE = (69, "e")
+    keyF = (70, "f")
+    keyG = (71, "g")
+    keyH = (72, "h")
+    keyI = (73, "i")
+    keyJ = (74, "j")
+    keyK = (75, "k")
+    keyl = (76, "L")
+    keyM = (77, "m")
+    keyN = (78, "n")
+    keyO = (79, "o")
+    keyP = (80, "p")
+    keyQ = (81, "q")
+    keyR = (82, "r")
+    keyS = (83, "s")
+    keyT = (84, "t")
+    keyU = (85, "u")
+    keyV = (86, "v")
+    keyW = (87, "w")
+    keyX = (88, "x")
+    keyY = (89, "y")
+    keyZ = (90, "z")
+    keyLeftBracket = (91, "left bracket")
+    keyBackslash = (92, "backslash")
+    keyRightBracket = (93, "right bracket")
+    keyGraveAccent = (96, "grave accent")
+    keyWorld1 = (161, "world1")
+    keyWorld2 = (162, "world2")
+    keyEscape = (256, "escape")
+    keyEnter = (257, "enter")
+    keyTab = (258, "tab")
+    keyBackspace = (259, "backspace")
+    keyInsert = (260, "insert")
+    keyDelete = (261, "delete")
+    keyRight = (262, "right")
+    keyLeft = (263, "left")
+    keyDown = (264, "down")
+    keyUp = (265, "up")
+    keyPageUp = (266, "page up")
+    keyPageDown = (267, "page down")
+    keyHome = (268, "home")
+    keyEnd = (269, "end")
+    keyCapsLock = (280, "caps lock")
+    keyScrollLock = (281, "scroll lock")
+    keyNumLock = (282, "num lock")
+    keyPrintScreen = (283, "print screen")
+    keyPause = (284, "pause")
+    keyF1 = (290, "f1")
+    keyF2 = (291, "f2")
+    keyF3 = (292, "f3")
+    keyF4 = (293, "f4")
+    keyF5 = (294, "f5")
+    keyF6 = (295, "f6")
+    keyF7 = (296, "f7")
+    keyF8 = (297, "f8")
+    keyF9 = (298, "f9")
+    keyF10 = (299, "f10")
+    keyF11 = (300, "f11")
+    keyF12 = (301, "f12")
+    keyF13 = (302, "f13")
+    keyF14 = (303, "f14")
+    keyF15 = (304, "f15")
+    keyF16 = (305, "f16")
+    keyF17 = (306, "f17")
+    keyF18 = (307, "f18")
+    keyF19 = (308, "f19")
+    keyF20 = (309, "f20")
+    keyF21 = (310, "f21")
+    keyF22 = (311, "f22")
+    keyF23 = (312, "f23")
+    keyF24 = (313, "f24")
+    keyF25 = (314, "f25")
+    keyKp0 = (320, "kp0")
+    keyKp1 = (321, "kp1")
+    keyKp2 = (322, "kp2")
+    keyKp3 = (323, "kp3")
+    keyKp4 = (324, "kp4")
+    keyKp5 = (325, "kp5")
+    keyKp6 = (326, "kp6")
+    keyKp7 = (327, "kp7")
+    keyKp8 = (328, "kp8")
+    keyKp9 = (329, "kp9")
+    keyKpDecimal = (330, "kp decimal")
+    keyKpDivide = (331, "kp divide")
+    keyKpMultiply = (332, "kp multiply")
+    keyKpSubtract = (333, "kp subtract")
+    keyKpAdd = (334, "kp add")
+    keyKpEnter = (335, "kp enter")
+    keyKpEqual = (336, "kp equal")
+    keyLeftShift = (340, "left shift")
+    keyLeftControl = (341, "left control")
+    keyLeftAlt = (342, "left alt")
+    keyLeftSuper = (343, "left super")
+    keyRightShift = (344, "right shift")
+    keyRightControl = (345, "right control")
+    keyRightAlt = (346, "right alt")
+    keyRightSuper = (347, "right super")
+    keyMenu = (348, "menu")
+
+  KeyAction* {.size: int32.sizeof.} = enum
+    kaUp = (0, "up")
+    kaDown = (1, "down")
+    kaRepeat = (2, "repeat")
+
+  CursorShape* {.size: int32.sizeof.} = enum
+    csArrow = 0x00036001
+    csIBeam = 0x00036002
+    csCrosshair = 0x00036003
+    csHand = 0x00036004
+    csResizeEW = 0x00036005
+    csResizeNS = 0x00036006
+    csResizeNWSE = 0x00036007
+    csResizeNESW = 0x00036008
+    csResizeAll = 0x00036009
+    csNotAllowed = 0x0003600a
 
 type DrawLayer* = enum
   layerDefault

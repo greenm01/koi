@@ -5,7 +5,8 @@ import std/strutils
 import std/unicode
 import std/tables
 
-import glfw
+when not defined(waylandBackend):
+  from glfw as glfwLib import nil
 import nanovg
 
 import koi/utils
@@ -153,59 +154,79 @@ proc activeWindow*(): Window =
   if not g_window.isNil:
     g_window
   else:
-    glfw.currentContext()
+    when defined(waylandBackend):
+      nil
+    else:
+      glfwLib.currentContext()
 
-proc installGlfwPlatformHooks*() =
-  setPlatformHooks(
-    PlatformHooks(
-      windowSize: proc(): tuple[w, h: float] =
-        let (w, h) = activeWindow().size
-        (w.float, h.float),
-      surfaceSize: proc(): tuple[w, h: float] =
-        let (w, h) = activeWindow().framebufferSize
-        (w.float, h.float),
-      contentScale: proc(): tuple[x, y: float] =
-        let (x, y) = activeWindow().contentScale
-        (x.float, y.float),
-      cursorPos: proc(): tuple[x, y: float] =
-        let (x, y) = activeWindow().cursorPos()
-        (x.float, y.float),
-      setCursorPos: proc(x, y: float) =
-        activeWindow().cursorPos = (x, y),
-      setCursorShape: proc(shape: CursorShape) =
-        var c: Cursor
-        if shape == csArrow:
-          c = g_cursorArrow
-        elif shape == csIBeam:
-          c = g_cursorIBeam
-        elif shape == csCrosshair:
-          c = g_cursorCrosshair
-        elif shape == csHand:
-          c = g_cursorHand
-        elif shape == csResizeEW:
-          c = g_cursorResizeEW
-        elif shape == csResizeNS:
-          c = g_cursorResizeNS
-        elif shape == csResizeNWSE:
-          c = g_cursorResizeNWSE
-        elif shape == csResizeNESW:
-          c = g_cursorResizeNESW
-        elif shape == csResizeAll:
-          c = g_cursorResizeAll
-        activeWindow().cursor = c,
-      setCursorMode: proc(mode: PlatformCursorMode) =
-        activeWindow().cursorMode =
-          case mode
-          of pcmNormal: cmNormal
-          of pcmHidden: cmHidden
-          of pcmDisabled: cmDisabled
-      ,
-      clipboardGet: proc(): string =
-        $activeWindow().clipboardString,
-      clipboardSet: proc(text: string) =
-        activeWindow().clipboardString = text,
+when not defined(waylandBackend):
+  proc koiModifierKeys(mods: set[glfwLib.ModifierKey]): set[ModifierKey] =
+    if glfwLib.mkShift in mods:
+      result.incl(mkShift)
+    if glfwLib.mkCtrl in mods:
+      result.incl(mkCtrl)
+    if glfwLib.mkAlt in mods:
+      result.incl(mkAlt)
+    if glfwLib.mkSuper in mods:
+      result.incl(mkSuper)
+    if glfwLib.mkCapsLock in mods:
+      result.incl(mkCapsLock)
+    if glfwLib.mkNumLock in mods:
+      result.incl(mkNumLock)
+
+  proc installGlfwPlatformHooks*() =
+    setPlatformHooks(
+      PlatformHooks(
+        windowSize: proc(): tuple[w, h: float] =
+          let (w, h) = glfwLib.size(activeWindow())
+          (w.float, h.float),
+        surfaceSize: proc(): tuple[w, h: float] =
+          let (w, h) = glfwLib.framebufferSize(activeWindow())
+          (w.float, h.float),
+        contentScale: proc(): tuple[x, y: float] =
+          let (x, y) = glfwLib.contentScale(activeWindow())
+          (x.float, y.float),
+        cursorPos: proc(): tuple[x, y: float] =
+          let (x, y) = glfwLib.cursorPos(activeWindow())
+          (x.float, y.float),
+        setCursorPos: proc(x, y: float) =
+          glfwLib.`cursorPos=`(activeWindow(), (x, y)),
+        setCursorShape: proc(shape: CursorShape) =
+          var c: Cursor
+          if shape == csArrow:
+            c = g_cursorArrow
+          elif shape == csIBeam:
+            c = g_cursorIBeam
+          elif shape == csCrosshair:
+            c = g_cursorCrosshair
+          elif shape == csHand:
+            c = g_cursorHand
+          elif shape == csResizeEW:
+            c = g_cursorResizeEW
+          elif shape == csResizeNS:
+            c = g_cursorResizeNS
+          elif shape == csResizeNWSE:
+            c = g_cursorResizeNWSE
+          elif shape == csResizeNESW:
+            c = g_cursorResizeNESW
+          elif shape == csResizeAll:
+            c = g_cursorResizeAll
+          glfwLib.`cursor=`(activeWindow(), c),
+        setCursorMode: proc(mode: PlatformCursorMode) =
+          glfwLib.`cursorMode=`(
+            activeWindow(),
+            case mode
+            of pcmNormal: glfwLib.cmNormal
+            of pcmHidden: glfwLib.cmHidden
+            of pcmDisabled: glfwLib.cmDisabled
+            ,
+          ),
+        clipboardGet: proc(): string =
+          $glfwLib.clipboardString(activeWindow()),
+        clipboardSet: proc(text: string) =
+          glfwLib.`clipboardString=`(activeWindow(), text),
+      )
     )
-  )
 
 proc isKeyDown*(key: Key): bool =
   if key == keyUnknown:
@@ -464,7 +485,7 @@ proc handleCommonTextEditingShortcuts*(
       let toInsert =
         filterTextInputForInsert(text, cursorPos, selection, fromClipboard(), filter)
       res = insertString(text, cursorPos, selection, toInsert, maxLen)
-    except GLFWError:
+    except CatchableError:
       # attempting to retrieve non-text data raises an exception
       discard
   else:
@@ -703,7 +724,7 @@ proc queueMouseButtonEvent*(
 proc mouseButtonCb*(
     win: Window, button: MouseButton, pressed: bool, modKeys: set[ModifierKey]
 ) =
-  let (x, y) = win.cursorPos()
+  let (x, y) = platformCursorPos()
   queueMouseButtonEvent(button, pressed, x.float, y.float, modKeys)
 
 proc queueScrollEvent*(offsetX, offsetY: float64) =
@@ -787,15 +808,31 @@ proc init*(vg: NVGContext, glfwGetProcAddress: proc) =
   when not defined(waylandBackend):
     installGlfwPlatformHooks()
     let win = activeWindow()
-    win.keyCb = keyCb
+    win.keyCb = proc(
+        win: Window,
+        key: glfwLib.Key,
+        scanCode: int32,
+        action: glfwLib.KeyAction,
+        mods: set[glfwLib.ModifierKey],
+    ) =
+      {.push warning[HoleEnumConv]: off.}
+      keyCb(win, Key(ord(key)), scanCode, KeyAction(ord(action)), koiModifierKeys(mods))
+      {.pop.}
     win.charCb = charCb
-    win.mouseButtonCb = mouseButtonCb
+    win.mouseButtonCb = proc(
+        win: Window,
+        button: glfwLib.MouseButton,
+        pressed: bool,
+        mods: set[glfwLib.ModifierKey],
+    ) =
+      mouseButtonCb(win, MouseButton(ord(button)), pressed, koiModifierKeys(mods))
     win.scrollCb = scrollCb
 
   useShortcuts(smLinux)
 
   when not defined(koiWebGpu):
-    glfw.swapInterval(1)
+    when not defined(waylandBackend):
+      glfwLib.swapInterval(1)
 
 proc deinit*() =
   deinitCore()

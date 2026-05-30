@@ -1,7 +1,8 @@
 import std/tables
 import std/times
 
-import glfw
+when not defined(waylandBackend):
+  from glfw as glfwLib import nil
 import nanovg
 when not defined(koiWebGpu):
   import koi/glad/gl
@@ -286,15 +287,21 @@ proc initCore*(vg: NVGContext, glfwGetProcAddress: proc) =
   g_nvgContext = vg
 
   when not defined(waylandBackend):
-    g_cursorArrow = createStandardCursor(csArrow)
-    g_cursorIBeam = createStandardCursor(csIBeam)
-    g_cursorCrosshair = createStandardCursor(csCrosshair)
-    g_cursorHand = createStandardCursor(csHand)
-    g_cursorResizeEW = createStandardCursor(csResizeEW)
-    g_cursorResizeNS = createStandardCursor(csResizeNS)
-    g_cursorResizeNWSE = createStandardCursor(csResizeNWSE)
-    g_cursorResizeNESW = createStandardCursor(csResizeNESW)
-    g_cursorResizeAll = createStandardCursor(csResizeAll)
+    g_cursorArrow = glfwLib.createStandardCursor(glfwLib.CursorShape(ord(csArrow)))
+    g_cursorIBeam = glfwLib.createStandardCursor(glfwLib.CursorShape(ord(csIBeam)))
+    g_cursorCrosshair =
+      glfwLib.createStandardCursor(glfwLib.CursorShape(ord(csCrosshair)))
+    g_cursorHand = glfwLib.createStandardCursor(glfwLib.CursorShape(ord(csHand)))
+    g_cursorResizeEW =
+      glfwLib.createStandardCursor(glfwLib.CursorShape(ord(csResizeEW)))
+    g_cursorResizeNS =
+      glfwLib.createStandardCursor(glfwLib.CursorShape(ord(csResizeNS)))
+    g_cursorResizeNWSE =
+      glfwLib.createStandardCursor(glfwLib.CursorShape(ord(csResizeNWSE)))
+    g_cursorResizeNESW =
+      glfwLib.createStandardCursor(glfwLib.CursorShape(ord(csResizeNESW)))
+    g_cursorResizeAll =
+      glfwLib.createStandardCursor(glfwLib.CursorShape(ord(csResizeAll)))
 
   g_eventBuf = initRingBuffer[Event](64)
   scale(1.0)
@@ -302,12 +309,12 @@ proc initCore*(vg: NVGContext, glfwGetProcAddress: proc) =
 
 proc deinitCore*() =
   when not defined(waylandBackend):
-    destroyCursor(g_cursorArrow)
-    destroyCursor(g_cursorIBeam)
-    destroyCursor(g_cursorCrosshair)
-    destroyCursor(g_cursorHand)
-    destroyCursor(g_cursorResizeEW)
-    destroyCursor(g_cursorResizeNS)
-    destroyCursor(g_cursorResizeNWSE)
-    destroyCursor(g_cursorResizeNESW)
-    destroyCursor(g_cursorResizeAll)
+    glfwLib.destroyCursor(g_cursorArrow)
+    glfwLib.destroyCursor(g_cursorIBeam)
+    glfwLib.destroyCursor(g_cursorCrosshair)
+    glfwLib.destroyCursor(g_cursorHand)
+    glfwLib.destroyCursor(g_cursorResizeEW)
+    glfwLib.destroyCursor(g_cursorResizeNS)
+    glfwLib.destroyCursor(g_cursorResizeNWSE)
+    glfwLib.destroyCursor(g_cursorResizeNESW)
+    glfwLib.destroyCursor(g_cursorResizeAll)

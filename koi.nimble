@@ -44,7 +44,7 @@ proc glfwWgpuFlags(): string =
   flags & webgpuPathFlag()
 
 proc nativeWaylandWgpuFlags(): string =
-  WgpuBaseFlags & " -d:waylandBackend -d:glfwJustCdecl " & WaylandLinkFlags &
+  WgpuBaseFlags & " -d:wayland -d:waylandBackend -d:glfwJustCdecl " & WaylandLinkFlags &
     webgpuPathFlag()
 
 proc wgpuBackend(): string =

@@ -8,14 +8,13 @@
 ## tests/test_algorithms.nim instead.
 ##
 ## Import this module from a per-widget test file; it re-exports unittest, koi,
-## glfw and nanovg so the test file only needs this one import.
+## nanovg so the test file only needs this one import.
 
 import std/options
 import std/tables
 import std/unicode
 import std/unittest
 
-import glfw
 import nanovg
 
 import koi/core
@@ -56,7 +55,7 @@ import koi/widgets/togglebutton
 import koi/widgets/tree
 
 export options, tables, unicode, unittest
-export glfw, nanovg
+export nanovg
 export core, defaults, drawing, input, algorithms, widget_behavior, layout, rect, types
 export button, chart, checkbox, colorpicker, common, dialog, dropdown, groupbox
 export image, label, listview, menu, popup, progress, property, radiobuttons

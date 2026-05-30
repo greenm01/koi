@@ -1,6 +1,5 @@
 import std/strformat
 
-import glfw
 import nanovg
 
 import koi

@@ -5,7 +5,6 @@ import std/strutils
 import std/tables
 import std/unicode
 
-import glfw
 import nanovg
 import koi/core
 import koi/drawing
