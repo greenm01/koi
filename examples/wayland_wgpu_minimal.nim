@@ -1,8 +1,10 @@
 import nanovg
 
 import koi/backends/wayland
+import koi/backends/wayland_keys
 import koi/backends/wayland_wgpu
 import koi/backends/wgpu_renderer
+from koi/types import keyC, keyEscape
 
 type AppState = object
   closed: bool
@@ -12,6 +14,15 @@ type AppState = object
 proc onClose(userdata: pointer) {.cdecl.} =
   let state = cast[ptr AppState](userdata)
   if state != nil:
+    state.closed = true
+
+proc quitShortcut(keycode, mods: uint32): bool =
+  waylandKeycode(keycode) == keyEscape or
+    (waylandKeycode(keycode) == keyC and (mods and koiWaylandModCtrl) != 0)
+
+proc onKeyDown(keycode, mods: uint32, userdata: pointer) {.cdecl.} =
+  let state = cast[ptr AppState](userdata)
+  if state != nil and quitShortcut(keycode, mods):
     state.closed = true
 
 proc onResize(w, h: uint32, userdata: pointer) {.cdecl.} =
@@ -60,8 +71,13 @@ proc draw(vg: NVGContext, width, height: uint32) =
 
 when isMainModule:
   var state = AppState(closed: false, width: 640, height: 420)
-  var callbacks =
-    KoiWaylandCallbacks(onClose: onClose, onResize: onResize, userdata: addr state)
+  var callbacks = KoiWaylandCallbacks(
+    onClose: onClose,
+    onResize: onResize,
+    onKeyDown: onKeyDown,
+    onKeyRepeat: onKeyDown,
+    userdata: addr state,
+  )
 
   let display = koiWaylandInit()
   if display == nil:

@@ -1,12 +1,10 @@
-import std/lenientops
-import std/options
-
 import glad/gl
 import glfw
 from glfw/wrapper import showWindow
 import nanovg
 
 import koi
+import example_quit
 
 # Global NanoVG context
 var vg: NVGContext
@@ -35,7 +33,7 @@ var
       TableColumn(label: "Value", width: 0),
     ]
 
-proc createWindow(): Window =
+proc createWindow(): koi.Window =
   var cfg = DefaultOpenglWindowConfig
   cfg.size = (w: 800, h: 600)
   cfg.title = "Koi Layout Test"
@@ -163,12 +161,12 @@ proc renderUI() =
     groupBox(0, 0, 260, 100, "Group Box"):
       label(0, 0, 220, 22, "Grouped content")
       discard button(0, 30, 120, 24, "Action")
-    titledScrollView(280, 0, 280, 100, "Titled Scroll", 480, 76):
+    titledScrollView(280.0, 0.0, 280.0, 100.0, "Titled Scroll", 480.0, 76.0, false):
       label(0, 0, 140, 22, "Scroll content")
       label(340, 46, 120, 22, "Far edge")
 
   layoutSpace(80.0):
-    scrollView(0, 0, 260, 60, 520, 50):
+    scrollView(0.0, 0.0, 260.0, 60.0, 520.0, 50.0, false):
       label(0, 0, 120, 22, "Scroll left")
       label(400, 0, 120, 22, "Scroll right")
 
@@ -199,7 +197,7 @@ proc renderUI() =
 
   koi.endFrame()
 
-proc renderFrame(win: Window) =
+proc renderFrame(win: koi.Window) =
   if win.iconified:
     return
 
@@ -233,6 +231,9 @@ proc main() =
       glfw.pollEvents()
     else:
       glfw.waitEvents()
+    if exampleQuitShortcutDown():
+      win.shouldClose = true
+      break
     renderFrame(win)
 
   koi.deinit()

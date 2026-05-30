@@ -1,9 +1,23 @@
 import koi/backends/wayland
+import koi/backends/wayland_keys
+from koi/types import keyC, keyEscape
+
+type AppState = object
+  closed: bool
+
+proc quitShortcut(keycode, mods: uint32): bool =
+  waylandKeycode(keycode) == keyEscape or
+    (waylandKeycode(keycode) == keyC and (mods and koiWaylandModCtrl) != 0)
 
 proc onClose(userdata: pointer) {.cdecl.} =
-  let closed = cast[ptr bool](userdata)
-  if closed != nil:
-    closed[] = true
+  let state = cast[ptr AppState](userdata)
+  if state != nil:
+    state.closed = true
+
+proc onKeyDown(keycode, mods: uint32, userdata: pointer) {.cdecl.} =
+  let state = cast[ptr AppState](userdata)
+  if state != nil and quitShortcut(keycode, mods):
+    state.closed = true
 
 proc onResize(w, h: uint32, userdata: pointer) {.cdecl.} =
   discard w
@@ -11,9 +25,14 @@ proc onResize(w, h: uint32, userdata: pointer) {.cdecl.} =
   discard userdata
 
 when isMainModule:
-  var closed = false
-  var callbacks =
-    KoiWaylandCallbacks(onClose: onClose, onResize: onResize, userdata: addr closed)
+  var state = AppState(closed: false)
+  var callbacks = KoiWaylandCallbacks(
+    onClose: onClose,
+    onResize: onResize,
+    onKeyDown: onKeyDown,
+    onKeyRepeat: onKeyDown,
+    userdata: addr state,
+  )
 
   let display = koiWaylandInit()
   if display == nil:
@@ -40,7 +59,7 @@ when isMainModule:
     quit "Wayland surface handle was nil."
 
   for _ in 0 ..< 3:
-    if closed or koiWaylandWindowShouldClose(window):
+    if state.closed or koiWaylandWindowShouldClose(window):
       break
     koiWaylandPollEvents(display)
 

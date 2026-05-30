@@ -19,13 +19,24 @@ type
     width*: int
     height*: int
     resizable*: bool
+    quitOnEscapeOrCtrlC*: bool
 
   KoiWgpuRenderProc* = proc(vg: NVGContext) {.closure.}
 
 proc defaultKoiWgpuAppConfig*(
     title: string, width = 900, height = 600
 ): KoiWgpuAppConfig =
-  KoiWgpuAppConfig(title: title, width: width, height: height, resizable: true)
+  KoiWgpuAppConfig(
+    title: title,
+    width: width,
+    height: height,
+    resizable: true,
+    quitOnEscapeOrCtrlC: true,
+  )
+
+proc quitShortcutDown(config: KoiWgpuAppConfig): bool =
+  config.quitOnEscapeOrCtrlC and
+    (isKeyDown(keyEscape) or (isKeyDown(keyC) and ctrlDown()))
 
 proc loadDefaultKoiFonts*(vg: NVGContext) =
   let dataDir = currentSourcePath().parentDir().parentDir().parentDir() / "data"
@@ -53,6 +64,9 @@ when defined(waylandBackend):
 
     while not app.shouldClose():
       app.pollEvents()
+      if config.quitShortcutDown():
+        app.shouldClose = true
+        continue
       app.updateSurfaceSize()
       backend.resizeKoiWgpuBackend(app.surfaceWidth, app.surfaceHeight)
       render(vg)
@@ -95,6 +109,9 @@ else:
 
     while not glfwLib.shouldClose(win):
       glfwLib.pollEvents()
+      if config.quitShortcutDown():
+        win.shouldClose = true
+        continue
       let (surfaceWidth, surfaceHeight) = win.surfaceSize()
       backend.resizeKoiWgpuBackend(surfaceWidth, surfaceHeight)
       render(vg)

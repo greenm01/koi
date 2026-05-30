@@ -375,7 +375,7 @@ template contextMenuImpl(
       endContextMenu()
 
 template contextMenu*(id: ItemId, x, y, w, h, popupW, popupH: float, body: untyped) =
-  contextMenuImpl(id, x, y, w, h, popupW, popupH, disabled = false):
+  contextMenuImpl(id, x, y, w, h, popupW, popupH, isDisabled = false):
     body
 
 template contextMenu*(
@@ -387,7 +387,7 @@ template contextMenu*(
 template contextMenu*(x, y, w, h, popupW, popupH: float, body: untyped) =
   let i = instantiationInfo(fullPaths = true)
   let id = nextId(i.filename, i.line)
-  contextMenuImpl(id, x, y, w, h, popupW, popupH, disabled = false):
+  contextMenuImpl(id, x, y, w, h, popupW, popupH, isDisabled = false):
     body
 
 template contextMenu*(

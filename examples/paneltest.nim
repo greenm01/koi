@@ -6,6 +6,7 @@ from glfw/wrapper import showWindow
 import nanovg
 
 import koi
+import example_quit
 
 type
   LineWidth = enum
@@ -702,6 +703,9 @@ proc main() =
       glfw.pollEvents()
     else:
       glfw.waitEvents()
+    if exampleQuitShortcutDown():
+      win.shouldClose = true
+      break
     renderFrame(win)
 
   cleanup()

@@ -8,6 +8,7 @@ from glfw/wrapper import showWindow
 import nanovg
 
 import koi
+import example_quit
 
 # Global NanoVG context
 var vg: NVGContext
@@ -599,6 +600,9 @@ proc main() =
       glfw.pollEvents()
     else:
       glfw.waitEvents()
+    if exampleQuitShortcutDown():
+      win.shouldClose = true
+      break
     renderFrame(win)
 
   cleanup()
