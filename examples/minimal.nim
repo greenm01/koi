@@ -4,6 +4,7 @@ import nanovg
 
 import koi
 import koi/backends/wgpu_app
+import example_quit
 
 var
   sliderValue = 42.0
@@ -100,4 +101,6 @@ proc renderUi(vg: NVGContext) =
   endFrame()
 
 when isMainModule:
-  runKoiWgpuApp(defaultKoiWgpuAppConfig("Koi wgpu", 900, 560), renderUi)
+  var config = defaultKoiWgpuAppConfig("Koi wgpu", 900, 560)
+  config.shouldClose = exampleQuitShortcutDown
+  runKoiWgpuApp(config, renderUi)

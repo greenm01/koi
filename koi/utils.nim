@@ -1,3 +1,5 @@
+import std/strutils
+
 template alias*(newName: untyped, call: untyped) =
   template newName(): untyped =
     call
@@ -18,3 +20,25 @@ func invLerp*(a, b, v: SomeFloat): SomeFloat =
 func remap*(inMin, inMax, outMin, outMax, v: SomeFloat): SomeFloat =
   let t = invLerp(inMin, inMax, v)
   lerp(outMin, outMax, t)
+
+func trimNumberText*(text: string): string =
+  let dot = text.find('.')
+  if dot < 0:
+    return text
+
+  var last = text.high
+  while last > dot and text[last] == '0':
+    dec last
+  if last == dot:
+    dec last
+
+  result =
+    if last >= 0:
+      text[0 .. last]
+    else:
+      "0"
+  if result == "-0":
+    result = "0"
+
+func formatNumberText*(value: float, precision: Natural): string =
+  trimNumberText(value.formatFloat(ffDecimal, precision))

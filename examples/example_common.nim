@@ -5,13 +5,16 @@ import nanovg
 import koi
 import koi/rect
 import koi/backends/wgpu_app
+import example_quit
 
 export rect
 
 type DemoRenderProc* = proc(vg: NVGContext) {.closure.}
 
 proc runWgpuDemo*(title: string, width, height: int, render: DemoRenderProc) =
-  runKoiWgpuApp(defaultKoiWgpuAppConfig(title, width, height), render)
+  var config = defaultKoiWgpuAppConfig(title, width, height)
+  config.shouldClose = exampleQuitShortcutDown
+  runKoiWgpuApp(config, render)
 
 proc handleInspectorShortcut*(wasDown: var bool) =
   let down = isKeyDown(keyF12)

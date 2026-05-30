@@ -19,9 +19,6 @@ import koi/utils
 type PropertyState = ref object of RootObj
   valueText: string
 
-func formatPropertyValue(value: float, precision: Natural): string =
-  value.formatFloat(ffDecimal, precision)
-
 proc propertyState(id: ItemId): PropertyState =
   alias(ui, g_uiState)
   discard ui.itemState.hasKeyOrPut(id, PropertyState())
@@ -163,13 +160,13 @@ proc floatProperty*(
   var state = propertyState(id)
 
   if not isActive(textId):
-    state.valueText = value.formatPropertyValue(style.valuePrecision)
+    state.valueText = value.formatNumberText(style.valuePrecision)
 
   labelWithSlot(slots.labelSlot, hashId($id & ":label"), labelText, style = style.label)
 
   if buttonWithSlot(slots.decSlot, decId, "-", tooltip, disabled, style = style.button):
     value = propertyStepValue(value, minValue, maxValue, step, -1)
-    state.valueText = value.formatPropertyValue(style.valuePrecision)
+    state.valueText = value.formatNumberText(style.valuePrecision)
 
   textFieldWithSlot(
     slots.textSlot,
@@ -187,7 +184,7 @@ proc floatProperty*(
 
   if buttonWithSlot(slots.incSlot, incId, "+", tooltip, disabled, style = style.button):
     value = propertyStepValue(value, minValue, maxValue, step, 1)
-    state.valueText = value.formatPropertyValue(style.valuePrecision)
+    state.valueText = value.formatNumberText(style.valuePrecision)
 
   value_out = value
   result = abs(value - oldValue) > 0.0

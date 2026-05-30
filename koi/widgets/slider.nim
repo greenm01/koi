@@ -86,7 +86,7 @@ proc horizSlider*(
         if isDoubleClick():
           sl.editModeItem = id
           sl.textFieldId = sliderTextFieldId(id)
-          sl.valueText = value.formatFloat(ffDecimal, s.valuePrecision)
+          sl.valueText = value.formatNumberText(s.valuePrecision)
           sl.state = ssEditValue
       else: # LMB released
         if not sl.cursorMoved:
@@ -187,7 +187,7 @@ proc horizSlider*(
       if label != "":
         vg.drawLabel(rx, ry, rw, rh, label, state, s.label)
 
-      let valText = newValue.formatFloat(ffDecimal, s.valuePrecision) & s.valueSuffix
+      let valText = newValue.formatNumberText(s.valuePrecision) & s.valueSuffix
       vg.drawLabel(rx, ry, rw, rh, valText, state, s.value)
 
   if isHot(id):

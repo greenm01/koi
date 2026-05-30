@@ -10,11 +10,23 @@ import koi/input
 import koi/internal/algorithms
 import koi/layout
 import koi/types
+import koi/utils
 
 const Epsilon = 0.0001
 
 template checkClose(actual, expected: float) =
   check abs(actual - expected) < Epsilon
+
+suite "number text formatting":
+  test "whole numbers omit trailing decimal punctuation":
+    check 0.0.formatNumberText(0) == "0"
+    check 27.0.formatNumberText(0) == "27"
+    check 255.0.formatNumberText(0) == "255"
+
+  test "fractional numbers trim only insignificant zeros":
+    check 1.5.formatNumberText(3) == "1.5"
+    check 1.25.formatNumberText(3) == "1.25"
+    check 1.234.formatNumberText(3) == "1.234"
 
 proc resetLayout(params: AutoLayoutParams = DefaultAutoLayoutParams) =
   g_uiState = UIState.default

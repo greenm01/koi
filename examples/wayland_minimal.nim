@@ -1,13 +1,13 @@
 import koi/backends/wayland
 import koi/backends/wayland_keys
-from koi/types import keyC, keyEscape
+from koi/types import keyC, keyQ
 
 type AppState = object
   closed: bool
 
 proc quitShortcut(keycode, mods: uint32): bool =
-  waylandKeycode(keycode) == keyEscape or
-    (waylandKeycode(keycode) == keyC and (mods and koiWaylandModCtrl) != 0)
+  let key = waylandKeycode(keycode)
+  (mods and koiWaylandModCtrl) != 0 and (key == keyQ or key == keyC)
 
 proc onClose(userdata: pointer) {.cdecl.} =
   let state = cast[ptr AppState](userdata)
