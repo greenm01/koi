@@ -243,5 +243,9 @@ suite "wgpu renderer readback":
     check stats.vertices > 0
     check stats.indices > 0
     check stats.indexBytes == (stats.indices * sizeof(uint32)).uint64
+    check stats.stagedBytes == stats.vertexBytes + stats.indexBytes
+    check stats.expandedVertexBytes ==
+      (stats.indices.uint64 * (stats.vertexBytes div stats.vertices.uint64))
+    check stats.stagedBytes < stats.expandedVertexBytes
     check pixels.pixelAt(64, 16, 16).r > 220
     check pixels.pixelAt(64, 40, 40).r > 220

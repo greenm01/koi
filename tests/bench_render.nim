@@ -45,6 +45,13 @@ for n in [50, 200, 500]:
     frame(n)
   let dt = (getMonoTime() - t0).inMicroseconds.float / iters.float
   let stats = gBackend.lastSubmittedRenderStats()
+  let
+    savedBytes = stats.expandedVertexBytes.int64 - stats.stagedBytes.int64
+    savedPct =
+      if stats.expandedVertexBytes > 0:
+        savedBytes.float * 100.0 / stats.expandedVertexBytes.float
+      else:
+        0.0
   echo n,
     " buttons FULL render: ",
     dt.formatFloat(ffDecimal, 1),
@@ -54,5 +61,12 @@ for n in [50, 200, 500]:
     stats.vertices,
     " indices=",
     stats.indices,
+    " upload=",
+    stats.stagedBytes div 1024,
+    " KiB vs old=",
+    stats.expandedVertexBytes div 1024,
+    " KiB saved=",
+    savedPct.formatFloat(ffDecimal, 1),
+    "%",
     " closures=",
     g_drawLayers.layers[0].len

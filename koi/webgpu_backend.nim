@@ -157,6 +157,8 @@ type
     indices*: int
     vertexBytes*: uint64
     indexBytes*: uint64
+    expandedVertexBytes*: uint64
+    stagedBytes*: uint64
 
   GpuTexture = object
     texture: Texture
@@ -402,6 +404,7 @@ func toWgpuBlendFactor(factor: WebGpuBlendFactor): wgpu.BlendFactor =
 
 proc appendVertex(
     b: var KoiWgpuBackend,
+    viewport: WebGpuViewport,
     v: WebGpuInputVertex,
     color: array[4, float32],
     outerColor: array[4, float32],
@@ -409,10 +412,6 @@ proc appendVertex(
     mode: float32,
     aaMult: float32,
 ) =
-  let viewport = b.viewport()
-  if not hasDrawableViewport(viewport):
-    return
-
   b.vertices.add clipVertex(v, viewport, color, outerColor, paintParams, mode, aaMult)
 
 proc appendSourceVertices(
@@ -430,13 +429,14 @@ proc appendSourceVertices(
   result = b.vertices.len.uint32
   let src = cast[ptr UncheckedArray[NvgVertex]](verts)
   let shaderMode = mode.shaderMode
+  let viewport = b.viewport()
   for i in 0 ..< count:
     let vertex =
       if preserveTriangleUvs and mode != pmGradient:
         inputVertex(src[i])
       else:
         paintVertex(src[i], paint)
-    b.appendVertex(vertex, color, outerColor, paintParams, shaderMode, aaMult)
+    b.appendVertex(viewport, vertex, color, outerColor, paintParams, shaderMode, aaMult)
 
 template appendIndexedPrimitive(
     b: var KoiWgpuBackend, baseVertex: uint32, count: int, indexIterator: untyped
@@ -564,9 +564,10 @@ proc appendCoverQuad(
     ]
 
   let baseVertex = b.vertices.len.uint32
+  let viewport = b.viewport()
   for v in verts:
     b.appendVertex(
-      paintVertex(v, paint), color, outerColor, params, mode.shaderMode, 0'f32
+      viewport, paintVertex(v, paint), color, outerColor, params, mode.shaderMode, 0'f32
     )
 
   appendIndexedPrimitive(b, baseVertex, verts.len, stripIndices)
@@ -1202,6 +1203,8 @@ proc renderFlush(userPtr: pointer) {.cdecl.} =
     indices: b.indices.len,
     vertexBytes: vertexByteLen,
     indexBytes: indexByteLen,
+    expandedVertexBytes: (b.indices.len * sizeof(GpuVertex)).uint64,
+    stagedBytes: vertexByteLen + indexByteLen,
   )
 
   if b.capturePending:
