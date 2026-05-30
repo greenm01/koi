@@ -33,6 +33,7 @@ const
   Ph = 20.0
 
 let PickerPopupId = hashId($CpId & ":popup")
+let PickerWheelId = hashId($CpId & ":wheel")
 
 proc picker(color: var Color) =
   colorPicker(CpId, Px, Py, Pw, Ph, color)
@@ -48,6 +49,9 @@ proc openPicker(color: var Color) =
 
 proc placePickerPopup() =
   placeRect(PickerPopupId, rect(Px, Py + Ph, 180, 311))
+
+proc placePickerWheel() =
+  placeRect(PickerWheelId, rect(Px + 14, Py + Ph + 14, 152.5, 152.5))
 
 suite "color combo popup":
   test "click on the button opens the preset popup":
@@ -284,6 +288,53 @@ suite "color picker editing":
 
     check g_uiState.colorPickerState.h > 0.45
     check g_uiState.colorPickerState.h < 0.55
+
+  test "HSV slider commits on press without cursor movement":
+    resetUi()
+    var color = rgb(1.0, 0.0, 0.0)
+    openPicker(color)
+    g_uiState.colorPickerState.colorMode = ccmHSV
+    placePickerPopup()
+    placeRect(hashId($CpId & ":v"), rect(43, 298, 152, 20))
+
+    nextFrame()
+    pressLeftAt(43, 308)
+    g_uiState.lastmx = g_uiState.mx
+    g_uiState.lastmy = g_uiState.my
+    picker(color)
+
+    check g_uiState.colorPickerState.v < 0.05
+
+  test "HSV wheel hue ring updates the hue":
+    resetUi()
+    var color = rgb(1.0, 0.0, 0.0)
+    openPicker(color)
+    g_uiState.colorPickerState.colorMode = ccmHSV
+    placePickerPopup()
+    placePickerWheel()
+
+    nextFrame()
+    pressLeftAt(188, 140)
+    picker(color)
+
+    check g_uiState.colorPickerState.h > 0.45
+    check g_uiState.colorPickerState.h < 0.55
+
+  test "HSV wheel triangle updates saturation and value":
+    resetUi()
+    var color = rgb(0.0, 0.0, 0.0)
+    openPicker(color)
+    g_uiState.colorPickerState.colorMode = ccmHSV
+    placePickerPopup()
+    placePickerWheel()
+
+    nextFrame()
+    pressLeftAt(121, 90)
+    picker(color)
+
+    check g_uiState.colorPickerState.s > 0.80
+    check g_uiState.colorPickerState.v > 0.80
+    check color.r > 0.80
 
   test "hex text state updates the color":
     resetUi()

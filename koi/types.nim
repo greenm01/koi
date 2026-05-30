@@ -995,6 +995,7 @@ type SliderStyle* = ref object
   label*: LabelStyle
   value*: LabelStyle
   cursorFollowsValue*: bool
+  commitOnPress*: bool
 
 type ProgressStyle* = ref object
   cornerRadius*: float

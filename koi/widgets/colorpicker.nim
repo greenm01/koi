@@ -84,6 +84,7 @@ var ColorPickerSliderStyle = SliderStyle(
   label: defaultLabelStyle(),
   value: defaultLabelStyle(),
   cursorFollowsValue: true,
+  commitOnPress: true,
 )
 
 with ColorPickerSliderStyle:
@@ -177,25 +178,13 @@ proc drawColorSwatch(
   let slot = layoutSlot(id, rect(x, y, w, h))
   drawColorSwatchWithSlot(slot, id, color, disabled = disabled)
 
-proc colorWheel(x, y, w, h: float, hue, sat, val: var float) =
+proc colorWheel(id: ItemId, x, y, w, h: float, hue, sat, val: var float) =
   alias(ui, g_uiState)
   alias(cs, ui.colorPickerState)
 
   let (x, y) = addDrawOffset(x, y)
-  let
-    cx = x + w * 0.5
-    cy = y + h * 0.5
-    r1 = min(w, h) * 0.5
-    r0 = r1 - r1 * 0.20
-    x1 = cx + r0 * cos(5 * PI / 6)
-    y1 = cy + r0 * sin(5 * PI / 6)
-    x2 = cx + r0 * cos(PI / 6)
-    y2 = cy + r0 * sin(PI / 6)
-    x3 = cx + r0 * cos(1.5 * PI)
-    y3 = cy + r0 * sin(1.5 * PI)
-
-  proc wheelAngleFromCursor(): float =
-    arctan2(ui.my - cy, ui.mx - cx)
+  let slot = layoutSlot(id, rect(x, y, w, h))
+  let hitBounds = slot.previousBounds
 
   func hueFromWheelAngle(a: float): float =
     let aa =
@@ -205,38 +194,85 @@ proc colorWheel(x, y, w, h: float, hue, sat, val: var float) =
         2 * PI + a
     (aa / (2 * PI) + 0.5) mod 1.0
 
-  proc triangleHalfPlaneDeterminants(): (float, float, float) =
-    let m1 = (y3 - y1) / (x3 - x1)
-    var mx = ui.mx - x1
-    var my = ui.my - y1
-    let dLeft = m1 * mx - my
+  func edge(ax, ay, bx, by, px, py: float): float =
+    (px - ax) * (by - ay) - (py - ay) * (bx - ax)
 
-    let m2 = (y3 - y2) / (x3 - x2)
-    mx = ui.mx - x2
-    my = ui.my - y2
-    let dRight = m2 * mx - my
+  proc wheelGeometry(
+      bounds: Rect
+  ): tuple[cx, cy, r0, r1, blackX, blackY, whiteX, whiteY, colorX, colorY: float] =
+    result.cx = bounds.x + bounds.w * 0.5
+    result.cy = bounds.y + bounds.h * 0.5
+    result.r1 = min(bounds.w, bounds.h) * 0.5
+    result.r0 = result.r1 - result.r1 * 0.20
+    result.blackX = result.cx + result.r0 * cos(5 * PI / 6)
+    result.blackY = result.cy + result.r0 * sin(5 * PI / 6)
+    result.whiteX = result.cx + result.r0 * cos(PI / 6)
+    result.whiteY = result.cy + result.r0 * sin(PI / 6)
+    result.colorX = result.cx + result.r0 * cos(1.5 * PI)
+    result.colorY = result.cy + result.r0 * sin(1.5 * PI)
 
-    let dBottom = if ui.my < y1: -1.0 else: 1.0
-    (dLeft, dRight, dBottom)
+  let geom = wheelGeometry(hitBounds)
 
-  if cs.mouseMode == cmmNormal:
-    if isHit(x, y, w, h) and ui.mbLeftDown:
-      let
-        dy = ui.my - cy
-        a = wheelAngleFromCursor()
-        r = dy / sin(a)
+  proc wheelAngleFromCursor(): float =
+    arctan2(ui.my - geom.cy, ui.mx - geom.cx)
 
-      if r >= r0 and r <= r1:
-        hue = hueFromWheelAngle(a)
-        cs.mouseMode = cmmDragWheel
-        ui.focusCaptured = true
+  proc cursorInHueRing(): bool =
+    let distance = hypot(ui.mx - geom.cx, ui.my - geom.cy)
+    distance >= geom.r0 and distance <= geom.r1
+
+  proc triangleBarycentric(px, py: float): tuple[black, white, color: float] =
+    let denom =
+      edge(geom.blackX, geom.blackY, geom.whiteX, geom.whiteY, geom.colorX, geom.colorY)
+    if abs(denom) < 0.000001:
+      return (0.0, 0.0, 0.0)
+    result.black =
+      edge(geom.whiteX, geom.whiteY, geom.colorX, geom.colorY, px, py) / denom
+    result.white =
+      edge(geom.colorX, geom.colorY, geom.blackX, geom.blackY, px, py) / denom
+    result.color =
+      edge(geom.blackX, geom.blackY, geom.whiteX, geom.whiteY, px, py) / denom
+
+  proc cursorInTriangle(): bool =
+    let b = triangleBarycentric(ui.mx, ui.my)
+    b.black >= 0 and b.white >= 0 and b.color >= 0
+
+  proc triangleCursorValues(): tuple[sat, val: float] =
+    var b = triangleBarycentric(ui.mx, ui.my)
+    b.black = max(0.0, b.black)
+    b.white = max(0.0, b.white)
+    b.color = max(0.0, b.color)
+
+    let total = b.black + b.white + b.color
+    if total <= 0.000001:
+      return (0.0, 0.0)
+    b.black /= total
+    b.white /= total
+    b.color /= total
+
+    result.val = clamp(b.white + b.color, 0.0, 1.0)
+    result.sat =
+      if result.val <= 0.000001:
+        0.0
       else:
-        let (dLeft, dRight, dBottom) = triangleHalfPlaneDeterminants()
-        if dLeft < 0 and dRight < 0 and dBottom < 0:
-          cs.mouseMode = cmmDragTriangle
-          ui.focusCaptured = true
-        else:
-          cs.mouseMode = cmmLMBDown
+        clamp(b.color / result.val, 0.0, 1.0)
+
+  if isHit(hitBounds.x, hitBounds.y, hitBounds.w, hitBounds.h):
+    markHot(id)
+
+  if cs.mouseMode == cmmNormal and isHot(id) and ui.mbLeftDown and hasNoActiveItem():
+    if cursorInHueRing():
+      hue = hueFromWheelAngle(wheelAngleFromCursor())
+      cs.mouseMode = cmmDragWheel
+      markActive(id)
+      ui.focusCaptured = true
+    elif cursorInTriangle():
+      (sat, val) = triangleCursorValues()
+      cs.mouseMode = cmmDragTriangle
+      markActive(id)
+      ui.focusCaptured = true
+    else:
+      cs.mouseMode = cmmLMBDown
+      markActive(id)
   elif cs.mouseMode == cmmLMBDown:
     if not ui.mbLeftDown:
       cs.mouseMode = cmmNormal
@@ -252,48 +288,17 @@ proc colorWheel(x, y, w, h: float, hue, sat, val: var float) =
       cs.mouseMode = cmmNormal
       ui.focusCaptured = false
     else:
-      var mx, my: float
-      let (dLeft, dRight, dBottom) = triangleHalfPlaneDeterminants()
-      let insideTriangle = dLeft < 0 and dRight < 0 and dBottom < 0
-
-      if insideTriangle:
-        mx = ui.mx
-        my = ui.my
-      elif dLeft > 0:
-        my = clamp(ui.my, y3, y1)
-        mx = lerp(x1, x3, (y1 - my) / (y1 - y3))
-      elif dRight > 0:
-        my = clamp(ui.my, y3, y1)
-        mx = lerp(x2, x3, (y1 - my) / (y1 - y3))
-      elif dBottom > 0:
-        mx = clamp(ui.mx, x1, x2)
-        my = y1
-
-      mx -= cx
-      my -= cy
-
-      var transform: TransformMatrix
-      transform.rotate(2 * PI / 3)
-      let (rx, ry) = transformPoint(transform, mx, my)
-
-      val = ((ry) - (y3 - cy)) / (y1 - y3)
-      val = clamp(val, 0, 1)
-
-      const Eps = 0.0001
-      sat =
-        if val < Eps:
-          0.0
-        else:
-          invLerp(lerp(x3 - cx, x1 - cx, val), lerp(x3 - cx, x2 - cx, val), rx)
-      sat = clamp(sat, 0, 1)
+      (sat, val) = triangleCursorValues()
 
   let
     drawHue = hue
     drawSat = sat
     drawVal = val
 
-  addDrawLayer(ui.currentLayer, vg):
-    let da = 0.5 / r1
+  addLayoutDrawLayer(ui.currentLayer, slot.nodeId, vg, bounds):
+    let
+      (cx, cy, r0, r1, x1, y1, x2, y2, x3, y3) = wheelGeometry(bounds)
+      da = 0.5 / r1
 
     vg.strokeColor(black())
     vg.strokeWidth(1.0)
@@ -314,24 +319,21 @@ proc colorWheel(x, y, w, h: float, hue, sat, val: var float) =
     vg.fill()
 
     let
-      xs = lerp(x3, x1, drawVal)
-      xe = lerp(x3, x2, drawVal)
-    var markerY = lerp(y3, y1, drawVal)
-    var markerX = lerp(xs, xe, drawSat)
+      markerBlack = 1.0 - drawVal
+      markerColor = drawVal * drawSat
+      markerWhite = drawVal * (1.0 - drawSat)
+      markerX = x1 * markerBlack + x2 * markerWhite + x3 * markerColor
+      markerY = y1 * markerBlack + y2 * markerWhite + y3 * markerColor
 
-    vg.save()
-    vg.translate(cx, cy)
-    vg.rotate(-2 * PI / 3)
     vg.strokeWidth(1.0)
     vg.beginPath()
-    vg.circle(markerX - cx, markerY - cy, 5)
+    vg.circle(markerX, markerY, 5)
     vg.strokeColor(black(0.8))
     vg.stroke()
     vg.beginPath()
-    vg.circle(markerX - cx, markerY - cy, 4)
+    vg.circle(markerX, markerY, 4)
     vg.strokeColor(white(0.8))
     vg.stroke()
-    vg.restore()
 
     const Segments = 6
     for i in 0 ..< Segments:
@@ -364,14 +366,14 @@ proc colorWheel(x, y, w, h: float, hue, sat, val: var float) =
     vg.save()
     vg.translate(cx, cy)
     vg.rotate(PI + drawHue * 2 * PI)
-    markerX = (r0 + r1) * 0.5
+    let hueMarkerX = (r0 + r1) * 0.5
     vg.strokeWidth(1.0)
     vg.beginPath()
-    vg.circle(markerX, 0, 5)
+    vg.circle(hueMarkerX, 0, 5)
     vg.strokeColor(black(0.8))
     vg.stroke()
     vg.beginPath()
-    vg.circle(markerX, 0, 4)
+    vg.circle(hueMarkerX, 0, 4)
     vg.strokeColor(white(0.8))
     vg.stroke()
     vg.restore()
@@ -520,7 +522,16 @@ proc colorPicker*(
             rgba(r / RgbMax, g / RgbMax, b / RgbMax, a / AlphaMax).toHSV
           if sat < Eps or (r < Eps and g < Eps and b < Eps):
             hue = cs.lastHue
-          colorWheel(px, ColorPickerWheelY, pw + 0.5, pw + 0.5, hue, sat, value)
+          colorWheel(
+            hashId($id & ":wheel"),
+            px,
+            ColorPickerWheelY,
+            pw + 0.5,
+            pw + 0.5,
+            hue,
+            sat,
+            value,
+          )
           cs.lastHue = hue
           color = hsva(hue, sat, value, a / AlphaMax)
         of ccmHSV:
@@ -589,7 +600,16 @@ proc colorPicker*(
           )
 
           (cs.h, cs.s, cs.v) = (hue / HueMax, sat / SatMax, value / ValMax)
-          colorWheel(px, ColorPickerWheelY, pw + 0.5, pw + 0.5, cs.h, cs.s, cs.v)
+          colorWheel(
+            hashId($id & ":wheel"),
+            px,
+            ColorPickerWheelY,
+            pw + 0.5,
+            pw + 0.5,
+            cs.h,
+            cs.s,
+            cs.v,
+          )
           color = hsva(cs.h, cs.s, cs.v, a / AlphaMax)
         of ccmHex:
           if cs.opened or cs.lastColorMode != ccmHex:
@@ -628,7 +648,16 @@ proc colorPicker*(
               color.withAlpha(a / AlphaMax)
           var (hue, sat, value) = editedColor.toHSV
           let (oldHue, oldSat, oldValue) = (hue, sat, value)
-          colorWheel(px, ColorPickerWheelY, pw + 0.5, pw + 0.5, hue, sat, value)
+          colorWheel(
+            hashId($id & ":wheel"),
+            px,
+            ColorPickerWheelY,
+            pw + 0.5,
+            pw + 0.5,
+            hue,
+            sat,
+            value,
+          )
           editedColor = hsva(hue, sat, value, a / AlphaMax)
           if hue != oldHue or sat != oldSat or value != oldValue:
             cs.hexString = editedColor.toHex

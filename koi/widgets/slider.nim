@@ -63,6 +63,8 @@ proc horizSlider*(
       if ui.mbLeftDown:
         if abs(ui.mx - ui.lastmx) > 0.1 or abs(ui.my - ui.lastmy) > 0.1:
           sl.cursorMoved = true
+        elif s.commitOnPress and not shiftDown():
+          sl.cursorMoved = true
 
         if sl.cursorMoved:
           if shiftDown():

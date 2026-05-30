@@ -567,6 +567,7 @@ var DefaultSliderStyle = SliderStyle(
   label: defaultLabelStyle(),
   value: defaultLabelStyle(),
   cursorFollowsValue: true,
+  commitOnPress: false,
 )
 
 with DefaultSliderStyle:
