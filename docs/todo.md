@@ -3,6 +3,24 @@
 This file tracks current follow-up work. Historical audit notes were folded down
 to the deferred candidates that still look useful.
 
+## Renderer Roadmap
+
+Koi's long-term renderer target is Okys, not a deeper WebGPU stack. WebGPU stays
+the current implementation path until Okys is ready, but it is not the product
+direction by itself.
+
+The intended migration:
+
+- Okys replaces NanoVG and Koi's custom NanoVG-to-WebGPU backend.
+- Koi keeps its own Wayland and GLFW windowing loops.
+- Okys must support hosted rendering so Koi can drive it from existing app
+  backends.
+- Okys owns text rendering and text measurement before Koi moves.
+- Koi starts migration at Okys Plan A plus text. Plan B analytic coverage is
+  future upside, not a blocker.
+- Browser/WebGPU support belongs to Okys and does not block native Koi
+  migration.
+
 ## Active Items
 
 - Replace the temporary `greenm01/webgpu-nim:wgvk-stencil-render-pass` pin with
