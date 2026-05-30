@@ -300,13 +300,16 @@ proc colorWheel(id: ItemId, x, y, w, h: float, hue, sat, val: var float) =
       (cx, cy, r0, r1, x1, y1, x2, y2, x3, y3) = wheelGeometry(bounds)
       da = 0.5 / r1
 
+    template trianglePath() =
+      vg.beginPath()
+      vg.moveTo(x1, y1)
+      vg.lineTo(x2, y2)
+      vg.lineTo(x3, y3)
+      vg.closePath()
+
     vg.strokeColor(black())
     vg.strokeWidth(1.0)
-    vg.beginPath()
-    vg.moveTo(x1, y1)
-    vg.lineTo(x2, y2)
-    vg.lineTo(x3, y3)
-    vg.closePath()
+    trianglePath()
 
     var paint = vg.linearGradient(x3, y3, x2, y2, hsla(drawHue, 1.0, 0.5, 1.0), white())
     vg.fillPaint(paint)
@@ -315,6 +318,7 @@ proc colorWheel(id: ItemId, x, y, w, h: float, hue, sat, val: var float) =
     paint = vg.linearGradient(
       x1, y1, x3 + (x2 - x3) * 0.5, y3 + (y2 - y3) * 0.5, black(), black(0)
     )
+    trianglePath()
     vg.fillPaint(paint)
     vg.fill()
 
