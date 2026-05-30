@@ -33,8 +33,16 @@ proc sh(cmd: string) =
   exec cmd
 
 proc webgpuPathFlag(): string =
-  let webgpuPath = gorge("nimble path webgpu").strip()
-  " --path:" & quoteShell(webgpuPath / "src")
+  var webgpuPath = getEnv("KOI_WEBGPU_PATH").strip()
+  if webgpuPath.len == 0:
+    webgpuPath = gorge("nimble path webgpu").strip()
+
+  let srcPath =
+    if webgpuPath.lastPathPart == "src":
+      webgpuPath
+    else:
+      webgpuPath / "src"
+  " --path:" & quoteShell(srcPath)
 
 proc glfwWgpuFlags(): string =
   var flags = WgpuBaseFlags

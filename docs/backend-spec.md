@@ -197,6 +197,12 @@ surface creation seam.
 | `webgpu-nim` | RowDaBoat/webgpu-nim | Nim wrapper (Futhark-generated) |
 | `cargo` | system | required to build wgpu-native |
 
+Koi normally resolves `webgpu-nim` with `nimble path webgpu`. Set
+`KOI_WEBGPU_PATH` to a local `webgpu-nim` checkout when testing dependency
+patches before they are released. The current local fork branch is
+`greenm01/webgpu-nim:wgvk-stencil-render-pass`, which pins WGVK to the stencil
+render-pass fix while upstream WGVK PR 51 is pending.
+
 wgpu-native is compiled once with Cargo and linked statically. Pre-built
 release binaries from the gfx-rs GitHub releases can substitute for a local
 build.

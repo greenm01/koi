@@ -21,6 +21,28 @@ proc drawRect(x, y, w, h: float, color: Color) =
   gVg.fillColor(color)
   gVg.fill()
 
+proc drawRectWithHole(x, y, w, h: float, hx, hy, hw, hh: float, color: Color) =
+  gVg.beginPath()
+  gVg.rect(x, y, w, h)
+  gVg.rect(hx, hy, hw, hh)
+  gVg.pathWinding(sHole)
+  gVg.fillColor(color)
+  gVg.fill()
+
+proc drawConcaveNotch(color: Color) =
+  gVg.beginPath()
+  gVg.moveTo(8, 8)
+  gVg.lineTo(56, 8)
+  gVg.lineTo(56, 56)
+  gVg.lineTo(40, 56)
+  gVg.lineTo(40, 24)
+  gVg.lineTo(24, 24)
+  gVg.lineTo(24, 56)
+  gVg.lineTo(8, 56)
+  gVg.closePath()
+  gVg.fillColor(color)
+  gVg.fill()
+
 template capturePixels(frameWidth, frameHeight: int, body: untyped): seq[uint8] =
   block:
     gBackend.captureNextFrame(frameWidth.uint32, frameHeight.uint32)
@@ -94,6 +116,54 @@ suite "wgpu renderer readback":
     check sampled.g in 95'u8 .. 160'u8
     check sampled.b < 30
     check sampled.a > 240
+
+  test "filled paths preserve explicit holes":
+    let pixels = capturePixels(64, 64):
+      drawRectWithHole(8, 8, 48, 48, 24, 24, 16, 16, rgba(255, 0, 0, 255))
+
+    let filled = pixels.pixelAt(64, 16, 16)
+    check filled.r > 220
+    check filled.g < 30
+    check filled.b < 30
+
+    let hole = pixels.pixelAt(64, 32, 32)
+    checkNear(hole.r, 20'u8, 6)
+    checkNear(hole.g, 20'u8, 6)
+    checkNear(hole.b, 20'u8, 6)
+
+  test "filled path stencil does not mask later draws":
+    let pixels = capturePixels(64, 64):
+      drawRectWithHole(8, 8, 48, 48, 24, 24, 16, 16, rgba(255, 0, 0, 255))
+      drawRect(24, 24, 16, 16, rgba(0, 0, 255, 255))
+
+    let filled = pixels.pixelAt(64, 16, 16)
+    check filled.r > 220
+    check filled.g < 30
+    check filled.b < 30
+
+    let later = pixels.pixelAt(64, 32, 32)
+    check later.r < 30
+    check later.g < 30
+    check later.b > 220
+
+  test "concave filled paths do not overfill notches":
+    let pixels = capturePixels(64, 64):
+      drawConcaveNotch(rgba(0, 255, 0, 255))
+
+    let body = pixels.pixelAt(64, 16, 44)
+    check body.r < 30
+    check body.g > 220
+    check body.b < 30
+
+    let bridge = pixels.pixelAt(64, 32, 16)
+    check bridge.r < 30
+    check bridge.g > 220
+    check bridge.b < 30
+
+    let notch = pixels.pixelAt(64, 32, 44)
+    checkNear(notch.r, 20'u8, 6)
+    checkNear(notch.g, 20'u8, 6)
+    checkNear(notch.b, 20'u8, 6)
 
   test "adjacent matching state coalesces into one draw call":
     let pixels = capturePixels(64, 64):

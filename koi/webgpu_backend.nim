@@ -1,4 +1,4 @@
-import std/tables
+import std/[hashes, tables]
 
 import nanovg
 import nanovg/wrapper as nvg
@@ -127,10 +127,21 @@ type
 
   GpuVertex = WebGpuDrawVertex
 
+  DrawMode = enum
+    dmColor
+    dmStencilBuild
+    dmStencilFringe
+    dmStencilCover
+
+  PipelineKey = object
+    mode: DrawMode
+    blend: WebGpuBlend
+
   DrawCall = object
     first: uint32
     count: uint32
     textureId: int
+    mode: DrawMode
     blend: WebGpuBlend
     scissor: WebGpuScissor
 
@@ -151,11 +162,15 @@ type
     surfaceFormat: TextureFormat
     surfaceAlpha: CompositeAlphaMode
     config: SurfaceConfiguration
-    pipelines: Table[WebGpuBlend, RenderPipeline]
+    pipelines: Table[PipelineKey, RenderPipeline]
     pipelineLayout: PipelineLayout
     bindLayout: BindGroupLayout
     sampler: Sampler
     white: GpuTexture
+    stencilTexture: Texture
+    stencilView: TextureView
+    stencilWidth: uint32
+    stencilHeight: uint32
     textures: Table[int, GpuTexture]
     nextTextureId: int
     params: pointer
@@ -252,6 +267,11 @@ proc backend(userPtr: pointer): ptr KoiWgpuBackend =
 func viewport(b: KoiWgpuBackend): WebGpuViewport =
   WebGpuViewport(width: b.width, height: b.height)
 
+func hash(key: PipelineKey): Hash =
+  result = hash(ord(key.mode))
+  result = result !& hash(key.blend)
+  result = !$result
+
 proc textureMode(b: KoiWgpuBackend, paint: ptr nvg.Paint): float32 =
   if paint.image == nvg.NoImage:
     0'f32
@@ -269,17 +289,27 @@ proc textureId(paint: ptr nvg.Paint): int =
     int(paint.image)
 
 func sameDrawState(a, b: DrawCall): bool =
-  a.textureId == b.textureId and a.blend == b.blend and a.scissor == b.scissor
+  a.textureId == b.textureId and a.mode == b.mode and a.blend == b.blend and
+    a.scissor == b.scissor
+
+func usesStencil(mode: DrawMode): bool =
+  mode in {dmStencilBuild, dmStencilFringe, dmStencilCover}
 
 proc appendDrawCall(
     b: var KoiWgpuBackend,
     first, count: uint32,
     textureId: int,
+    mode: DrawMode,
     blend: WebGpuBlend,
     scissor: WebGpuScissor,
 ) =
   let call = DrawCall(
-    first: first, count: count, textureId: textureId, blend: blend, scissor: scissor
+    first: first,
+    count: count,
+    textureId: textureId,
+    mode: mode,
+    blend: blend,
+    scissor: scissor,
   )
   if b.drawCalls.len > 0:
     let last = b.drawCalls.high
@@ -345,6 +375,7 @@ proc appendTriangleList(
     paint: ptr nvg.Paint,
     blend: WebGpuBlend,
     scissor: WebGpuScissor,
+    drawMode = dmColor,
 ) =
   if verts.isNil or count < 3 or not hasDrawableViewport(b.viewport()):
     return
@@ -360,7 +391,7 @@ proc appendTriangleList(
 
   let added = b.vertices.len.uint32 - first
   if added > 0:
-    b.appendDrawCall(first, added, textureId(paint), blend, scissor)
+    b.appendDrawCall(first, added, textureId(paint), drawMode, blend, scissor)
 
 proc appendFan(
     b: var KoiWgpuBackend,
@@ -370,6 +401,7 @@ proc appendFan(
     aaMult: float32,
     blend: WebGpuBlend,
     scissor: WebGpuScissor,
+    drawMode = dmColor,
 ) =
   if verts.isNil or count < 3 or not hasDrawableViewport(b.viewport()):
     return
@@ -385,7 +417,7 @@ proc appendFan(
 
   let added = b.vertices.len.uint32 - first
   if added > 0:
-    b.appendDrawCall(first, added, textureId(paint), blend, scissor)
+    b.appendDrawCall(first, added, textureId(paint), drawMode, blend, scissor)
 
 proc appendStrip(
     b: var KoiWgpuBackend,
@@ -395,6 +427,7 @@ proc appendStrip(
     aaMult: float32,
     blend: WebGpuBlend,
     scissor: WebGpuScissor,
+    drawMode = dmColor,
 ) =
   if verts.isNil or count < 3 or not hasDrawableViewport(b.viewport()):
     return
@@ -410,7 +443,40 @@ proc appendStrip(
 
   let added = b.vertices.len.uint32 - first
   if added > 0:
-    b.appendDrawCall(first, added, textureId(paint), blend, scissor)
+    b.appendDrawCall(first, added, textureId(paint), drawMode, blend, scissor)
+
+proc appendCoverQuad(
+    b: var KoiWgpuBackend,
+    bounds: ptr cfloat,
+    paint: ptr nvg.Paint,
+    blend: WebGpuBlend,
+    scissor: WebGpuScissor,
+) =
+  if bounds.isNil or not hasDrawableViewport(b.viewport()):
+    return
+
+  let
+    boundArray = cast[ptr UncheckedArray[cfloat]](bounds)
+    minX = boundArray[0].float32
+    minY = boundArray[1].float32
+    maxX = boundArray[2].float32
+    maxY = boundArray[3].float32
+    first = b.vertices.len.uint32
+    color = rgba(paint.innerColor)
+    mode = b.textureMode(paint)
+    verts = [
+      NvgVertex(x: maxX.cfloat, y: maxY.cfloat, u: 0.5, v: 1),
+      NvgVertex(x: maxX.cfloat, y: minY.cfloat, u: 0.5, v: 1),
+      NvgVertex(x: minX.cfloat, y: maxY.cfloat, u: 0.5, v: 1),
+      NvgVertex(x: minX.cfloat, y: minY.cfloat, u: 0.5, v: 1),
+    ]
+
+  for i in stripIndices(verts.len):
+    b.appendVertex(patternVertex(verts[i], paint), color, mode, 0'f32)
+
+  let added = b.vertices.len.uint32 - first
+  if added > 0:
+    b.appendDrawCall(first, added, textureId(paint), dmStencilCover, blend, scissor)
 
 proc createTexture(
     b: var KoiWgpuBackend, width, height: int, alphaOnly: bool, data: ptr uint8
@@ -637,13 +703,40 @@ proc renderFill(
     aaMult = fillAaMult(fringe.float32)
     blend = webGpuBlend(compositeOperation)
     scissor = b[].drawScissor(scissor)
-  for i in 0 ..< npaths.int:
+
+  if npaths == 1 and pathArray[0].convex != 0:
     b[].appendFan(
-      pathArray[i].fill, pathArray[i].nfill.int, paint, aaMult, blend, scissor
+      pathArray[0].fill, pathArray[0].nfill.int, paint, aaMult, blend, scissor
     )
     b[].appendStrip(
-      pathArray[i].stroke, pathArray[i].nstroke.int, paint, aaMult, blend, scissor
+      pathArray[0].stroke, pathArray[0].nstroke.int, paint, aaMult, blend, scissor
     )
+    return
+
+  for i in 0 ..< npaths.int:
+    b[].appendFan(
+      pathArray[i].fill,
+      pathArray[i].nfill.int,
+      paint,
+      0'f32,
+      blend,
+      scissor,
+      dmStencilBuild,
+    )
+
+  if aaMult > 0'f32:
+    for i in 0 ..< npaths.int:
+      b[].appendStrip(
+        pathArray[i].stroke,
+        pathArray[i].nstroke.int,
+        paint,
+        aaMult,
+        blend,
+        scissor,
+        dmStencilFringe,
+      )
+
+  b[].appendCoverQuad(bounds, paint, blend, scissor)
 
 proc renderStroke(
     userPtr: pointer,
@@ -697,7 +790,55 @@ proc ensureVertexBuffer(b: var KoiWgpuBackend, bytes: uint64) =
     )
   )
 
-proc pipelineForBlend(b: var KoiWgpuBackend, blend: WebGpuBlend): RenderPipeline
+proc releaseStencilTarget(b: var KoiWgpuBackend) =
+  if not b.stencilView.isNil:
+    b.stencilView.release()
+    b.stencilView = nil
+  if not b.stencilTexture.isNil:
+    b.stencilTexture.release()
+    b.stencilTexture = nil
+  b.stencilWidth = 0
+  b.stencilHeight = 0
+
+proc ensureStencilTarget(b: var KoiWgpuBackend, width, height: uint32) =
+  let
+    w = max(1'u32, width)
+    h = max(1'u32, height)
+  if not b.stencilTexture.isNil and b.stencilWidth == w and b.stencilHeight == h:
+    return
+
+  b.releaseStencilTarget()
+  b.stencilTexture = b.device.create(
+    vaddr TextureDescriptor(
+      nextInChain: nil,
+      label: "Koi NanoVG stencil texture".toStringView(),
+      usage: TextureUsage_RenderAttachment,
+      dimension: TextureDimension.D2D,
+      size: Extent3D(width: w, height: h, depthOrArrayLayers: 1),
+      format: TextureFormat.Depth24PlusStencil8,
+      mipLevelCount: 1,
+      sampleCount: 1,
+      viewFormatCount: 0,
+      viewFormats: nil,
+    )
+  )
+  b.stencilView = b.stencilTexture.create(
+    vaddr TextureViewDescriptor(
+      nextInChain: nil,
+      label: "Koi NanoVG stencil texture view".toStringView(),
+      format: TextureFormat.Depth24PlusStencil8,
+      dimension: TextureViewDimension.D2D,
+      baseMipLevel: 0,
+      mipLevelCount: 1,
+      baseArrayLayer: 0,
+      arrayLayerCount: 1,
+      aspect: TextureAspect.All,
+    )
+  )
+  b.stencilWidth = w
+  b.stencilHeight = h
+
+proc pipelineForKey(b: var KoiWgpuBackend, key: PipelineKey): RenderPipeline
 
 proc applyDrawScissor(
     pass: RenderPassEncoder,
@@ -716,6 +857,19 @@ proc renderQueuedDraws(
     targetWidth, targetHeight: uint32,
     byteLen: uint64,
 ) =
+  b.ensureStencilTarget(targetWidth, targetHeight)
+  var depthStencil = RenderPassDepthStencilAttachment(
+    nextInChain: nil,
+    view: b.stencilView,
+    depthLoadOp: Clear,
+    depthStoreOp: Discard,
+    depthClearValue: 1.0,
+    depthReadOnly: false.uint32,
+    stencilLoadOp: Clear,
+    stencilStoreOp: Discard,
+    stencilClearValue: 0,
+    stencilReadOnly: false.uint32,
+  )
   var renderPassDesc = RenderPassDescriptor(
     nextInChain: nil,
     label: "Koi NanoVG render pass".toStringView(),
@@ -727,7 +881,7 @@ proc renderQueuedDraws(
       storeOp: Store,
       clearValue: wgpu.Color(r: 0.08, g: 0.08, b: 0.08, a: 1.0),
     ),
-    depthStencilAttachment: nil,
+    depthStencilAttachment: depthStencil.addr,
     occlusionQuerySet: nil,
     timestampWrites: nil,
   )
@@ -737,7 +891,8 @@ proc renderQueuedDraws(
     if call.scissor.active and (call.scissor.width == 0 or call.scissor.height == 0):
       continue
 
-    pass.set(b.pipelineForBlend(call.blend))
+    pass.set(b.pipelineForKey(PipelineKey(mode: call.mode, blend: call.blend)))
+    pass.setStencilReference(0)
     applyDrawScissor(pass, call.scissor, targetWidth, targetHeight)
     if call.textureId != 0 and b.textures.hasKey(call.textureId):
       pass.set(0, b.textures[call.textureId].bindGroup, 0, nil)
@@ -935,6 +1090,7 @@ proc renderDelete(userPtr: pointer) {.cdecl.} =
   for pipeline in b.pipelines.values:
     pipeline.release()
   b.pipelines.clear()
+  b[].releaseStencilTarget()
   releaseTexture(b.white)
   if not b.vertexBuffer.isNil:
     b.vertexBuffer.release()
@@ -958,7 +1114,72 @@ func blendState(blend: WebGpuBlend): BlendState =
     ),
   )
 
-proc createRenderPipeline(b: KoiWgpuBackend, blendKey: WebGpuBlend): RenderPipeline =
+func stencilFrontState(mode: DrawMode): StencilFaceState =
+  case mode
+  of dmStencilBuild:
+    StencilFaceState(
+      compare: CompareFunction.Always,
+      failOp: StencilOperation.Keep,
+      depthFailOp: StencilOperation.Keep,
+      passOp: StencilOperation.IncrementWrap,
+    )
+  of dmStencilFringe:
+    StencilFaceState(
+      compare: CompareFunction.Equal,
+      failOp: StencilOperation.Keep,
+      depthFailOp: StencilOperation.Keep,
+      passOp: StencilOperation.Keep,
+    )
+  of dmStencilCover:
+    StencilFaceState(
+      compare: CompareFunction.NotEqual,
+      failOp: StencilOperation.Zero,
+      depthFailOp: StencilOperation.Zero,
+      passOp: StencilOperation.Zero,
+    )
+  of dmColor:
+    StencilFaceState(
+      compare: CompareFunction.Always,
+      failOp: StencilOperation.Keep,
+      depthFailOp: StencilOperation.Keep,
+      passOp: StencilOperation.Keep,
+    )
+
+func stencilBackState(mode: DrawMode): StencilFaceState =
+  case mode
+  of dmStencilBuild:
+    StencilFaceState(
+      compare: CompareFunction.Always,
+      failOp: StencilOperation.Keep,
+      depthFailOp: StencilOperation.Keep,
+      passOp: StencilOperation.DecrementWrap,
+    )
+  else:
+    stencilFrontState(mode)
+
+func stencilReadMask(mode: DrawMode): uint32 =
+  if mode.usesStencil: 0xff'u32 else: 0'u32
+
+func stencilWriteMask(mode: DrawMode): uint32 =
+  case mode
+  of dmStencilBuild, dmStencilCover: 0xff'u32
+  of dmColor, dmStencilFringe: 0'u32
+
+func noOpBlendState(): BlendState =
+  BlendState(
+    alpha: BlendComponent(
+      operation: wgpu.BlendOperation.Add,
+      srcFactor: wgpu.BlendFactor.Zero,
+      dstFactor: wgpu.BlendFactor.One,
+    ),
+    color: BlendComponent(
+      operation: wgpu.BlendOperation.Add,
+      srcFactor: wgpu.BlendFactor.Zero,
+      dstFactor: wgpu.BlendFactor.One,
+    ),
+  )
+
+proc createRenderPipeline(b: KoiWgpuBackend, key: PipelineKey): RenderPipeline =
   var attributes = [
     VertexAttribute(format: VertexFormat.Float32x2, offset: 0, shaderLocation: 0),
     VertexAttribute(format: VertexFormat.Float32x2, offset: 8, shaderLocation: 1),
@@ -976,57 +1197,74 @@ proc createRenderPipeline(b: KoiWgpuBackend, blendKey: WebGpuBlend): RenderPipel
 
   var shaderDesc = wgsl.toDescriptor(shaderCode, label = "Koi NanoVG shader")
   let shader = b.device.create(shaderDesc.addr)
-  var blend = blendState(blendKey)
+  var blend =
+    if key.mode == dmStencilBuild:
+      noOpBlendState()
+    else:
+      blendState(key.blend)
   var target = ColorTargetState(
     nextInChain: nil,
     format: b.surfaceFormat,
     blend: blend.addr,
     writeMask: ColorWriteMask_All,
   )
-
-  result = b.device.create(
-    vaddr RenderPipelineDescriptor(
-      nextInChain: nil,
-      label: "Koi NanoVG render pipeline".toStringView(),
-      layout: b.pipelineLayout,
-      vertex: VertexState(
-        module: shader,
-        entryPoint: "vs_main".toStringView(),
-        constantCount: 0,
-        constants: nil,
-        bufferCount: 1,
-        buffers: vertexLayout.addr,
-      ),
-      primitive: PrimitiveState(
-        nextInChain: nil,
-        topology: PrimitiveTopology.TriangleList,
-        stripIndexFormat: IndexFormat.Undefined,
-        frontFace: FrontFace.CCW,
-        cullMode: CullMode.None,
-      ),
-      depthStencil: nil,
-      multisample: MultisampleState(
-        nextInChain: nil,
-        count: 1,
-        mask: uint32.high,
-        alphaToCoverageEnabled: false.uint32,
-      ),
-      fragment: vaddr FragmentState(
-        nextInChain: nil,
-        module: shader,
-        entryPoint: "fs_main".toStringView(),
-        constantCount: 0,
-        constants: nil,
-        targetCount: 1,
-        targets: target.addr,
-      ),
-    )
+  var depthStencil = DepthStencilState(
+    nextInChain: nil,
+    format: TextureFormat.Depth24PlusStencil8,
+    depthWriteEnabled: false.uint32,
+    depthCompare: CompareFunction.Always,
+    stencilFront: stencilFrontState(key.mode),
+    stencilBack: stencilBackState(key.mode),
+    stencilReadMask: stencilReadMask(key.mode),
+    stencilWriteMask: stencilWriteMask(key.mode),
+    depthBias: 0,
+    depthBiasSlopeScale: 0,
+    depthBiasClamp: 0,
   )
 
-proc pipelineForBlend(b: var KoiWgpuBackend, blend: WebGpuBlend): RenderPipeline =
-  if not b.pipelines.hasKey(blend):
-    b.pipelines[blend] = b.createRenderPipeline(blend)
-  b.pipelines[blend]
+  var fragment = FragmentState(
+    nextInChain: nil,
+    module: shader,
+    entryPoint: "fs_main".toStringView(),
+    constantCount: 0,
+    constants: nil,
+    targetCount: 1,
+    targets: target.addr,
+  )
+  var desc = RenderPipelineDescriptor(
+    nextInChain: nil,
+    label: "Koi NanoVG render pipeline".toStringView(),
+    layout: b.pipelineLayout,
+    vertex: VertexState(
+      module: shader,
+      entryPoint: "vs_main".toStringView(),
+      constantCount: 0,
+      constants: nil,
+      bufferCount: 1,
+      buffers: vertexLayout.addr,
+    ),
+    primitive: PrimitiveState(
+      nextInChain: nil,
+      topology: PrimitiveTopology.TriangleList,
+      stripIndexFormat: IndexFormat.Undefined,
+      frontFace: FrontFace.CCW,
+      cullMode: CullMode.None,
+    ),
+    depthStencil: depthStencil.addr,
+    multisample: MultisampleState(
+      nextInChain: nil,
+      count: 1,
+      mask: uint32.high,
+      alphaToCoverageEnabled: false.uint32,
+    ),
+    fragment: fragment.addr,
+  )
+  result = b.device.create(desc.addr)
+
+proc pipelineForKey(b: var KoiWgpuBackend, key: PipelineKey): RenderPipeline =
+  if not b.pipelines.hasKey(key):
+    b.pipelines[key] = b.createRenderPipeline(key)
+  b.pipelines[key]
 
 proc requestAdapter(b: var KoiWgpuBackend) =
   let future = b.instance.request(
@@ -1178,7 +1416,8 @@ proc createPipeline(b: var KoiWgpuBackend) =
   )
 
   let defaultBlend = defaultWebGpuBlend()
-  b.pipelines[defaultBlend] = b.createRenderPipeline(defaultBlend)
+  let defaultKey = PipelineKey(mode: dmColor, blend: defaultBlend)
+  b.pipelines[defaultKey] = b.createRenderPipeline(defaultKey)
 
   b.sampler = b.device.create(
     vaddr SamplerDescriptor(
