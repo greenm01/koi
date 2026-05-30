@@ -1,10 +1,14 @@
 import std/[times, monotimes, strutils]
+
+import koi/webgpu_backend
+
 import wgpu_test_common
 
 # close the harness's open frame so we can do our own begin/end cycles
 gVg.endFrame()
 
 proc frame(n: int) =
+  gBackend.captureNextFrame(64, 64)
   gVg.beginFrame(400, 300, 1.0)
   resetUi()
   g_uiState.winWidth = 400
@@ -33,16 +37,22 @@ proc frame(n: int) =
   gVg.endFrame()
 
 for n in [50, 200, 500]:
-  for _ in 0 ..< 20:
+  for _ in 0 ..< 10:
     frame(n) # warm
-  let iters = 300
+  let iters = 100
   let t0 = getMonoTime()
   for _ in 0 ..< iters:
     frame(n)
   let dt = (getMonoTime() - t0).inMicroseconds.float / iters.float
+  let stats = gBackend.lastSubmittedRenderStats()
   echo n,
     " buttons FULL render: ",
     dt.formatFloat(ffDecimal, 1),
     " us/frame   draw calls=",
-    g_drawLayers.layers[0].len,
-    " closures"
+    stats.drawCalls,
+    " vertices=",
+    stats.vertices,
+    " indices=",
+    stats.indices,
+    " closures=",
+    g_drawLayers.layers[0].len

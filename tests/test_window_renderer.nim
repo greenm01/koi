@@ -238,5 +238,10 @@ suite "wgpu renderer readback":
       drawRect(32, 32, 16, 16, rgba(255, 0, 0, 255))
 
     check gBackend.lastSubmittedDrawCallCount() == 1
+    let stats = gBackend.lastSubmittedRenderStats()
+    check stats.drawCalls == 1
+    check stats.vertices > 0
+    check stats.indices > 0
+    check stats.indexBytes == (stats.indices * sizeof(uint32)).uint64
     check pixels.pixelAt(64, 16, 16).r > 220
     check pixels.pixelAt(64, 40, 40).r > 220

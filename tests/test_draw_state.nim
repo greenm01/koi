@@ -31,10 +31,12 @@ suite "wgpu draw geometry":
   test "fan expands from the first vertex":
     check collectFan(2) == newSeq[int]()
     check collectFan(4) == @[0, 1, 2, 0, 2, 3]
+    check collectFan(6).len == (6 - 2) * 3
 
   test "strip expansion preserves winding":
     check collectStrip(2) == newSeq[int]()
     check collectStrip(4) == @[0, 1, 2, 2, 1, 3]
+    check collectStrip(6).len == (6 - 2) * 3
 
   test "clip conversion maps viewport pixels to device coordinates":
     let vertex = clipVertex(

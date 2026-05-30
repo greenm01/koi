@@ -144,12 +144,19 @@ type
     blend: WebGpuBlend
 
   DrawCall = object
-    first: uint32
-    count: uint32
+    firstIndex: uint32
+    indexCount: uint32
     textureId: int
     mode: DrawMode
     blend: WebGpuBlend
     scissor: WebGpuScissor
+
+  WebGpuRenderStats* = object
+    drawCalls*: int
+    vertices*: int
+    indices*: int
+    vertexBytes*: uint64
+    indexBytes*: uint64
 
   GpuTexture = object
     texture: Texture
@@ -181,15 +188,18 @@ type
     nextTextureId: int
     params: pointer
     vertices: seq[GpuVertex]
+    indices: seq[uint32]
     drawCalls: seq[DrawCall]
     capturePending: bool
     capturedPixels: seq[uint8]
     capturedWidth: uint32
     capturedHeight: uint32
-    lastSubmittedDrawCalls: int
+    lastSubmittedStats: WebGpuRenderStats
     surfaceNeedsConfigure: bool
     vertexBuffer: Buffer
+    indexBuffer: Buffer
     vertexBytes: uint64
+    indexBytes: uint64
     width: float32
     height: float32
     devicePixelRatio: float32
@@ -332,15 +342,15 @@ func usesStencil(mode: DrawMode): bool =
 
 proc appendDrawCall(
     b: var KoiWgpuBackend,
-    first, count: uint32,
+    firstIndex, indexCount: uint32,
     textureId: int,
     mode: DrawMode,
     blend: WebGpuBlend,
     scissor: WebGpuScissor,
 ) =
   let call = DrawCall(
-    first: first,
-    count: count,
+    firstIndex: firstIndex,
+    indexCount: indexCount,
     textureId: textureId,
     mode: mode,
     blend: blend,
@@ -348,9 +358,9 @@ proc appendDrawCall(
   )
   if b.drawCalls.len > 0:
     let last = b.drawCalls.high
-    if b.drawCalls[last].first + b.drawCalls[last].count == first and
+    if b.drawCalls[last].firstIndex + b.drawCalls[last].indexCount == firstIndex and
         sameDrawState(b.drawCalls[last], call):
-      b.drawCalls[last].count += count
+      b.drawCalls[last].indexCount += indexCount
       return
 
   b.drawCalls.add call
@@ -405,6 +415,35 @@ proc appendVertex(
 
   b.vertices.add clipVertex(v, viewport, color, outerColor, paintParams, mode, aaMult)
 
+proc appendSourceVertices(
+    b: var KoiWgpuBackend,
+    verts: ptr NvgVertex,
+    count: int,
+    paint: ptr nvg.Paint,
+    color: array[4, float32],
+    outerColor: array[4, float32],
+    paintParams: array[4, float32],
+    mode: PaintMode,
+    aaMult: float32,
+    preserveTriangleUvs = false,
+): uint32 =
+  result = b.vertices.len.uint32
+  let src = cast[ptr UncheckedArray[NvgVertex]](verts)
+  let shaderMode = mode.shaderMode
+  for i in 0 ..< count:
+    let vertex =
+      if preserveTriangleUvs and mode != pmGradient:
+        inputVertex(src[i])
+      else:
+        paintVertex(src[i], paint)
+    b.appendVertex(vertex, color, outerColor, paintParams, shaderMode, aaMult)
+
+template appendIndexedPrimitive(
+    b: var KoiWgpuBackend, baseVertex: uint32, count: int, indexIterator: untyped
+) =
+  for i in indexIterator(count):
+    b.indices.add baseVertex + i.uint32
+
 proc appendTriangleList(
     b: var KoiWgpuBackend,
     verts: ptr NvgVertex,
@@ -418,24 +457,27 @@ proc appendTriangleList(
     return
 
   let
-    first = b.vertices.len.uint32
+    firstIndex = b.indices.len.uint32
     color = rgba(paint.innerColor)
     outerColor = rgba(paint.outerColor)
     params = paintParams(paint)
     mode = b.paintMode(paint)
-    src = cast[ptr UncheckedArray[NvgVertex]](verts)
+    baseVertex = b.appendSourceVertices(
+      verts,
+      count,
+      paint,
+      color,
+      outerColor,
+      params,
+      mode,
+      0'f32,
+      preserveTriangleUvs = true,
+    )
 
-  for i in triangleListIndices(count):
-    let vertex =
-      if mode == pmGradient:
-        paintVertex(src[i], paint)
-      else:
-        inputVertex(src[i])
-    b.appendVertex(vertex, color, outerColor, params, mode.shaderMode, 0'f32)
-
-  let added = b.vertices.len.uint32 - first
+  appendIndexedPrimitive(b, baseVertex, count, triangleListIndices)
+  let added = b.indices.len.uint32 - firstIndex
   if added > 0:
-    b.appendDrawCall(first, added, textureId(paint), drawMode, blend, scissor)
+    b.appendDrawCall(firstIndex, added, textureId(paint), drawMode, blend, scissor)
 
 proc appendFan(
     b: var KoiWgpuBackend,
@@ -451,19 +493,19 @@ proc appendFan(
     return
 
   let
-    first = b.vertices.len.uint32
+    firstIndex = b.indices.len.uint32
     color = rgba(paint.innerColor)
     outerColor = rgba(paint.outerColor)
     params = paintParams(paint)
-    mode = b.paintMode(paint).shaderMode
-    src = cast[ptr UncheckedArray[NvgVertex]](verts)
+    mode = b.paintMode(paint)
+    baseVertex = b.appendSourceVertices(
+      verts, count, paint, color, outerColor, params, mode, aaMult
+    )
 
-  for i in fanIndices(count):
-    b.appendVertex(paintVertex(src[i], paint), color, outerColor, params, mode, aaMult)
-
-  let added = b.vertices.len.uint32 - first
+  appendIndexedPrimitive(b, baseVertex, count, fanIndices)
+  let added = b.indices.len.uint32 - firstIndex
   if added > 0:
-    b.appendDrawCall(first, added, textureId(paint), drawMode, blend, scissor)
+    b.appendDrawCall(firstIndex, added, textureId(paint), drawMode, blend, scissor)
 
 proc appendStrip(
     b: var KoiWgpuBackend,
@@ -479,19 +521,19 @@ proc appendStrip(
     return
 
   let
-    first = b.vertices.len.uint32
+    firstIndex = b.indices.len.uint32
     color = rgba(paint.innerColor)
     outerColor = rgba(paint.outerColor)
     params = paintParams(paint)
-    mode = b.paintMode(paint).shaderMode
-    src = cast[ptr UncheckedArray[NvgVertex]](verts)
+    mode = b.paintMode(paint)
+    baseVertex = b.appendSourceVertices(
+      verts, count, paint, color, outerColor, params, mode, aaMult
+    )
 
-  for i in stripIndices(count):
-    b.appendVertex(paintVertex(src[i], paint), color, outerColor, params, mode, aaMult)
-
-  let added = b.vertices.len.uint32 - first
+  appendIndexedPrimitive(b, baseVertex, count, stripIndices)
+  let added = b.indices.len.uint32 - firstIndex
   if added > 0:
-    b.appendDrawCall(first, added, textureId(paint), drawMode, blend, scissor)
+    b.appendDrawCall(firstIndex, added, textureId(paint), drawMode, blend, scissor)
 
 proc appendCoverQuad(
     b: var KoiWgpuBackend,
@@ -509,11 +551,11 @@ proc appendCoverQuad(
     minY = boundArray[1].float32
     maxX = boundArray[2].float32
     maxY = boundArray[3].float32
-    first = b.vertices.len.uint32
+    firstIndex = b.indices.len.uint32
     color = rgba(paint.innerColor)
     outerColor = rgba(paint.outerColor)
     params = paintParams(paint)
-    mode = b.paintMode(paint).shaderMode
+    mode = b.paintMode(paint)
     verts = [
       NvgVertex(x: maxX.cfloat, y: maxY.cfloat, u: 0.5, v: 1),
       NvgVertex(x: maxX.cfloat, y: minY.cfloat, u: 0.5, v: 1),
@@ -521,12 +563,18 @@ proc appendCoverQuad(
       NvgVertex(x: minX.cfloat, y: minY.cfloat, u: 0.5, v: 1),
     ]
 
-  for i in stripIndices(verts.len):
-    b.appendVertex(paintVertex(verts[i], paint), color, outerColor, params, mode, 0'f32)
+  let baseVertex = b.vertices.len.uint32
+  for v in verts:
+    b.appendVertex(
+      paintVertex(v, paint), color, outerColor, params, mode.shaderMode, 0'f32
+    )
 
-  let added = b.vertices.len.uint32 - first
+  appendIndexedPrimitive(b, baseVertex, verts.len, stripIndices)
+  let added = b.indices.len.uint32 - firstIndex
   if added > 0:
-    b.appendDrawCall(first, added, textureId(paint), dmStencilCover, blend, scissor)
+    b.appendDrawCall(
+      firstIndex, added, textureId(paint), dmStencilCover, blend, scissor
+    )
 
 proc createTexture(
     b: var KoiWgpuBackend, width, height: int, alphaOnly: bool, data: ptr uint8
@@ -735,6 +783,7 @@ func chooseSurfaceFormat(
 proc renderCancel(userPtr: pointer) {.cdecl.} =
   let b = backend(userPtr)
   b.vertices.setLen(0)
+  b.indices.setLen(0)
   b.drawCalls.setLen(0)
 
 proc renderFill(
@@ -840,6 +889,24 @@ proc ensureVertexBuffer(b: var KoiWgpuBackend, bytes: uint64) =
     )
   )
 
+proc ensureIndexBuffer(b: var KoiWgpuBackend, bytes: uint64) =
+  if bytes <= b.indexBytes and not b.indexBuffer.isNil:
+    return
+
+  if not b.indexBuffer.isNil:
+    b.indexBuffer.release()
+
+  b.indexBytes = max(bytes, 4096'u64)
+  b.indexBuffer = b.device.create(
+    vaddr BufferDescriptor(
+      nextInChain: nil,
+      label: "Koi NanoVG index buffer".toStringView(),
+      usage: BufferUsage_CopyDst or BufferUsage_Index,
+      size: b.indexBytes,
+      mappedAtCreation: false,
+    )
+  )
+
 proc releaseStencilTarget(b: var KoiWgpuBackend) =
   if not b.stencilView.isNil:
     b.stencilView.release()
@@ -905,7 +972,7 @@ proc renderQueuedDraws(
     encoder: CommandEncoder,
     targetView: TextureView,
     targetWidth, targetHeight: uint32,
-    byteLen: uint64,
+    vertexByteLen, indexByteLen: uint64,
 ) =
   b.ensureStencilTarget(targetWidth, targetHeight)
   var depthStencil = RenderPassDepthStencilAttachment(
@@ -936,7 +1003,8 @@ proc renderQueuedDraws(
     timestampWrites: nil,
   )
   let pass = encoder.begin(renderPassDesc.addr)
-  pass.setVertexBuffer(0, b.vertexBuffer, 0, byteLen)
+  pass.setVertexBuffer(0, b.vertexBuffer, 0, vertexByteLen)
+  pass.setIndexBuffer(b.indexBuffer, IndexFormat.Uint32, 0, indexByteLen)
   for call in b.drawCalls:
     if call.scissor.active and (call.scissor.width == 0 or call.scissor.height == 0):
       continue
@@ -948,7 +1016,7 @@ proc renderQueuedDraws(
       pass.set(0, b.textures[call.textureId].bindGroup, 0, nil)
     else:
       pass.set(0, b.white.bindGroup, 0, nil)
-    pass.draw(call.count, 1, call.first, 0)
+    pass.drawIndexed(call.indexCount, 1, call.firstIndex, 0, 0)
   pass.End()
 
 func captureRowBytes(width: uint32): uint32 =
@@ -1015,7 +1083,7 @@ proc copyCapturedPixels(
 
   readBuffer.unmap()
 
-proc renderCaptureFrame(b: var KoiWgpuBackend, byteLen: uint64) =
+proc renderCaptureFrame(b: var KoiWgpuBackend, vertexByteLen, indexByteLen: uint64) =
   let
     width = max(1'u32, b.capturedWidth)
     height = max(1'u32, b.capturedHeight)
@@ -1051,7 +1119,7 @@ proc renderCaptureFrame(b: var KoiWgpuBackend, byteLen: uint64) =
       nextInChain: nil, label: "Koi NanoVG capture command encoder".toStringView()
     )
   )
-  b.renderQueuedDraws(encoder, view, width, height, byteLen)
+  b.renderQueuedDraws(encoder, view, width, height, vertexByteLen, indexByteLen)
   let readBuffer = b.readCapturedTexture(texture, width, height, encoder)
   let commandBuffer = encoder.finish(
     vaddr CommandBufferDescriptor(
@@ -1070,7 +1138,9 @@ proc renderCaptureFrame(b: var KoiWgpuBackend, byteLen: uint64) =
   view.release()
   texture.release()
 
-proc renderSurfaceFrame(b: var KoiWgpuBackend, byteLen: uint64): bool =
+proc renderSurfaceFrame(
+    b: var KoiWgpuBackend, vertexByteLen, indexByteLen: uint64
+): bool =
   if b.surfaceNeedsConfigure:
     b.surface.configure(b.config.addr)
     b.surfaceNeedsConfigure = false
@@ -1094,7 +1164,9 @@ proc renderSurfaceFrame(b: var KoiWgpuBackend, byteLen: uint64): bool =
       nextInChain: nil, label: "Koi NanoVG command encoder".toStringView()
     )
   )
-  b.renderQueuedDraws(encoder, nextTexture, b.config.width, b.config.height, byteLen)
+  b.renderQueuedDraws(
+    encoder, nextTexture, b.config.width, b.config.height, vertexByteLen, indexByteLen
+  )
   nextTexture.release()
 
   let commandBuffer = encoder.finish(
@@ -1112,24 +1184,34 @@ proc renderSurfaceFrame(b: var KoiWgpuBackend, byteLen: uint64): bool =
 
 proc renderFlush(userPtr: pointer) {.cdecl.} =
   let b = backend(userPtr)
-  if b.vertices.len == 0:
+  if b.vertices.len == 0 or b.indices.len == 0:
     b.capturePending = false
-    b.lastSubmittedDrawCalls = 0
+    b.lastSubmittedStats = WebGpuRenderStats()
     return
 
-  let byteLen = (b.vertices.len * sizeof(GpuVertex)).uint64
-  b[].ensureVertexBuffer(byteLen)
-  b.queue.write(b.vertexBuffer, 0'u64, b.vertices[0].addr, byteLen.csize_t)
-  b.lastSubmittedDrawCalls = b.drawCalls.len
+  let
+    vertexByteLen = (b.vertices.len * sizeof(GpuVertex)).uint64
+    indexByteLen = (b.indices.len * sizeof(uint32)).uint64
+  b[].ensureVertexBuffer(vertexByteLen)
+  b[].ensureIndexBuffer(indexByteLen)
+  b.queue.write(b.vertexBuffer, 0'u64, b.vertices[0].addr, vertexByteLen.csize_t)
+  b.queue.write(b.indexBuffer, 0'u64, b.indices[0].addr, indexByteLen.csize_t)
+  b.lastSubmittedStats = WebGpuRenderStats(
+    drawCalls: b.drawCalls.len,
+    vertices: b.vertices.len,
+    indices: b.indices.len,
+    vertexBytes: vertexByteLen,
+    indexBytes: indexByteLen,
+  )
 
   if b.capturePending:
-    b[].renderCaptureFrame(byteLen)
+    b[].renderCaptureFrame(vertexByteLen, indexByteLen)
     b.capturePending = false
   else:
-    if not b[].renderSurfaceFrame(byteLen):
-      return
+    discard b[].renderSurfaceFrame(vertexByteLen, indexByteLen)
 
   b.vertices.setLen(0)
+  b.indices.setLen(0)
   b.drawCalls.setLen(0)
 
 proc renderDelete(userPtr: pointer) {.cdecl.} =
@@ -1144,6 +1226,8 @@ proc renderDelete(userPtr: pointer) {.cdecl.} =
   releaseTexture(b.white)
   if not b.vertexBuffer.isNil:
     b.vertexBuffer.release()
+  if not b.indexBuffer.isNil:
+    b.indexBuffer.release()
   if not b.params.isNil:
     dealloc(b.params)
     b.params = nil
@@ -1537,7 +1621,10 @@ proc capturedFrameSize*(b: KoiWgpuBackend): tuple[width, height: uint32] =
   (b.capturedWidth, b.capturedHeight)
 
 proc lastSubmittedDrawCallCount*(b: KoiWgpuBackend): int =
-  b.lastSubmittedDrawCalls
+  b.lastSubmittedStats.drawCalls
+
+proc lastSubmittedRenderStats*(b: KoiWgpuBackend): WebGpuRenderStats =
+  b.lastSubmittedStats
 
 proc createNanoVgContext*(
     b: var KoiWgpuBackend, flags: set[nvg.NVGInitFlag] = {}

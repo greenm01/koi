@@ -299,6 +299,14 @@ task benchTextEditing, "profile representative text editing workloads":
     nimcache = "/tmp/koi_bench_text_editing_r",
   )
 
+task bench, "profile representative WebGPU render workloads":
+  nimRun(
+    "tests/bench_render",
+    glfwWgpuFlags() & " -d:release",
+    outPath = "/tmp/koi_bench_render",
+    nimcache = "/tmp/koi_bench_render_r",
+  )
+
 task testWindowTextInput, "run windowed text field tests (wgpu)":
   runWindowTest("textinput")
 
