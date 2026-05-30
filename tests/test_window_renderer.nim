@@ -1,6 +1,8 @@
 ## Windowed WebGPU renderer validation. These tests render through the real
 ## NanoVG backend into an offscreen readback texture and assert sampled pixels.
 
+import std/strutils
+
 import nanovg
 
 import koi/webgpu_backend
@@ -268,3 +270,23 @@ suite "wgpu renderer readback":
     check stats.stagedBytes < stats.expandedVertexBytes
     check pixels.pixelAt(64, 16, 16).r > 220
     check pixels.pixelAt(64, 40, 40).r > 220
+
+  test "diagnostics report selected formats and last render stats":
+    discard capturePixels(64, 64):
+      drawRect(8, 8, 16, 16, rgba(255, 0, 0, 255))
+
+    let diagnostics = gBackend.diagnostics()
+    check diagnostics.surfaceKind.len > 0
+    check diagnostics.surfaceFormat.len > 0
+    check diagnostics.surfaceAlpha.len > 0
+    check diagnostics.stencilFormat == "Depth24PlusStencil8"
+    check diagnostics.surfaceFormats.len > 0
+    check diagnostics.width > 0
+    check diagnostics.height > 0
+    check diagnostics.lastRenderStats.drawCalls > 0
+    check diagnostics.lastRenderStats.stagedBytes > 0
+
+    let dump = gBackend.dumpWebGpuDiagnostics()
+    check dump.contains("surface format:")
+    check dump.contains("stencil format:")
+    check dump.contains("last draw calls:")

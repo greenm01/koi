@@ -1,4 +1,4 @@
-import std/[hashes, tables]
+import std/[hashes, strutils, tables]
 
 import nanovg
 import nanovg/wrapper as nvg
@@ -13,6 +13,17 @@ import koi/internal/webgpu_draw_state
 const
   NvgTextureAlpha = 0x01
   WebGpuTextureRowAlignment = 256'u32
+  WebGpuStencilFormat = TextureFormat.Depth24PlusStencil8
+  WebGpuTrackedFeatures = [
+    FeatureName.DepthClipControl, FeatureName.Depth32FloatStencil8,
+    FeatureName.TimestampQuery, FeatureName.TextureCompressionBC,
+    FeatureName.TextureCompressionETC2, FeatureName.TextureCompressionASTC,
+    FeatureName.IndirectFirstInstance, FeatureName.ShaderF16,
+    FeatureName.BGRA8UnormStorage, FeatureName.Float32Filterable,
+    FeatureName.Float32Blendable, FeatureName.DualSourceBlending, FeatureName.Subgroups,
+    FeatureName.CoreFeaturesAndLimits, FeatureName.PolygonModeLine,
+    FeatureName.PolygonModePoint,
+  ]
 
 {.
   emit:
@@ -160,6 +171,32 @@ type
     expandedVertexBytes*: uint64
     stagedBytes*: uint64
 
+  WebGpuBackendDiagnostics* = object
+    surfaceKind*: string
+    adapterVendor*: string
+    adapterArchitecture*: string
+    adapterDevice*: string
+    adapterDescription*: string
+    adapterBackendType*: string
+    adapterType*: string
+    surfaceFormat*: string
+    surfaceAlpha*: string
+    stencilFormat*: string
+    surfaceFormats*: seq[string]
+    presentModes*: seq[string]
+    alphaModes*: seq[string]
+    width*: uint32
+    height*: uint32
+    devicePixelRatio*: float32
+    maxTextureDimension2D*: uint32
+    maxBufferSize*: uint64
+    maxVertexBuffers*: uint32
+    maxVertexAttributes*: uint32
+    maxBindGroups*: uint32
+    maxColorAttachments*: uint32
+    features*: seq[string]
+    lastRenderStats*: WebGpuRenderStats
+
   GpuTexture = object
     texture: Texture
     view: TextureView
@@ -174,8 +211,12 @@ type
     adapter: Adapter
     device: Device
     queue: Queue
+    surfaceKind: KoiWgpuSurfaceKind
     surfaceFormat: TextureFormat
     surfaceAlpha: CompositeAlphaMode
+    availableSurfaceFormats: seq[string]
+    availablePresentModes: seq[string]
+    availableAlphaModes: seq[string]
     config: SurfaceConfiguration
     pipelines: Table[PipelineKey, RenderPipeline]
     pipelineLayout: PipelineLayout
@@ -225,6 +266,34 @@ proc deviceRequestCb(
     userdata1, userdata2: pointer,
 ) {.cdecl.} =
   cast[ptr Device](userdata1)[] = device
+
+func csv(values: seq[string]): string =
+  if values.len == 0:
+    "(none)"
+  else:
+    values.join(", ")
+
+proc enumNames[T](values: ptr T, count: csize_t): seq[string] =
+  if values.isNil:
+    return
+  let items = cast[ptr UncheckedArray[T]](values)
+  for i in 0 ..< count.int:
+    result.add($items[i])
+
+proc supportedFeatureNames(device: Device): seq[string] =
+  if device.isNil:
+    return
+  for feature in WebGpuTrackedFeatures:
+    if device.has(feature) != 0:
+      result.add($feature)
+
+proc adapterInfo(device: Device): AdapterInfo =
+  if not device.isNil:
+    discard device.getAdapterInfo(result.addr)
+
+proc deviceLimits(device: Device): Limits =
+  if not device.isNil:
+    discard device.get(result.addr)
 
 proc rgba(c: nvg.Color): array[4, float32] =
   [c.r.float32, c.g.float32, c.b.float32, c.a.float32]
@@ -620,11 +689,20 @@ proc createTexture(
     format = if alphaOnly: TextureFormat.R8Unorm else: TextureFormat.RGBA8Unorm
     bytesPerPixel = if alphaOnly: 1'u32 else: 4'u32
     size = Extent3D(width: width.uint32, height: height.uint32, depthOrArrayLayers: 1)
+    textureLabel =
+      "Koi NanoVG " & (if alphaOnly: "alpha" else: "rgba") & " texture " & $width & "x" &
+      $height
+    viewLabel =
+      "Koi NanoVG " & (if alphaOnly: "alpha" else: "rgba") & " texture view " & $width &
+      "x" & $height
+    bindGroupLabel =
+      "Koi NanoVG " & (if alphaOnly: "alpha" else: "rgba") & " bind group " & $width &
+      "x" & $height
 
   result.texture = b.device.create(
     vaddr TextureDescriptor(
       nextInChain: nil,
-      label: "Koi NanoVG texture".toStringView(),
+      label: textureLabel.toStringView(),
       usage: TextureUsage_CopyDst or TextureUsage_TextureBinding,
       dimension: TextureDimension.D2D,
       size: size,
@@ -638,7 +716,7 @@ proc createTexture(
   result.view = result.texture.create(
     vaddr TextureViewDescriptor(
       nextInChain: nil,
-      label: "Koi NanoVG texture view".toStringView(),
+      label: viewLabel.toStringView(),
       format: format,
       dimension: TextureViewDimension.D2D,
       baseMipLevel: 0,
@@ -700,7 +778,7 @@ proc createTexture(
   result.bindGroup = b.device.create(
     vaddr BindGroupDescriptor(
       nextInChain: nil,
-      label: "Koi NanoVG bind group".toStringView(),
+      label: bindGroupLabel.toStringView(),
       layout: b.bindLayout,
       entryCount: entries.len.uint32,
       entries: entries[0].addr,
@@ -969,7 +1047,7 @@ proc ensureStencilTarget(b: var KoiWgpuBackend, width, height: uint32) =
       usage: TextureUsage_RenderAttachment,
       dimension: TextureDimension.D2D,
       size: Extent3D(width: w, height: h, depthOrArrayLayers: 1),
-      format: TextureFormat.Depth24PlusStencil8,
+      format: WebGpuStencilFormat,
       mipLevelCount: 1,
       sampleCount: 1,
       viewFormatCount: 0,
@@ -980,7 +1058,7 @@ proc ensureStencilTarget(b: var KoiWgpuBackend, width, height: uint32) =
     vaddr TextureViewDescriptor(
       nextInChain: nil,
       label: "Koi NanoVG stencil texture view".toStringView(),
-      format: TextureFormat.Depth24PlusStencil8,
+      format: WebGpuStencilFormat,
       dimension: TextureViewDimension.D2D,
       baseMipLevel: 0,
       mipLevelCount: 1,
@@ -1195,7 +1273,19 @@ proc renderSurfaceFrame(
   else:
     return false
 
-  let nextTexture = surfaceTexture.texture.create(nil)
+  let nextTexture = surfaceTexture.texture.create(
+    vaddr TextureViewDescriptor(
+      nextInChain: nil,
+      label: "Koi NanoVG swapchain texture view".toStringView(),
+      format: b.surfaceFormat,
+      dimension: TextureViewDimension.D2D,
+      baseMipLevel: 0,
+      mipLevelCount: 1,
+      baseArrayLayer: 0,
+      arrayLayerCount: 1,
+      aspect: TextureAspect.All,
+    )
+  )
   let encoder = b.device.create(
     vaddr CommandEncoderDescriptor(
       nextInChain: nil, label: "Koi NanoVG command encoder".toStringView()
@@ -1353,6 +1443,9 @@ func noOpBlendState(): BlendState =
   )
 
 proc createRenderPipeline(b: KoiWgpuBackend, key: PipelineKey): RenderPipeline =
+  let pipelineLabel =
+    "Koi NanoVG render pipeline " & $key.mode & " blend=" & $(key.blend.srcRgb) & "/" &
+    $(key.blend.dstRgb) & "," & $(key.blend.srcAlpha) & "/" & $(key.blend.dstAlpha)
   var attributes = [
     VertexAttribute(format: VertexFormat.Float32x2, offset: 0, shaderLocation: 0),
     VertexAttribute(format: VertexFormat.Float32x2, offset: 8, shaderLocation: 1),
@@ -1385,7 +1478,7 @@ proc createRenderPipeline(b: KoiWgpuBackend, key: PipelineKey): RenderPipeline =
   )
   var depthStencil = DepthStencilState(
     nextInChain: nil,
-    format: TextureFormat.Depth24PlusStencil8,
+    format: WebGpuStencilFormat,
     depthWriteEnabled: false.uint32,
     depthCompare: CompareFunction.Always,
     stencilFront: stencilFrontState(key.mode),
@@ -1408,7 +1501,7 @@ proc createRenderPipeline(b: KoiWgpuBackend, key: PipelineKey): RenderPipeline =
   )
   var desc = RenderPipelineDescriptor(
     nextInChain: nil,
-    label: "Koi NanoVG render pipeline".toStringView(),
+    label: pipelineLabel.toStringView(),
     layout: b.pipelineLayout,
     vertex: VertexState(
       module: shader,
@@ -1499,6 +1592,9 @@ proc configureSurface(b: var KoiWgpuBackend, width, height: uint32) =
   doAssert caps.formatCount > 0
   doAssert caps.alphaModeCount > 0
   let formats = cast[ptr UncheckedArray[TextureFormat]](caps.formats)
+  b.availableSurfaceFormats = enumNames(caps.formats, caps.formatCount)
+  b.availablePresentModes = enumNames(caps.presentModes, caps.presentModeCount)
+  b.availableAlphaModes = enumNames(caps.alphaModes, caps.alphaModeCount)
   b.surfaceFormat = chooseSurfaceFormat(formats, caps.formatCount.int)
   b.surfaceAlpha = cast[ptr UncheckedArray[CompositeAlphaMode]](caps.alphaModes)[0]
   b.config = SurfaceConfiguration(
@@ -1619,6 +1715,7 @@ proc initKoiWgpuBackendWithSurface*(
 ) =
   b.instance = wgpu.create(vaddr InstanceDescriptor(nextInChain: nil))
   doAssert not b.instance.isNil, "Could not initialize WebGPU"
+  b.surfaceKind = handle.kind
   b.surface = b.instance.createSurface(handle)
   doAssert not b.surface.isNil, "Could not create WebGPU surface"
   b.nextTextureId = 1
@@ -1664,6 +1761,71 @@ proc lastSubmittedDrawCallCount*(b: KoiWgpuBackend): int =
 
 proc lastSubmittedRenderStats*(b: KoiWgpuBackend): WebGpuRenderStats =
   b.lastSubmittedStats
+
+proc diagnostics*(b: KoiWgpuBackend): WebGpuBackendDiagnostics =
+  var info = adapterInfo(b.device)
+  let limits = deviceLimits(b.device)
+  result = WebGpuBackendDiagnostics(
+    surfaceKind: $b.surfaceKind,
+    adapterVendor: $info.vendor,
+    adapterArchitecture: $info.architecture,
+    adapterDevice: $info.device,
+    adapterDescription: $info.description,
+    adapterBackendType: $info.backendType,
+    adapterType: $info.adapterType,
+    surfaceFormat: $b.surfaceFormat,
+    surfaceAlpha: $b.surfaceAlpha,
+    stencilFormat: $WebGpuStencilFormat,
+    surfaceFormats: b.availableSurfaceFormats,
+    presentModes: b.availablePresentModes,
+    alphaModes: b.availableAlphaModes,
+    width: b.config.width,
+    height: b.config.height,
+    devicePixelRatio: b.devicePixelRatio,
+    maxTextureDimension2D: limits.maxTextureDimension2D,
+    maxBufferSize: limits.maxBufferSize,
+    maxVertexBuffers: limits.maxVertexBuffers,
+    maxVertexAttributes: limits.maxVertexAttributes,
+    maxBindGroups: limits.maxBindGroups,
+    maxColorAttachments: limits.maxColorAttachments,
+    features: supportedFeatureNames(b.device),
+    lastRenderStats: b.lastSubmittedStats,
+  )
+  info.freeMembers()
+
+proc dumpWebGpuDiagnostics*(b: KoiWgpuBackend): string =
+  let d = b.diagnostics()
+  result.add("Koi WebGPU diagnostics\n")
+  result.add("  surface kind: " & d.surfaceKind & "\n")
+  result.add("  adapter: " & d.adapterDescription & "\n")
+  result.add("  adapter vendor: " & d.adapterVendor & "\n")
+  result.add("  adapter architecture: " & d.adapterArchitecture & "\n")
+  result.add("  adapter device: " & d.adapterDevice & "\n")
+  result.add("  adapter backend: " & d.adapterBackendType & "\n")
+  result.add("  adapter type: " & d.adapterType & "\n")
+  result.add("  surface format: " & d.surfaceFormat & "\n")
+  result.add("  surface alpha: " & d.surfaceAlpha & "\n")
+  result.add("  stencil format: " & d.stencilFormat & "\n")
+  result.add("  available surface formats: " & csv(d.surfaceFormats) & "\n")
+  result.add("  available present modes: " & csv(d.presentModes) & "\n")
+  result.add("  available alpha modes: " & csv(d.alphaModes) & "\n")
+  result.add(
+    "  framebuffer: " & $d.width & "x" & $d.height & " @ " & $d.devicePixelRatio & "x\n"
+  )
+  result.add("  max texture dimension 2D: " & $d.maxTextureDimension2D & "\n")
+  result.add("  max buffer size: " & $d.maxBufferSize & "\n")
+  result.add("  max vertex buffers: " & $d.maxVertexBuffers & "\n")
+  result.add("  max vertex attributes: " & $d.maxVertexAttributes & "\n")
+  result.add("  max bind groups: " & $d.maxBindGroups & "\n")
+  result.add("  max color attachments: " & $d.maxColorAttachments & "\n")
+  result.add("  supported tracked features: " & csv(d.features) & "\n")
+  result.add("  last draw calls: " & $d.lastRenderStats.drawCalls & "\n")
+  result.add("  last vertices: " & $d.lastRenderStats.vertices & "\n")
+  result.add("  last indices: " & $d.lastRenderStats.indices & "\n")
+  result.add("  last staged bytes: " & $d.lastRenderStats.stagedBytes & "\n")
+  result.add(
+    "  last expanded vertex bytes: " & $d.lastRenderStats.expandedVertexBytes & "\n"
+  )
 
 proc createNanoVgContext*(
     b: var KoiWgpuBackend, flags: set[nvg.NVGInitFlag] = {}

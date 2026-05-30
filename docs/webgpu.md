@@ -78,7 +78,7 @@ under us.
 | --- | --- |
 | `webgpu.h` fragmentation | Keep Koi behind `webgpu-nim`, pin known-good revisions, and document the local override workflow with `KOI_WEBGPU_PATH`. |
 | Local WGVK and `webgpu-nim` fixes | Track fork branches in [todo.md](./todo.md). Remove pins only after the upstream merge lands and Koi plus Gridmonger smoke tests pass. |
-| Feature and format variance | Add a diagnostics dump for adapter name, surface format, alpha mode, stencil/depth format, limits, features, and platform surface type. |
+| Feature and format variance | Use `dumpWebGpuDiagnostics` for adapter info, surface format, alpha mode, stencil/depth format, limits, features, and platform surface type. |
 | Validation variance | Require useful labels on every WebGPU object, render pass, command encoder, shader module, pipeline, bind group, texture, and buffer. |
 | Backend regressions | Keep `nimble testWindowRenderer`, `nimble testHeadless`, `nimble bench`, and Gridmonger Wayland smoke builds as the minimum validation loop. |
 | Renderer performance drift | Keep benchmark output reporting draw calls, vertices, indices, staged upload bytes, and old expanded-vertex byte estimates. |
@@ -88,8 +88,6 @@ under us.
 
 Now:
 
-- Add a WebGPU diagnostics dump callable from examples and Gridmonger.
-- Audit all backend-created WebGPU objects for useful labels.
 - Track WGVK and `webgpu-nim` fork status in [todo.md](./todo.md).
 
 Next:
@@ -106,3 +104,24 @@ Later:
   becomes a blocker.
 - Revisit moving paint data from vertices to per-call uniforms only if
   benchmark data shows vertex bandwidth is still the limiting cost.
+
+## Validation loop
+
+Use the local binding checkout while WGVK and `webgpu-nim` fixes are pinned:
+
+```sh
+KOI_WEBGPU_PATH=/home/niltempus/src/webgpu-nim nimble testHeadless
+KOI_WEBGPU_PATH=/home/niltempus/src/webgpu-nim nimble testWindowRenderer
+KOI_WEBGPU_PATH=/home/niltempus/src/webgpu-nim nimble bench
+```
+
+Gridmonger stays in the smoke loop because it exercises the real app path:
+
+```sh
+cd /home/niltempus/dev/gridmonger-koi
+KOI_PATH=/home/niltempus/dev/koi-webgpu KOI_WEBGPU_PATH=/home/niltempus/src/webgpu-nim nimble debugWayland
+```
+
+Smoke Gridmonger by opening the theme editor, changing a color, checking the
+HSE picker triangle, dismissing the quit confirmation with the mouse, and
+rendering a map.
