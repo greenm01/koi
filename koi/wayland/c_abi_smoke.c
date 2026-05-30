@@ -4,8 +4,13 @@ static void on_close(void* userdata) {
   (void)userdata;
 }
 
-static void on_key_repeat(uint32_t sym, uint32_t mods, void* userdata) {
-  (void)sym;
+static void on_focus(bool focused, void* userdata) {
+  (void)focused;
+  (void)userdata;
+}
+
+static void on_key_repeat(uint32_t keycode, uint32_t mods, void* userdata) {
+  (void)keycode;
   (void)mods;
   (void)userdata;
 }
@@ -21,6 +26,7 @@ int main(void) {
 
   KoiWaylandCallbacks callbacks = {0};
   callbacks.on_close = on_close;
+  callbacks.on_focus = on_focus;
   callbacks.on_key_repeat = on_key_repeat;
   koi_wayland_set_callbacks(0, &callbacks);
 
@@ -30,6 +36,7 @@ int main(void) {
   }
 
   koi_wayland_poll_events(display);
+  koi_wayland_roundtrip(display);
   (void)koi_wayland_get_wl_display(display);
 
   KoiWaylandWindow* window =

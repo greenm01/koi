@@ -640,6 +640,7 @@ proc colorPicker*(
 
   if not isPopupOpen(id) and cs.activeItem == id:
     cs.activeItem = 0
+    cs.mouseMode = cmmNormal
 
 proc colorCombo*(
     id: ItemId,

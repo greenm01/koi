@@ -107,10 +107,11 @@ typedef enum {
 
 typedef struct {
   void (*on_close)       (void* ud);
+  void (*on_focus)       (bool focused, void* ud);
   void (*on_resize)      (uint32_t w, uint32_t h, void* ud);
-  void (*on_key_down)    (uint32_t sym, uint32_t mods, void* ud);
-  void (*on_key_repeat)  (uint32_t sym, uint32_t mods, void* ud);
-  void (*on_key_up)      (uint32_t sym, uint32_t mods, void* ud);
+  void (*on_key_down)    (uint32_t keycode, uint32_t mods, void* ud);
+  void (*on_key_repeat)  (uint32_t keycode, uint32_t mods, void* ud);
+  void (*on_key_up)      (uint32_t keycode, uint32_t mods, void* ud);
   void (*on_mouse_move)  (double x, double y, void* ud);
   void (*on_mouse_button)(uint32_t btn, bool pressed, void* ud);
   void (*on_scroll)      (double dx, double dy, void* ud);
@@ -118,12 +119,16 @@ typedef struct {
   void* userdata;
 } KoiWaylandCallbacks;
 
+// Key callbacks report physical Wayland keycodes for shortcuts. Text input
+// uses on_char, which reports layout-aware UTF-32 codepoints from xkbcommon.
+
 KoiWaylandDisplay* koi_wayland_init(void);
 KoiWaylandWindow*  koi_wayland_create_window(KoiWaylandDisplay*, uint32_t w,
                                               uint32_t h, const char* title);
 void               koi_wayland_set_callbacks(KoiWaylandWindow*,
                                               const KoiWaylandCallbacks*);
 void               koi_wayland_poll_events(KoiWaylandDisplay*);
+void               koi_wayland_roundtrip(KoiWaylandDisplay*);
 void*              koi_wayland_get_wl_display(KoiWaylandDisplay*);
 void*              koi_wayland_get_wl_surface(KoiWaylandWindow*);
 bool               koi_wayland_window_should_close(KoiWaylandWindow*);

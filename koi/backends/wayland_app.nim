@@ -2,9 +2,11 @@ import std/unicode
 
 import koi
 import koi/backends/wayland
+import koi/backends/wayland_keys
 import koi/backends/wayland_wgpu
 
 export wayland
+export wayland_keys
 export wayland_wgpu
 
 {.push warning[HoleEnumConv]: off.}
@@ -21,6 +23,7 @@ type KoiWaylandApp* = ref object
   surfaceWidth*: uint32
   surfaceHeight*: uint32
   scale*: float
+  fixedSizeHint*: bool
   mouseX*: float
   mouseY*: float
   clipboard*: string
@@ -29,130 +32,6 @@ type KoiWaylandApp* = ref object
   callbacks: KoiWaylandCallbacks
 
 var gWaylandApp: KoiWaylandApp
-
-proc waylandMods*(mods: uint32): set[ModifierKey] =
-  if (mods and koiWaylandModShift) != 0:
-    result.incl(mkShift)
-  if (mods and koiWaylandModCtrl) != 0:
-    result.incl(mkCtrl)
-  if (mods and koiWaylandModAlt) != 0:
-    result.incl(mkAlt)
-  if (mods and koiWaylandModSuper) != 0:
-    result.incl(mkSuper)
-
-proc waylandMouseButton*(button: uint32): MouseButton =
-  case button
-  of 0x110, 0: mbLeft
-  of 0x111, 1: mbRight
-  of 0x112, 2: mbMiddle
-  of 0x113, 3: mb4
-  of 0x114, 4: mb5
-  else: mbLeft
-
-proc waylandKey*(sym: uint32): Key =
-  if sym >= uint32(ord('a')) and sym <= uint32(ord('z')):
-    return Key(sym - 32)
-  if sym >= uint32(ord('A')) and sym <= uint32(ord('Z')):
-    return Key(sym)
-  if sym >= uint32(ord('0')) and sym <= uint32(ord('9')):
-    return Key(sym)
-  case sym
-  of 0x20:
-    keySpace
-  of 0x27:
-    keyApostrophe
-  of 0x2c:
-    keyComma
-  of 0x2d:
-    keyMinus
-  of 0x2e:
-    keyPeriod
-  of 0x2f:
-    keySlash
-  of 0x3b:
-    keySemicolon
-  of 0x3d:
-    keyEqual
-  of 0x5b:
-    keyLeftBracket
-  of 0x5c:
-    keyBackslash
-  of 0x5d:
-    keyRightBracket
-  of 0x60:
-    keyGraveAccent
-  of 0xff1b:
-    keyEscape
-  of 0xff0d:
-    keyEnter
-  of 0xff09:
-    keyTab
-  of 0xff08:
-    keyBackspace
-  of 0xff63:
-    keyInsert
-  of 0xffff:
-    keyDelete
-  of 0xff53:
-    keyRight
-  of 0xff51:
-    keyLeft
-  of 0xff54:
-    keyDown
-  of 0xff52:
-    keyUp
-  of 0xff55:
-    keyPageUp
-  of 0xff56:
-    keyPageDown
-  of 0xff50:
-    keyHome
-  of 0xff57:
-    keyEnd
-  of 0xffe5:
-    keyCapsLock
-  of 0xff7f:
-    keyNumLock
-  of 0xff61:
-    keyPrintScreen
-  of 0xff13:
-    keyPause
-  of 0xffbe .. 0xffd6:
-    Key(uint32(keyF1) + (sym - 0xffbe))
-  of 0xffb0 .. 0xffb9:
-    Key(uint32(keyKp0) + (sym - 0xffb0))
-  of 0xffae:
-    keyKpDecimal
-  of 0xffaf:
-    keyKpDivide
-  of 0xffaa:
-    keyKpMultiply
-  of 0xffad:
-    keyKpSubtract
-  of 0xffab:
-    keyKpAdd
-  of 0xff8d:
-    keyKpEnter
-  of 0xffbd:
-    keyKpEqual
-  of 0xffe1:
-    keyLeftShift
-  of 0xffe2:
-    keyRightShift
-  of 0xffe3:
-    keyLeftControl
-  of 0xffe4:
-    keyRightControl
-  of 0xffe9:
-    keyLeftAlt
-  of 0xffea:
-    keyRightAlt
-  of 0xffeb:
-    keyLeftSuper
-  of 0xffec:
-    keyRightSuper
-  else:
-    keyUnknown
 
 proc waylandCursorShape*(shape: CursorShape): KoiWaylandCursorShape =
   case shape
@@ -171,6 +50,13 @@ proc onClose(userdata: pointer) {.cdecl.} =
   if app != nil:
     app.closed = true
 
+proc onFocus(focused: bool, userdata: pointer) {.cdecl.} =
+  let app = cast[KoiWaylandApp](userdata)
+  if app != nil:
+    app.focused = focused
+  if not focused:
+    clearKeyStates()
+
 proc onResize(w, h: uint32, userdata: pointer) {.cdecl.} =
   let app = cast[KoiWaylandApp](userdata)
   if app != nil:
@@ -179,14 +65,14 @@ proc onResize(w, h: uint32, userdata: pointer) {.cdecl.} =
     app.surfaceWidth = w
     app.surfaceHeight = h
 
-proc onKeyDown(sym, mods: uint32, userdata: pointer) {.cdecl.} =
-  queueKeyEvent(waylandKey(sym), kaDown, waylandMods(mods))
+proc onKeyDown(keycode, mods: uint32, userdata: pointer) {.cdecl.} =
+  queueKeyEvent(waylandKeycode(keycode), kaDown, waylandMods(mods))
 
-proc onKeyRepeat(sym, mods: uint32, userdata: pointer) {.cdecl.} =
-  queueKeyEvent(waylandKey(sym), kaRepeat, waylandMods(mods))
+proc onKeyRepeat(keycode, mods: uint32, userdata: pointer) {.cdecl.} =
+  queueKeyEvent(waylandKeycode(keycode), kaRepeat, waylandMods(mods))
 
-proc onKeyUp(sym, mods: uint32, userdata: pointer) {.cdecl.} =
-  queueKeyEvent(waylandKey(sym), kaUp, waylandMods(mods))
+proc onKeyUp(keycode, mods: uint32, userdata: pointer) {.cdecl.} =
+  queueKeyEvent(waylandKeycode(keycode), kaUp, waylandMods(mods))
 
 proc onChar(codepoint: uint32, userdata: pointer) {.cdecl.} =
   if codepoint >= 32 and codepoint != 127:
@@ -242,6 +128,24 @@ proc installWaylandPlatformHooks*(app: KoiWaylandApp) =
 proc noGlfwProcAddress*() =
   discard
 
+proc setAppId*(app: KoiWaylandApp, appId: string) =
+  if app != nil and app.window != nil:
+    koiWaylandSetAppId(app.window, appId)
+
+proc setFixedSize*(app: KoiWaylandApp, fixed: bool) =
+  if app == nil:
+    return
+  app.fixedSizeHint = fixed
+  if app.window == nil:
+    return
+  if fixed:
+    koiWaylandSetSizeLimits(
+      app.window, app.surfaceWidth, app.surfaceHeight, app.surfaceWidth,
+      app.surfaceHeight,
+    )
+  else:
+    koiWaylandSetSizeLimits(app.window, 0, 0, 0, 0)
+
 proc newKoiWaylandApp*(title: string, width, height: int): KoiWaylandApp =
   result = KoiWaylandApp(
     closed: false,
@@ -255,9 +159,11 @@ proc newKoiWaylandApp*(title: string, width, height: int): KoiWaylandApp =
     surfaceWidth: width.uint32,
     surfaceHeight: height.uint32,
     scale: 1.0,
+    fixedSizeHint: false,
   )
   result.callbacks = KoiWaylandCallbacks(
     onClose: onClose,
+    onFocus: onFocus,
     onResize: onResize,
     onKeyDown: onKeyDown,
     onKeyRepeat: onKeyRepeat,
@@ -301,8 +207,21 @@ proc `shouldClose=`*(app: KoiWaylandApp, closed: bool) =
 proc pollEvents*(app: KoiWaylandApp) =
   koiWaylandPollEvents(app.display)
 
+proc roundtrip*(app: KoiWaylandApp) =
+  koiWaylandRoundtrip(app.display)
+
 proc waitEvents*(app: KoiWaylandApp) =
   app.pollEvents()
+
+proc configured*(app: KoiWaylandApp): bool =
+  app.window != nil and koiWaylandWindowConfigured(app.window)
+
+proc waitUntilConfigured*(app: KoiWaylandApp, maxPolls = 16) =
+  app.roundtrip()
+  for _ in 0 ..< maxPolls:
+    if app.configured:
+      break
+    app.roundtrip()
 
 proc surfaceHandle*(app: KoiWaylandApp): KoiWgpuSurfaceHandle =
   wgpuSurfaceHandle(app.display, app.window)
@@ -326,6 +245,11 @@ proc `size=`*(app: KoiWaylandApp, size: tuple[w, h: int]) =
   app.surfaceHeight = size.h.uint32
   if app.window != nil:
     koiWaylandSetSize(app.window, app.surfaceWidth, app.surfaceHeight)
+    if app.fixedSizeHint:
+      koiWaylandSetSizeLimits(
+        app.window, app.surfaceWidth, app.surfaceHeight, app.surfaceWidth,
+        app.surfaceHeight,
+      )
 
 proc contentScale*(app: KoiWaylandApp): tuple[xScale, yScale: float] =
   (app.scale, app.scale)

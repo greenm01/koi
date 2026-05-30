@@ -28,6 +28,7 @@ const KoiWaylandCursorResizeAll: u32 = 9;
 
 const KoiWaylandCallbacks = extern struct {
     on_close: ?*const fn (?*anyopaque) callconv(.c) void,
+    on_focus: ?*const fn (bool, ?*anyopaque) callconv(.c) void,
     on_resize: ?*const fn (u32, u32, ?*anyopaque) callconv(.c) void,
     on_key_down: ?*const fn (u32, u32, ?*anyopaque) callconv(.c) void,
     on_key_repeat: ?*const fn (u32, u32, ?*anyopaque) callconv(.c) void,
@@ -60,6 +61,7 @@ const KoiWaylandDisplay = extern struct {
     mod_alt: c.xkb_mod_index_t,
     mod_super: c.xkb_mod_index_t,
     mods: u32,
+    physical_mods: u32,
     output_scale: f64,
     repeat_rate: i32,
     repeat_delay: i32,
@@ -85,6 +87,7 @@ const KoiWaylandWindow = extern struct {
     pending_width: u32,
     pending_height: u32,
     has_pending_resize: bool,
+    configured: bool,
     closed: bool,
     cursor_shape: u32,
     scale: f64,
@@ -582,6 +585,7 @@ fn resetXkbState(display: *KoiWaylandDisplay) void {
     display.mod_alt = c.XKB_MOD_INVALID;
     display.mod_super = c.XKB_MOD_INVALID;
     display.mods = 0;
+    display.physical_mods = 0;
 }
 
 fn readKeymapFd(fd: i32, size: u32) ?[:0]u8 {
@@ -631,11 +635,11 @@ fn modifierActive(
 
 fn updateModifiers(display: *KoiWaylandDisplay) void {
     const state = display.xkb_state orelse {
-        display.mods = 0;
+        display.mods = display.physical_mods;
         return;
     };
 
-    var mods: u32 = 0;
+    var mods: u32 = display.physical_mods;
     if (modifierActive(state, display.mod_shift)) {
         mods |= KoiWaylandModShift;
     }
@@ -649,6 +653,46 @@ fn updateModifiers(display: *KoiWaylandDisplay) void {
         mods |= KoiWaylandModSuper;
     }
     display.mods = mods;
+}
+
+fn modifierForKeycode(key: u32) u32 {
+    return switch (key) {
+        42, 54 => KoiWaylandModShift,
+        29, 97 => KoiWaylandModCtrl,
+        56, 100 => KoiWaylandModAlt,
+        125, 126 => KoiWaylandModSuper,
+        else => 0,
+    };
+}
+
+fn inferredModifiersForCodepoint(key: u32, codepoint: u32) u32 {
+    if (codepoint >= 'A' and codepoint <= 'Z') {
+        return KoiWaylandModShift;
+    }
+    return switch (key) {
+        2 => if (codepoint == '!') KoiWaylandModShift else 0,
+        3 => if (codepoint == '@') KoiWaylandModShift else 0,
+        4 => if (codepoint == '#') KoiWaylandModShift else 0,
+        5 => if (codepoint == '$') KoiWaylandModShift else 0,
+        6 => if (codepoint == '%') KoiWaylandModShift else 0,
+        7 => if (codepoint == '^') KoiWaylandModShift else 0,
+        8 => if (codepoint == '&') KoiWaylandModShift else 0,
+        9 => if (codepoint == '*') KoiWaylandModShift else 0,
+        10 => if (codepoint == '(') KoiWaylandModShift else 0,
+        11 => if (codepoint == ')') KoiWaylandModShift else 0,
+        12 => if (codepoint == '_') KoiWaylandModShift else 0,
+        13 => if (codepoint == '+') KoiWaylandModShift else 0,
+        26 => if (codepoint == '{') KoiWaylandModShift else 0,
+        27 => if (codepoint == '}') KoiWaylandModShift else 0,
+        39 => if (codepoint == ':') KoiWaylandModShift else 0,
+        40 => if (codepoint == '"') KoiWaylandModShift else 0,
+        41 => if (codepoint == '~') KoiWaylandModShift else 0,
+        43 => if (codepoint == '|') KoiWaylandModShift else 0,
+        51 => if (codepoint == '<') KoiWaylandModShift else 0,
+        52 => if (codepoint == '>') KoiWaylandModShift else 0,
+        53 => if (codepoint == '?') KoiWaylandModShift else 0,
+        else => 0,
+    };
 }
 
 fn stopKeyRepeat(display: *KoiWaylandDisplay) void {
@@ -744,6 +788,11 @@ fn wlKeyboardEnter(
     _ = keys;
     const display: *KoiWaylandDisplay = @ptrCast(@alignCast(data orelse return));
     display.keyboard_window = pointerWindowForSurface(display, surface);
+    if (display.keyboard_window) |window| {
+        if (window.callbacks.on_focus) |on_focus| {
+            on_focus(true, window.callbacks.userdata);
+        }
+    }
 }
 
 fn wlKeyboardLeave(
@@ -758,6 +807,12 @@ fn wlKeyboardLeave(
     if (display.keyboard_window) |window| {
         if (window.wl_surface == surface) {
             display.keyboard_window = null;
+            stopKeyRepeat(display);
+            display.physical_mods = 0;
+            display.mods = 0;
+            if (window.callbacks.on_focus) |on_focus| {
+                on_focus(false, window.callbacks.userdata);
+            }
         }
     }
 }
@@ -774,27 +829,35 @@ fn wlKeyboardKey(
     _ = serial;
     _ = time;
     const display: *KoiWaylandDisplay = @ptrCast(@alignCast(data orelse return));
-    const xkb_state = display.xkb_state orelse return;
     const window = display.keyboard_window orelse display.active_window orelse return;
-    const sym = c.xkb_state_key_get_one_sym(xkb_state, key + 8);
+    const key_mod = modifierForKeycode(key);
 
     if (state == @as(u32, c.WL_KEYBOARD_KEY_STATE_PRESSED)) {
+        display.physical_mods |= key_mod;
+        updateModifiers(display);
+        var codepoint: u32 = 0;
+        if (display.xkb_state) |xkb_state| {
+            codepoint = c.xkb_state_key_get_utf32(xkb_state, key + 8);
+        }
+        const event_mods = display.mods | key_mod | inferredModifiersForCodepoint(key, codepoint);
         if (window.callbacks.on_key_down) |on_key_down| {
-            on_key_down(sym, display.mods, window.callbacks.userdata);
+            on_key_down(key, event_mods, window.callbacks.userdata);
         }
         if (window.callbacks.on_char) |on_char| {
-            const codepoint = c.xkb_state_key_get_utf32(xkb_state, key + 8);
             if (codepoint >= 32 and codepoint != 127) {
                 on_char(codepoint, window.callbacks.userdata);
             }
         }
-        startKeyRepeat(display, window, key, sym, display.mods);
+        startKeyRepeat(display, window, key, key, event_mods);
     } else if (state == @as(u32, c.WL_KEYBOARD_KEY_STATE_RELEASED)) {
         if (display.repeat_key == key) {
             stopKeyRepeat(display);
         }
+        display.physical_mods &= ~key_mod;
+        updateModifiers(display);
+        const event_mods = display.mods & ~key_mod;
         if (window.callbacks.on_key_up) |on_key_up| {
-            on_key_up(sym, display.mods, window.callbacks.userdata);
+            on_key_up(key, event_mods, window.callbacks.userdata);
         }
     }
 }
@@ -870,6 +933,7 @@ fn xdgSurfaceConfigure(
     const window: *KoiWaylandWindow = @ptrCast(@alignCast(data orelse return));
     const surface = xdg_surface orelse return;
     c.xdg_surface_ack_configure(surface, serial);
+    window.configured = true;
     if (window.has_pending_resize) {
         window.has_pending_resize = false;
         if (window.width != window.pending_width or window.height != window.pending_height) {
@@ -1005,6 +1069,7 @@ export fn koi_wayland_init() ?*KoiWaylandDisplay {
         .mod_alt = c.XKB_MOD_INVALID,
         .mod_super = c.XKB_MOD_INVALID,
         .mods = 0,
+        .physical_mods = 0,
         .output_scale = 1.0,
         .repeat_rate = 0,
         .repeat_delay = 0,
@@ -1038,6 +1103,13 @@ export fn koi_wayland_init() ?*KoiWaylandDisplay {
         allocator.destroy(display);
         return null;
     }
+    for (0..2) |_| {
+        if (c.wl_display_roundtrip(display.wl_display.?) < 0) {
+            destroyDisplayResources(display);
+            allocator.destroy(display);
+            return null;
+        }
+    }
     if (display.wl_compositor == null or display.xdg_wm_base == null) {
         destroyDisplayResources(display);
         allocator.destroy(display);
@@ -1069,6 +1141,7 @@ export fn koi_wayland_create_window(
         .pending_width = w,
         .pending_height = h,
         .has_pending_resize = false,
+        .configured = false,
         .closed = false,
         .cursor_shape = KoiWaylandCursorDefault,
         .scale = d.output_scale,
@@ -1157,6 +1230,15 @@ export fn koi_wayland_poll_events(display: ?*KoiWaylandDisplay) void {
     }
 }
 
+export fn koi_wayland_roundtrip(display: ?*KoiWaylandDisplay) void {
+    const d = display orelse return;
+    if (d.wl_display) |wl_display| {
+        _ = c.wl_display_roundtrip(wl_display);
+        dispatchKeyRepeats(d);
+        _ = c.wl_display_flush(wl_display);
+    }
+}
+
 export fn koi_wayland_get_wl_display(display: ?*KoiWaylandDisplay) ?*anyopaque {
     const d = display orelse return null;
     return d.wl_display;
@@ -1182,6 +1264,11 @@ export fn koi_wayland_window_should_close(window: ?*KoiWaylandWindow) bool {
     return w.closed;
 }
 
+export fn koi_wayland_window_configured(window: ?*KoiWaylandWindow) bool {
+    const w = window orelse return false;
+    return w.configured;
+}
+
 export fn koi_wayland_set_title(window: ?*KoiWaylandWindow, title: [*:0]const u8) void {
     const win = window orelse return;
     if (win.xdg_toplevel) |toplevel| {
@@ -1189,10 +1276,31 @@ export fn koi_wayland_set_title(window: ?*KoiWaylandWindow, title: [*:0]const u8
     }
 }
 
+export fn koi_wayland_set_app_id(window: ?*KoiWaylandWindow, app_id: [*:0]const u8) void {
+    const win = window orelse return;
+    if (win.xdg_toplevel) |toplevel| {
+        c.xdg_toplevel_set_app_id(toplevel, app_id);
+    }
+}
+
 export fn koi_wayland_set_size(window: ?*KoiWaylandWindow, w: u32, h: u32) void {
     const win = window orelse return;
     win.width = w;
     win.height = h;
+}
+
+export fn koi_wayland_set_size_limits(
+    window: ?*KoiWaylandWindow,
+    min_w: u32,
+    min_h: u32,
+    max_w: u32,
+    max_h: u32,
+) void {
+    const win = window orelse return;
+    if (win.xdg_toplevel) |toplevel| {
+        c.xdg_toplevel_set_min_size(toplevel, @intCast(min_w), @intCast(min_h));
+        c.xdg_toplevel_set_max_size(toplevel, @intCast(max_w), @intCast(max_h));
+    }
 }
 
 export fn koi_wayland_set_cursor_shape(window: ?*KoiWaylandWindow, shape: u32) void {

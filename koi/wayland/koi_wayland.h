@@ -32,10 +32,11 @@ typedef enum {
 
 typedef struct {
   void (*on_close)(void* userdata);
+  void (*on_focus)(bool focused, void* userdata);
   void (*on_resize)(uint32_t w, uint32_t h, void* userdata);
-  void (*on_key_down)(uint32_t sym, uint32_t mods, void* userdata);
-  void (*on_key_repeat)(uint32_t sym, uint32_t mods, void* userdata);
-  void (*on_key_up)(uint32_t sym, uint32_t mods, void* userdata);
+  void (*on_key_down)(uint32_t keycode, uint32_t mods, void* userdata);
+  void (*on_key_repeat)(uint32_t keycode, uint32_t mods, void* userdata);
+  void (*on_key_up)(uint32_t keycode, uint32_t mods, void* userdata);
   void (*on_char)(uint32_t codepoint, void* userdata);
   void (*on_mouse_move)(double x, double y, void* userdata);
   void (*on_mouse_button)(uint32_t btn, bool pressed, void* userdata);
@@ -50,13 +51,19 @@ KoiWaylandWindow* koi_wayland_create_window(
 void koi_wayland_set_callbacks(
     KoiWaylandWindow* window, const KoiWaylandCallbacks* callbacks);
 void koi_wayland_poll_events(KoiWaylandDisplay* display);
+void koi_wayland_roundtrip(KoiWaylandDisplay* display);
 void* koi_wayland_get_wl_display(KoiWaylandDisplay* display);
 void* koi_wayland_get_wl_surface(KoiWaylandWindow* window);
 uint32_t koi_wayland_get_width(KoiWaylandWindow* window);
 uint32_t koi_wayland_get_height(KoiWaylandWindow* window);
 bool koi_wayland_window_should_close(KoiWaylandWindow* window);
+bool koi_wayland_window_configured(KoiWaylandWindow* window);
 void koi_wayland_set_title(KoiWaylandWindow* window, const char* title);
+void koi_wayland_set_app_id(KoiWaylandWindow* window, const char* app_id);
 void koi_wayland_set_size(KoiWaylandWindow* window, uint32_t w, uint32_t h);
+void koi_wayland_set_size_limits(
+    KoiWaylandWindow* window, uint32_t min_w, uint32_t min_h, uint32_t max_w,
+    uint32_t max_h);
 void koi_wayland_set_cursor_shape(
     KoiWaylandWindow* window, KoiWaylandCursorShape shape);
 void koi_wayland_destroy_window(KoiWaylandWindow* window);

@@ -234,6 +234,10 @@ proc isKeyDown*(key: Key): bool =
   else:
     g_uiState.keyStates[ord(key)]
 
+proc clearKeyStates*() =
+  for pressed in mitems(g_uiState.keyStates):
+    pressed = false
+
 proc shiftDown*(): bool =
   isKeyDown(keyLeftShift) or isKeyDown(keyRightShift)
 

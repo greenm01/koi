@@ -22,13 +22,14 @@ type KoiWaylandCursorShape* {.size: sizeof(cint).} = enum
 
 type KoiWaylandCallbacks* {.bycopy, importc, header: "koi_wayland.h".} = object
   onClose* {.importc: "on_close".}: proc(userdata: pointer) {.cdecl.}
+  onFocus* {.importc: "on_focus".}: proc(focused: bool, userdata: pointer) {.cdecl.}
   onResize* {.importc: "on_resize".}: proc(w, h: uint32, userdata: pointer) {.cdecl.}
   onKeyDown* {.importc: "on_key_down".}:
-    proc(sym, mods: uint32, userdata: pointer) {.cdecl.}
+    proc(keycode, mods: uint32, userdata: pointer) {.cdecl.}
   onKeyRepeat* {.importc: "on_key_repeat".}:
-    proc(sym, mods: uint32, userdata: pointer) {.cdecl.}
+    proc(keycode, mods: uint32, userdata: pointer) {.cdecl.}
   onKeyUp* {.importc: "on_key_up".}:
-    proc(sym, mods: uint32, userdata: pointer) {.cdecl.}
+    proc(keycode, mods: uint32, userdata: pointer) {.cdecl.}
   onChar* {.importc: "on_char".}: proc(codepoint: uint32, userdata: pointer) {.cdecl.}
   onMouseMove* {.importc: "on_mouse_move".}:
     proc(x, y: cdouble, userdata: pointer) {.cdecl.}
@@ -56,6 +57,10 @@ proc koiWaylandPollEvents*(
   display: ptr KoiWaylandDisplay
 ) {.cdecl, importc: "koi_wayland_poll_events", header: "koi_wayland.h".}
 
+proc koiWaylandRoundtrip*(
+  display: ptr KoiWaylandDisplay
+) {.cdecl, importc: "koi_wayland_roundtrip", header: "koi_wayland.h".}
+
 proc koiWaylandGetWlDisplay*(
   display: ptr KoiWaylandDisplay
 ): pointer {.cdecl, importc: "koi_wayland_get_wl_display", header: "koi_wayland.h".}
@@ -76,13 +81,25 @@ proc koiWaylandWindowShouldClose*(
   window: ptr KoiWaylandWindow
 ): bool {.cdecl, importc: "koi_wayland_window_should_close", header: "koi_wayland.h".}
 
+proc koiWaylandWindowConfigured*(
+  window: ptr KoiWaylandWindow
+): bool {.cdecl, importc: "koi_wayland_window_configured", header: "koi_wayland.h".}
+
 proc koiWaylandSetTitle*(
   window: ptr KoiWaylandWindow, title: cstring
 ) {.cdecl, importc: "koi_wayland_set_title", header: "koi_wayland.h".}
 
+proc koiWaylandSetAppId*(
+  window: ptr KoiWaylandWindow, appId: cstring
+) {.cdecl, importc: "koi_wayland_set_app_id", header: "koi_wayland.h".}
+
 proc koiWaylandSetSize*(
   window: ptr KoiWaylandWindow, w, h: uint32
 ) {.cdecl, importc: "koi_wayland_set_size", header: "koi_wayland.h".}
+
+proc koiWaylandSetSizeLimits*(
+  window: ptr KoiWaylandWindow, minW, minH, maxW, maxH: uint32
+) {.cdecl, importc: "koi_wayland_set_size_limits", header: "koi_wayland.h".}
 
 proc koiWaylandSetCursorShape*(
   window: ptr KoiWaylandWindow, shape: KoiWaylandCursorShape

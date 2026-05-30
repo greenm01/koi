@@ -247,6 +247,14 @@ proc runAllHeadlessTests() =
     )
   for name in WidgetBehaviorTests:
     runHeadlessTest(name)
+  when defined(linux):
+    buildWaylandBackend()
+    nimRun(
+      "tests/test_wayland_backend",
+      WaylandFlags & " -d:debug",
+      outPath = "/tmp/koi_test_wayland_backend",
+      nimcache = "/tmp/koi_test_wayland_backend_d",
+    )
 
 task testPopup, "run headless popup tests":
   runHeadlessTest("popup")

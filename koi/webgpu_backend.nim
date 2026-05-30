@@ -166,6 +166,7 @@ type
     capturedWidth: uint32
     capturedHeight: uint32
     lastSubmittedDrawCalls: int
+    surfaceNeedsConfigure: bool
     vertexBuffer: Buffer
     vertexBytes: uint64
     width: float32
@@ -865,6 +866,10 @@ proc renderCaptureFrame(b: var KoiWgpuBackend, byteLen: uint64) =
   texture.release()
 
 proc renderSurfaceFrame(b: var KoiWgpuBackend, byteLen: uint64): bool =
+  if b.surfaceNeedsConfigure:
+    b.surface.configure(b.config.addr)
+    b.surfaceNeedsConfigure = false
+
   var surfaceTexture = SurfaceTexture()
   b.surface.getCurrentTexture(surfaceTexture.addr)
   case surfaceTexture.status
@@ -893,10 +898,12 @@ proc renderSurfaceFrame(b: var KoiWgpuBackend, byteLen: uint64): bool =
     )
   )
   b.queue.submit(1, commandBuffer.addr)
-  discard b.surface.present()
+  let presentStatus = b.surface.present()
+  if presentStatus != Status.Success:
+    b.surfaceNeedsConfigure = true
   commandBuffer.release()
   encoder.release()
-  true
+  presentStatus == Status.Success
 
 proc renderFlush(userPtr: pointer) {.cdecl.} =
   let b = backend(userPtr)
@@ -1221,6 +1228,7 @@ proc resizeKoiWgpuBackend*(b: var KoiWgpuBackend, width, height: uint32) =
 
   b.config.width = width
   b.config.height = height
+  b.surfaceNeedsConfigure = false
   b.surface.configure(b.config.addr)
 
 proc captureNextFrame*(b: var KoiWgpuBackend, width, height: uint32) =
